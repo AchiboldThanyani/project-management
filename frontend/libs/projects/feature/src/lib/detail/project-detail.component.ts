@@ -6,14 +6,16 @@ import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { ProjectService, ProjectMemberService } from '@pm/projects/data-access';
-import { TaskService, CommentService, IssueService, LabelService } from '@pm/tasks/data-access';
+import { TaskService, CommentService, IssueService, LabelService, TaskDependencyService } from '@pm/tasks/data-access';
 import { UserService } from '@pm/auth/data-access';
 import {
   Project, Task, TaskStatus, TaskPriority, Sprint, Comment, User,
   Issue, IssueComment, IssueType,
   ISSUE_TYPE_LABELS, ISSUE_TYPE_ICONS, ISSUE_TYPE_COLORS,
+  TASK_STATUS_LABELS,
   Label, LABEL_COLORS,
   ProjectMember, ProjectMemberRole, PROJECT_MEMBER_ROLE_LABELS,
+  TaskRef,
 } from '@pm/shared/models';
 import { ConfirmDialogComponent } from '@pm/shared/util';
 
@@ -135,6 +137,9 @@ const COLUMNS = [
                 <p *ngIf="task.description" class="task-desc">{{ task.description }}</p>
                 <div class="task-labels" *ngIf="task.labels && task.labels.length > 0">
                   <span *ngFor="let l of task.labels" class="label-chip label-{{ l.color }}">{{ l.name }}</span>
+                </div>
+                <div class="blocked-badge" *ngIf="task.isBlocked">
+                  <span class="material-icons-round">block</span> Blocked
                 </div>
                 <div class="task-footer">
                   <div class="task-tags">
@@ -648,6 +653,70 @@ const COLUMNS = [
                 </div>
               </div>
             </div>
+          </div>
+
+          <div class="panel-divider"></div>
+
+          <!-- Dependencies section -->
+          <div class="dep-section">
+
+            <!-- Blocked by -->
+            <div class="dep-group">
+              <div class="dep-group-header">
+                <span class="detail-label">Blocked by</span>
+                <button class="label-add-btn"
+                        (click)="showDepPicker.set(showDepPicker() === 'blockedBy' ? null : 'blockedBy')">
+                  <span class="material-icons-round">add</span>
+                </button>
+              </div>
+              <!-- Inline picker -->
+              <div *ngIf="showDepPicker() === 'blockedBy'" class="dep-inline-picker" (click)="$event.stopPropagation()">
+                <div *ngFor="let t of availableForDep('blockedBy')" class="dep-inline-item"
+                     (click)="addDependency('blockedBy', t.id)">
+                  <span class="dep-status-dot" [class]="'s-' + t.status"></span>{{ t.title }}
+                </div>
+                <div *ngIf="availableForDep('blockedBy').length === 0" class="dep-empty" style="padding:8px">No tasks available</div>
+              </div>
+              <div *ngIf="(selectedTask()!.blockedBy ?? []).length === 0 && showDepPicker() !== 'blockedBy'" class="dep-empty">None</div>
+              <div *ngFor="let ref of selectedTask()!.blockedBy ?? []" class="dep-row"
+                   [class.dep-open]="ref.status !== 3 && ref.status !== 5">
+                <span class="dep-status-dot" [class]="'s-' + ref.status"></span>
+                <span class="dep-title">{{ ref.title }}</span>
+                <span class="dep-status-label">{{ statusLabel(ref.status) }}</span>
+                <button class="dep-remove" (click)="removeDependency(ref.dependencyId, selectedTask()!.id)" title="Remove">
+                  <span class="material-icons-round">close</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Blocking -->
+            <div class="dep-group">
+              <div class="dep-group-header">
+                <span class="detail-label">Blocking</span>
+                <button class="label-add-btn"
+                        (click)="showDepPicker.set(showDepPicker() === 'blocking' ? null : 'blocking')">
+                  <span class="material-icons-round">add</span>
+                </button>
+              </div>
+              <!-- Inline picker -->
+              <div *ngIf="showDepPicker() === 'blocking'" class="dep-inline-picker" (click)="$event.stopPropagation()">
+                <div *ngFor="let t of availableForDep('blocking')" class="dep-inline-item"
+                     (click)="addDependency('blocking', t.id)">
+                  <span class="dep-status-dot" [class]="'s-' + t.status"></span>{{ t.title }}
+                </div>
+                <div *ngIf="availableForDep('blocking').length === 0" class="dep-empty" style="padding:8px">No tasks available</div>
+              </div>
+              <div *ngIf="(selectedTask()!.blocking ?? []).length === 0 && showDepPicker() !== 'blocking'" class="dep-empty">None</div>
+              <div *ngFor="let ref of selectedTask()!.blocking ?? []" class="dep-row">
+                <span class="dep-status-dot" [class]="'s-' + ref.status"></span>
+                <span class="dep-title">{{ ref.title }}</span>
+                <span class="dep-status-label">{{ statusLabel(ref.status) }}</span>
+                <button class="dep-remove" (click)="removeDependency(ref.dependencyId, selectedTask()!.id)" title="Remove">
+                  <span class="material-icons-round">close</span>
+                </button>
+              </div>
+            </div>
+
           </div>
 
           <div class="panel-divider"></div>
@@ -1523,6 +1592,67 @@ const COLUMNS = [
     /* Convert dialog */
     .convert-desc { margin: 0 0 16px; font-size: 13px; color: var(--muted); line-height: 1.5; }
 
+    /* ── Blocked badge (board card) ── */
+    .blocked-badge {
+      display: inline-flex; align-items: center; gap: 3px;
+      font-size: 10px; font-weight: 700;
+      color: var(--rose); background: var(--rose-c);
+      border: 1px solid var(--rose); border-radius: var(--r-full);
+      padding: 2px 7px; margin-bottom: 4px;
+    }
+    .blocked-badge .material-icons-round { font-size: 11px; }
+
+    /* ── Dependencies panel section ── */
+    .dep-section { display: flex; flex-direction: column; gap: 14px; }
+    .dep-group { display: flex; flex-direction: column; gap: 6px; }
+
+    .dep-group-header {
+      display: flex; align-items: center; justify-content: space-between;
+    }
+
+    .dep-empty { font-size: 11px; color: var(--soft); padding: 0 2px; }
+
+    .dep-row {
+      display: flex; align-items: center; gap: 7px;
+      padding: 5px 8px; border-radius: var(--r-sm);
+      border: 1px solid var(--border); background: var(--surface);
+      font-size: 12px;
+    }
+    .dep-row.dep-open { border-color: var(--rose-c); background: var(--rose-c); }
+
+    .dep-status-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    }
+    .dep-status-dot.s-0 { background: var(--soft); }
+    .dep-status-dot.s-1 { background: var(--blue); }
+    .dep-status-dot.s-2 { background: var(--amber); }
+    .dep-status-dot.s-3 { background: var(--emerald); }
+    .dep-status-dot.s-4 { background: var(--rose); }
+    .dep-status-dot.s-5 { background: var(--border); }
+
+    .dep-title { flex: 1; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .dep-status-label { font-size: 10px; color: var(--soft); flex-shrink: 0; }
+
+    .dep-remove {
+      width: 18px; height: 18px; border: none; background: transparent;
+      cursor: pointer; color: var(--soft); display: flex; align-items: center; justify-content: center;
+      border-radius: var(--r-sm); transition: color 0.12s, background 0.12s;
+      flex-shrink: 0; padding: 0;
+    }
+    .dep-remove:hover { color: var(--rose); background: var(--rose-c); }
+    .dep-remove .material-icons-round { font-size: 12px; }
+
+    .dep-inline-picker {
+      border: 1px solid var(--border); border-radius: var(--r-md);
+      background: var(--white); overflow-y: auto; max-height: 180px;
+    }
+    .dep-inline-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 12px; font-size: 12px; color: var(--ink);
+      cursor: pointer; transition: background 0.12s;
+    }
+    .dep-inline-item:hover { background: var(--surface); }
+
     /* ── Members tab ── */
     .members-section { display: flex; flex-direction: column; gap: 20px; }
 
@@ -1779,6 +1909,7 @@ export class ProjectDetailComponent implements OnInit {
   private commentService = inject(CommentService);
   private issueService = inject(IssueService);
   private labelService = inject(LabelService);
+  private dependencyService = inject(TaskDependencyService);
   private memberService = inject(ProjectMemberService);
   private userService = inject(UserService);
   private fb = inject(FormBuilder);
@@ -1817,6 +1948,53 @@ export class ProjectDetailComponent implements OnInit {
     name: ['', Validators.required],
     color: ['blue'],
   });
+
+  // ── Dependencies ────────────────────────────────
+  showDepPicker = signal<'blockedBy' | 'blocking' | null>(null);
+
+  /** Tasks in this project that can be added as a dependency (not already linked, not this task) */
+  availableForDep(mode: 'blockedBy' | 'blocking'): Task[] {
+    const task = this.selectedTask();
+    if (!task) return [];
+    const linked = new Set([
+      task.id,
+      ...(task.blockedBy ?? []).map(t => t.id),
+      ...(task.blocking  ?? []).map(t => t.id),
+    ]);
+    return this.tasks().filter(t => !linked.has(t.id));
+  }
+
+  addDependency(mode: 'blockedBy' | 'blocking', otherTaskId: string) {
+    const task = this.selectedTask()!;
+    const [blockingId, blockedId] =
+      mode === 'blockedBy' ? [otherTaskId, task.id] : [task.id, otherTaskId];
+
+    this.dependencyService.add(blockingId, blockedId).subscribe({
+      next: () => {
+        // Refresh this task to get updated dep lists from server
+        this.taskService.getById(task.id).subscribe(updated => {
+          this.selectedTask.set(updated);
+          this.tasks.update(all => all.map(t => t.id === updated.id ? updated : t));
+          this.filteredTasks.update(all => all.map(t => t.id === updated.id ? updated : t));
+        });
+        this.showDepPicker.set(null);
+      },
+      error: (err) => this.toast(err?.error?.Description ?? 'Failed to add dependency', true),
+    });
+  }
+
+  removeDependency(depId: string, taskId: string) {
+    this.dependencyService.remove(depId).subscribe({
+      next: () => {
+        this.taskService.getById(taskId).subscribe(updated => {
+          this.selectedTask.set(updated);
+          this.tasks.update(all => all.map(t => t.id === updated.id ? updated : t));
+          this.filteredTasks.update(all => all.map(t => t.id === updated.id ? updated : t));
+        });
+      },
+      error: () => this.toast('Failed to remove dependency', true),
+    });
+  }
 
   // ── Members ─────────────────────────────────────
   members = signal<ProjectMember[]>([]);
@@ -1983,6 +2161,7 @@ export class ProjectDetailComponent implements OnInit {
   roleLabel(role: ProjectMemberRole): string {
     return PROJECT_MEMBER_ROLE_LABELS[role] ?? String(role);
   }
+
 
   toggleSprintMenu(id: string) {
     this.openSprintMenuId = this.openSprintMenuId === id ? null : id;
@@ -2192,7 +2371,7 @@ export class ProjectDetailComponent implements OnInit {
   priorityIcon(p: number): string { return ['↓', '→', '↑', '⬆'][p] ?? '→'; }
   priorityClass(p: number): string { return ['low', 'medium', 'high', 'critical'][p] ?? 'low'; }
   priorityLabel(p: number): string { return ['Low', 'Medium', 'High', 'Critical'][p] ?? ''; }
-  statusLabel(s: number): string { return ['To Do', 'In Progress', 'In Review', 'Done'][s] ?? ''; }
+  statusLabel(s: number): string { return TASK_STATUS_LABELS[s as TaskStatus] ?? String(s); }
   isOverdue(date: string | null | undefined): boolean { return !!date && new Date(date) < new Date(); }
   assigneeName(userId: string | null | undefined): string {
     if (!userId) return '';

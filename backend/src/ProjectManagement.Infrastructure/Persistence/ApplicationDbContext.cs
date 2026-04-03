@@ -24,6 +24,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<IssueComment> IssueComments => Set<IssueComment>();
     public DbSet<Label> Labels => Set<Label>();
     public DbSet<ProjectMember> ProjectMembers => Set<ProjectMember>();
+    public DbSet<TaskDependency> TaskDependencies => Set<TaskDependency>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

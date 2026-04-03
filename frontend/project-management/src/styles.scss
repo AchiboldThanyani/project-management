@@ -5,7 +5,7 @@
 $theme: mat.define-theme((
   color: (
     theme-type: light,
-    primary: mat.$violet-palette,
+    primary: mat.$green-palette,
     tertiary: mat.$cyan-palette,
   ),
   typography: (
@@ -40,10 +40,10 @@ html, body {
   --page:   #fafafc;
   --white:  #ffffff;
 
-  --violet:     #6644dd;
-  --violet-2:   #7c5ce8;
-  --violet-c:   #ede9ff;
-  --violet-mid: rgba(102,68,221,0.12);
+  --violet:     #3a8a45;
+  --violet-2:   #4aa356;
+  --violet-c:   #e6f4e8;
+  --violet-mid: rgba(58,138,69,0.12);
 
   --teal:    #00b8a0;
   --teal-c:  #e0faf7;

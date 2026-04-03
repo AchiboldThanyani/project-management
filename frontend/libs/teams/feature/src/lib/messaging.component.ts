@@ -148,7 +148,7 @@ import { Team, Message } from '@pm/shared/models';
       margin-bottom: 1px;
     }
     .channel-item:hover  { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.75); }
-    .channel-item.active { background: rgba(102,68,221,0.25); color: #fff; }
+    .channel-item.active { background: var(--violet-mid); color: #fff; }
 
     .ch-ico { font-size: 15px; opacity: 0.6; }
     .ch-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

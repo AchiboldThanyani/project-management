@@ -8,8 +8,11 @@ using ProjectManagement.Application.Features.Tasks.DeleteTask;
 using ProjectManagement.Application.Features.Tasks.DTOs;
 using ProjectManagement.Application.Features.Tasks.GetTaskById;
 using ProjectManagement.Application.Features.Tasks.GetTasksByProject;
+using ProjectManagement.Application.Features.Tasks.Dependencies.AddDependency;
+using ProjectManagement.Application.Features.Tasks.Dependencies.RemoveDependency;
 using ProjectManagement.Application.Features.Tasks.UpdateTask;
 using ProjectManagement.Application.Features.Tasks.UpdateTaskStatus;
+using ProjectManagement.Application.Common;
 using ProjectManagement.Domain.Enums;
 using ProjectManagement.WebApi.Extensions;
 using TaskStatus = ProjectManagement.Domain.Enums.TaskStatus;
@@ -55,6 +58,35 @@ public class TasksController(IMediator mediator) : ControllerBase
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
         => (await mediator.Send(new DeleteTaskCommand(id), ct)).ToActionResult(this);
+
+    // ── Dependencies ──────────────────────────────────────────────────────────
+
+    // POST api/tasks/{blockingTaskId}/blocks/{blockedTaskId}
+    // "Task {blockingTaskId} blocks task {blockedTaskId}"
+    [HttpPost("{blockingTaskId:guid}/blocks/{blockedTaskId:guid}")]
+    public async Task<IActionResult> AddDependency(Guid blockingTaskId, Guid blockedTaskId, CancellationToken ct)
+    {
+        var result = await mediator.Send(new AddDependencyCommand(blockingTaskId, blockedTaskId), ct);
+        return result.IsSuccess ? NoContent() : result.Error!.Type switch
+        {
+            ErrorType.NotFound   => NotFound(new { result.Error.Code, result.Error.Description }),
+            ErrorType.Validation => BadRequest(new { result.Error.Code, result.Error.Description }),
+            ErrorType.Conflict   => Conflict(new { result.Error.Code, result.Error.Description }),
+            _                    => StatusCode(500, new { result.Error.Code, result.Error.Description }),
+        };
+    }
+
+    // DELETE api/tasks/dependencies/{dependencyId}
+    [HttpDelete("dependencies/{dependencyId:guid}")]
+    public async Task<IActionResult> RemoveDependency(Guid dependencyId, CancellationToken ct)
+    {
+        var result = await mediator.Send(new RemoveDependencyCommand(dependencyId), ct);
+        return result.IsSuccess ? NoContent() : result.Error!.Type switch
+        {
+            ErrorType.NotFound => NotFound(new { result.Error.Code, result.Error.Description }),
+            _                  => StatusCode(500, new { result.Error.Code, result.Error.Description }),
+        };
+    }
 }
 
 public record CreateTaskRequest(

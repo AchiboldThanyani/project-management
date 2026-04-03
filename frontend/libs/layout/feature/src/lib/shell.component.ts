@@ -101,7 +101,7 @@ import { AuthService } from '@pm/auth/data-access';
       content: '';
       position: absolute; bottom: -60px; left: -40px;
       width: 200px; height: 200px; border-radius: 50%;
-      background: radial-gradient(circle, rgba(102,68,221,0.25) 0%, transparent 70%);
+      background: radial-gradient(circle, var(--violet-mid) 0%, transparent 70%);
       pointer-events: none;
     }
 
@@ -117,7 +117,7 @@ import { AuthService } from '@pm/auth/data-access';
       width: 30px; height: 30px; border-radius: 8px;
       background: var(--violet);
       display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 4px 12px rgba(102,68,221,0.4);
+      box-shadow: 0 4px 12px rgba(58,138,69,0.4);
       flex-shrink: 0;
     }
     .brand-ico .material-icons-round { font-size: 16px; color: #fff; }
@@ -159,7 +159,7 @@ import { AuthService } from '@pm/auth/data-access';
       text-decoration: none;
     }
     .nav-item:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.75); }
-    .nav-item.active { background: rgba(102,68,221,0.25); color: #fff; }
+    .nav-item.active { background: var(--violet-mid); color: #fff; }
     .nav-item .material-icons-round { font-size: 17px; }
     .nav-item.signout { color: rgba(255,255,255,0.3); }
     .nav-item.signout:hover { background: rgba(244,63,94,0.12); color: var(--rose); }

@@ -130,7 +130,7 @@ import { ConfirmDialogComponent } from '@pm/shared/util';
       padding: 8px 16px; border-radius: var(--r-full);
       background: var(--violet); color: #fff; border: none;
       font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600;
-      cursor: pointer; box-shadow: 0 2px 8px rgba(102,68,221,0.3);
+      cursor: pointer; box-shadow: 0 2px 8px rgba(58,138,69,0.3);
       transition: background 0.15s, transform 0.1s;
     }
     .add-btn:hover { background: var(--violet-2); transform: translateY(-1px); }
@@ -155,7 +155,7 @@ import { ConfirmDialogComponent } from '@pm/shared/util';
     .pj-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
 
     .pj-top { height: 5px; }
-    .pj-top.accent-0 { background: linear-gradient(90deg, #6644dd, #7c5ce8); }
+    .pj-top.accent-0 { background: linear-gradient(90deg, var(--violet), var(--violet-2)); }
     .pj-top.accent-1 { background: linear-gradient(90deg, #00b8a0, #00d4b8); }
     .pj-top.accent-2 { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
     .pj-top.accent-3 { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
@@ -218,7 +218,7 @@ import { ConfirmDialogComponent } from '@pm/shared/util';
     .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
     .btn-ghost { padding: 8px 16px; border-radius: var(--r-full); border: 1px solid var(--border); background: none; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; color: var(--muted); cursor: pointer; }
     .btn-ghost:hover { background: var(--surface); }
-    .btn-primary { padding: 8px 20px; border-radius: var(--r-full); border: none; background: var(--violet); color: #fff; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(102,68,221,0.3); }
+    .btn-primary { padding: 8px 20px; border-radius: var(--r-full); border: none; background: var(--violet); color: #fff; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(58,138,69,0.3); }
     .btn-primary:hover:not(:disabled) { background: var(--violet-2); }
     .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
     .spinner-sm { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }

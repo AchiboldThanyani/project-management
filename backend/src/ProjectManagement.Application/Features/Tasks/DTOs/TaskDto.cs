@@ -1,4 +1,5 @@
 using ProjectManagement.Application.Features.Labels.DTOs;
+using ProjectManagement.Application.Features.Tasks.Dependencies.DTOs;
 using ProjectManagement.Domain.Enums;
 using TaskStatus = ProjectManagement.Domain.Enums.TaskStatus;
 
@@ -21,6 +22,17 @@ public record TaskDto
     public DateTime CreatedAt { get; init; }
     public DateTime? UpdatedAt { get; init; }
     public IReadOnlyList<LabelDto> Labels { get; init; } = [];
+
+    /// <summary>Tasks that must finish before this one can start.</summary>
+    public IReadOnlyList<DependencyTaskRef> BlockedBy { get; init; } = [];
+
+    /// <summary>Tasks that are waiting on this one.</summary>
+    public IReadOnlyList<DependencyTaskRef> Blocking { get; init; } = [];
+
+    /// <summary>True when at least one blocker is still open.</summary>
+    public bool IsBlocked => BlockedBy.Any(t =>
+        t.Status != Domain.Enums.TaskStatus.Done &&
+        t.Status != Domain.Enums.TaskStatus.Cancelled);
 }
 
 public record TaskCommentDto

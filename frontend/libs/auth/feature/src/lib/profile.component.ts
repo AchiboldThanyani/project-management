@@ -59,7 +59,7 @@ import { AuthService } from '@pm/auth/data-access';
     .avatar-glow {
       position: absolute; inset: -4px;
       border-radius: 50%;
-      background: linear-gradient(135deg, rgba(102,68,221,0.3), rgba(0,184,160,0.3));
+      background: linear-gradient(135deg, rgba(58,138,69,0.3), rgba(0,184,160,0.3));
       filter: blur(8px);
       z-index: 0;
     }

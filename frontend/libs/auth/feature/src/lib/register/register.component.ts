@@ -99,7 +99,7 @@ import { AuthService } from '@pm/auth/data-access';
       content: '';
       position: absolute; top: -80px; right: -60px;
       width: 320px; height: 320px; border-radius: 50%;
-      background: radial-gradient(circle, rgba(102,68,221,0.2) 0%, transparent 70%);
+      background: radial-gradient(circle, rgba(58,138,69,0.2) 0%, transparent 70%);
       pointer-events: none;
     }
 
@@ -118,7 +118,7 @@ import { AuthService } from '@pm/auth/data-access';
       width: 30px; height: 30px; border-radius: 8px;
       background: var(--violet);
       display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 4px 12px rgba(102,68,221,0.4);
+      box-shadow: 0 4px 12px rgba(58,138,69,0.4);
     }
     .brand-ico .material-icons-round { font-size: 16px; color: #fff; }
     .brand-name { font-size: 14px; font-weight: 700; color: #fff; }

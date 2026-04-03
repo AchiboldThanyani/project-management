@@ -23,6 +23,11 @@ public class ProjectTask : BaseEntity
     public ICollection<Comment> Comments { get; set; } = [];
     public ICollection<Label> Labels { get; set; } = [];
 
+    // Dependencies where this task is the one being blocked
+    public ICollection<TaskDependency> BlockedByDependencies { get; set; } = [];
+    // Dependencies where this task is the blocker
+    public ICollection<TaskDependency> BlockingDependencies { get; set; } = [];
+
     private ProjectTask() { }
 
     public static ProjectTask Create(string title, Guid projectId, string reporterId,

@@ -30,6 +30,17 @@ export interface Task {
   createdAt: string;
   updatedAt?: string;
   labels: { id: string; name: string; color: string }[];
+  blockedBy: TaskRef[];
+  blocking: TaskRef[];
+  isBlocked: boolean;
+}
+
+export interface TaskRef {
+  dependencyId: string;
+  id: string;
+  title: string;
+  status: TaskStatus;
+  projectId: string;
 }
 
 export interface CreateTaskRequest {
