@@ -1,0 +1,9 @@
+using ProjectManagement.Domain.Entities;
+using ProjectManagement.Domain.Interfaces;
+
+namespace ProjectManagement.Application.Interfaces;
+
+public interface ITaskRepository : IRepository<ProjectTask>
+{
+    Task<ProjectTask?> GetByIdWithLabelsAsync(Guid taskId, CancellationToken ct = default);
+}
