@@ -1,0 +1,152 @@
+@use '@angular/material' as mat;
+
+@include mat.core();
+
+$theme: mat.define-theme((
+  color: (
+    theme-type: light,
+    primary: mat.$violet-palette,
+    tertiary: mat.$cyan-palette,
+  ),
+  typography: (
+    brand-family: 'DM Sans',
+    plain-family: 'DM Sans',
+  ),
+));
+
+html, body {
+  @include mat.all-component-themes($theme);
+  height: 100%;
+  margin: 0;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  background: var(--page);
+  color: var(--ink);
+  overflow: hidden;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+/* ─── Design Tokens ─────────────────────────────────── */
+:root {
+  --ink:    #0f0f14;
+  --ink-2:  #1c1c26;
+  --ink-3:  #2a2a38;
+  --ink-4:  #3d3d52;
+  --muted:  #6b6b85;
+  --soft:   #a8a8bc;
+  --border: #e8e8f0;
+  --surface:#f5f5fa;
+  --page:   #fafafc;
+  --white:  #ffffff;
+
+  --violet:     #6644dd;
+  --violet-2:   #7c5ce8;
+  --violet-c:   #ede9ff;
+  --violet-mid: rgba(102,68,221,0.12);
+
+  --teal:    #00b8a0;
+  --teal-c:  #e0faf7;
+  --amber:   #f59e0b;
+  --amber-c: #fef3c7;
+  --rose:    #f43f5e;
+  --rose-c:  #ffe4e6;
+  --blue:    #3b82f6;
+  --blue-c:  #dbeafe;
+  --emerald: #10b981;
+  --emerald-c: #d1fae5;
+
+  --r-sm:   6px;
+  --r-md:   10px;
+  --r-lg:   14px;
+  --r-xl:   20px;
+  --r-full: 999px;
+
+  --shadow-sm: 0 1px 3px rgba(15,15,20,0.06), 0 1px 2px rgba(15,15,20,0.04);
+  --shadow-md: 0 4px 12px rgba(15,15,20,0.08), 0 2px 4px rgba(15,15,20,0.04);
+  --shadow-lg: 0 12px 32px rgba(15,15,20,0.1), 0 4px 8px rgba(15,15,20,0.06);
+}
+
+/* ─── Scrollbars ─────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: var(--r-full); }
+::-webkit-scrollbar-thumb:hover { background: var(--soft); }
+
+/* ─── Typography reset ───────────────────────────────── */
+h1, h2, h3 { font-family: 'DM Sans', sans-serif; }
+
+/* ─── Material overrides ─────────────────────────────── */
+
+/* Force DM Sans everywhere Material applies Roboto */
+.mat-typography, .mat-mdc-dialog-surface, .mdc-text-field,
+.mat-mdc-menu-panel, .mat-mdc-select-panel {
+  font-family: 'DM Sans', sans-serif !important;
+}
+
+/* Flat card resets */
+mat-card.ph-card, .ph-card {
+  border-radius: var(--r-lg) !important;
+  box-shadow: none !important;
+  border: 1px solid var(--border) !important;
+  background: var(--white) !important;
+}
+
+/* Input fields */
+.mdc-text-field--outlined .mdc-notched-outline__leading,
+.mdc-text-field--outlined .mdc-notched-outline__notch,
+.mdc-text-field--outlined .mdc-notched-outline__trailing {
+  border-color: var(--border) !important;
+  border-radius: var(--r-md) !important;
+}
+.mdc-text-field--focused .mdc-notched-outline__leading,
+.mdc-text-field--focused .mdc-notched-outline__notch,
+.mdc-text-field--focused .mdc-notched-outline__trailing {
+  border-color: var(--violet) !important;
+}
+
+/* Select */
+.mat-mdc-select-panel { border-radius: var(--r-lg) !important; box-shadow: var(--shadow-md) !important; }
+
+/* Buttons */
+.mdc-button--raised, .mat-mdc-raised-button {
+  border-radius: var(--r-full) !important;
+  font-family: 'DM Sans', sans-serif !important;
+  font-weight: 600 !important;
+  letter-spacing: 0 !important;
+}
+
+/* Dialog */
+.mat-mdc-dialog-surface {
+  border-radius: var(--r-xl) !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+
+/* Spinner */
+mat-progress-spinner circle { stroke: var(--violet) !important; }
+
+/* Snackbars */
+.snack-success .mdc-snackbar__surface { background: var(--ink-2) !important; font-family: 'DM Sans', sans-serif !important; }
+.snack-error   .mdc-snackbar__surface { background: var(--rose) !important; font-family: 'DM Sans', sans-serif !important; }
+
+/* ─── Badge / chip helpers ───────────────────────────── */
+.ph-badge {
+  display: inline-flex; align-items: center;
+  padding: 2px 9px; border-radius: var(--r-full);
+  font-size: 10px; font-weight: 600;
+}
+.ph-badge.planning { background: var(--blue-c);    color: var(--blue); }
+.ph-badge.active   { background: var(--teal-c);    color: var(--teal); }
+.ph-badge.on-hold  { background: var(--amber-c);   color: var(--amber); }
+.ph-badge.completed{ background: var(--emerald-c); color: var(--emerald); }
+.ph-badge.archived { background: var(--surface);   color: var(--muted); }
+
+.ph-priority {
+  width: 18px; height: 18px; border-radius: 5px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 11px;
+}
+.ph-priority.critical { background: var(--rose-c);    color: var(--rose); }
+.ph-priority.high     { background: var(--rose-c);    color: var(--rose); }
+.ph-priority.medium   { background: var(--amber-c);   color: var(--amber); }
+.ph-priority.low      { background: var(--emerald-c); color: var(--emerald); }

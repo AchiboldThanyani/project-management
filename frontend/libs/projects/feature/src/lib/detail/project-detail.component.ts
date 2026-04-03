@@ -1,0 +1,2438 @@
+import { Component, OnInit, signal, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { ActivatedRoute } from '@angular/router';
+import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { ProjectService, ProjectMemberService } from '@pm/projects/data-access';
+import { TaskService, CommentService, IssueService, LabelService } from '@pm/tasks/data-access';
+import { UserService } from '@pm/auth/data-access';
+import {
+  Project, Task, TaskStatus, TaskPriority, Sprint, Comment, User,
+  Issue, IssueComment, IssueType,
+  ISSUE_TYPE_LABELS, ISSUE_TYPE_ICONS, ISSUE_TYPE_COLORS,
+  Label, LABEL_COLORS,
+  ProjectMember, ProjectMemberRole, PROJECT_MEMBER_ROLE_LABELS,
+} from '@pm/shared/models';
+import { ConfirmDialogComponent } from '@pm/shared/util';
+
+const COLUMNS = [
+  { id: 'col-todo',       status: TaskStatus.Todo,       label: 'TO DO',       dot: 'var(--soft)' },
+  { id: 'col-inprogress', status: TaskStatus.InProgress, label: 'IN PROGRESS', dot: 'var(--blue)' },
+  { id: 'col-inreview',   status: TaskStatus.InReview,   label: 'IN REVIEW',   dot: 'var(--amber)' },
+  { id: 'col-done',       status: TaskStatus.Done,       label: 'DONE',        dot: 'var(--emerald)' },
+];
+
+@Component({
+  selector: 'pm-project-detail',
+  standalone: true,
+  imports: [
+    CommonModule, ReactiveFormsModule, FormsModule, DragDropModule,
+    MatSnackBarModule, MatDialogModule,
+  ],
+  template: `
+    <div *ngIf="loading()" class="loading-wrap">
+      <div class="spinner"></div>
+    </div>
+
+    <div *ngIf="!loading() && project()" class="detail-page">
+
+      <!-- ── Topbar ─────────────────────────────── -->
+      <div class="topbar">
+        <div>
+          <h1 class="page-title">{{ project()!.name }}</h1>
+          <p class="page-sub" *ngIf="project()!.description">{{ project()!.description }}</p>
+        </div>
+        <button class="btn-primary" *ngIf="activeTab !== 'issues'" (click)="showCreateTask.set(true)">
+          <span class="material-icons-round">add</span> Add Task
+        </button>
+        <button class="btn-primary" *ngIf="activeTab === 'issues'" (click)="showCreateIssue.set(true)">
+          <span class="material-icons-round">add</span> New Issue
+        </button>
+      </div>
+
+      <!-- ── Tabs ───────────────────────────────── -->
+      <div class="tab-bar">
+        <button class="tab" [class.active]="activeTab === 'board'" (click)="activeTab = 'board'">
+          <span class="material-icons-round">view_kanban</span> Board
+        </button>
+        <button class="tab" [class.active]="activeTab === 'sprints'" (click)="activeTab = 'sprints'">
+          <span class="material-icons-round">sprint</span> Sprints
+        </button>
+        <button class="tab" [class.active]="activeTab === 'issues'" (click)="switchToIssues()">
+          <span class="material-icons-round">bug_report</span> Issues
+          <span class="tab-badge" *ngIf="openIssueCount() > 0">{{ openIssueCount() }}</span>
+        </button>
+        <button class="tab" [class.active]="activeTab === 'timeline'" (click)="activeTab = 'timeline'">
+          <span class="material-icons-round">timeline</span> Timeline
+        </button>
+        <button class="tab" [class.active]="activeTab === 'members'" (click)="switchToMembers()">
+          <span class="material-icons-round">group</span> Members
+          <span class="tab-badge" *ngIf="members().length > 0">{{ members().length }}</span>
+        </button>
+      </div>
+
+      <!-- ── Board tab ──────────────────────────── -->
+      <div *ngIf="activeTab === 'board'">
+
+        <!-- Filter bar -->
+        <div class="filter-bar">
+          <select class="filter-select" [(ngModel)]="filterSprintId" (ngModelChange)="applyFilters()">
+            <option [ngValue]="null">All sprints</option>
+            <option value="backlog">Backlog</option>
+            <option *ngFor="let s of sprints()" [value]="s.id">{{ s.name }}</option>
+          </select>
+          <select class="filter-select" [(ngModel)]="filterPriority" (ngModelChange)="applyFilters()">
+            <option [ngValue]="null">All priorities</option>
+            <option [ngValue]="0">Low</option>
+            <option [ngValue]="1">Medium</option>
+            <option [ngValue]="2">High</option>
+            <option [ngValue]="3">Critical</option>
+          </select>
+          <select class="filter-select" *ngIf="users().length > 0" [(ngModel)]="filterAssigneeId" (ngModelChange)="applyFilters()">
+            <option [ngValue]="null">Anyone</option>
+            <option value="unassigned">Unassigned</option>
+            <option *ngFor="let u of users()" [value]="u.id">{{ u.fullName }}</option>
+          </select>
+          <select class="filter-select" *ngIf="labels().length > 0" [(ngModel)]="filterLabelId" (ngModelChange)="applyFilters()">
+            <option [ngValue]="null">All labels</option>
+            <option *ngFor="let l of labels()" [value]="l.id">{{ l.name }}</option>
+          </select>
+          <button class="clear-filter" *ngIf="hasActiveFilter()" (click)="clearFilters()">
+            <span class="material-icons-round">filter_alt_off</span> Clear
+          </button>
+        </div>
+
+        <!-- Kanban -->
+        <div class="kanban-board" cdkDropListGroup>
+          <div class="kanban-col" *ngFor="let col of columns">
+            <div class="col-header">
+              <div class="col-header-left">
+                <span class="col-dot" [style.background]="col.dot"></span>
+                <span class="col-label">{{ col.label }}</span>
+              </div>
+              <span class="col-count">{{ getTasksByStatus(col.status).length }}</span>
+            </div>
+
+            <div class="task-list"
+                 cdkDropList [id]="col.id"
+                 [cdkDropListData]="getTasksByStatus(col.status)"
+                 [cdkDropListConnectedTo]="columnIds"
+                 (cdkDropListDropped)="onDrop($event, col.status)">
+
+              <div *ngFor="let task of getTasksByStatus(col.status)"
+                   class="task-card"
+                   cdkDrag [cdkDragData]="task"
+                   (click)="openTask(task)">
+                <div *cdkDragPlaceholder class="drag-placeholder"></div>
+
+                <div class="task-top">
+                  <span class="task-id">{{ taskId(task) }}</span>
+                  <span class="ph-priority {{ priorityClass(task.priority) }}">{{ priorityIcon(task.priority) }}</span>
+                </div>
+                <div class="task-title">{{ task.title }}</div>
+                <p *ngIf="task.description" class="task-desc">{{ task.description }}</p>
+                <div class="task-labels" *ngIf="task.labels && task.labels.length > 0">
+                  <span *ngFor="let l of task.labels" class="label-chip label-{{ l.color }}">{{ l.name }}</span>
+                </div>
+                <div class="task-footer">
+                  <div class="task-tags">
+                    <span *ngIf="task.storyPoints" class="tag">
+                      <span class="material-icons-round tag-ico">star</span>{{ task.storyPoints }}
+                    </span>
+                    <span *ngIf="task.dueDate" class="tag" [class.tag-overdue]="isOverdue(task.dueDate)">
+                      <span class="material-icons-round tag-ico">event</span>{{ task.dueDate | date:'MMM d' }}
+                    </span>
+                  </div>
+                  <div *ngIf="task.assigneeName" class="assignee-ava" [title]="task.assigneeName">
+                    {{ nameInitials(task.assigneeName) }}
+                  </div>
+                </div>
+              </div>
+
+              <div *ngIf="getTasksByStatus(col.status).length === 0" class="col-empty">
+                <span class="material-icons-round">drag_indicator</span>
+                <span>Drop tasks here</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Sprints tab ────────────────────────── -->
+      <div *ngIf="activeTab === 'sprints'" class="sprints-section">
+        <div class="sprints-header">
+          <button class="btn-ghost" (click)="showManageLabels.set(true)">
+            <span class="material-icons-round">label</span> Labels
+          </button>
+          <button class="btn-primary" (click)="showCreateSprint.set(true)">
+            <span class="material-icons-round">add</span> New Sprint
+          </button>
+        </div>
+
+        <div *ngFor="let s of sprints()" class="sprint-card">
+          <div class="sprint-card-header">
+            <div class="sprint-left">
+              <div class="sprint-name-row">
+                <span class="sprint-name">{{ s.name }}</span>
+                <span class="ph-badge active" *ngIf="s.isActive">Active</span>
+                <span class="ph-badge planning" *ngIf="!s.isActive">Planned</span>
+              </div>
+              <div class="sprint-dates">
+                <span class="material-icons-round date-ico">calendar_today</span>
+                {{ s.startDate | date:'MMM d' }} – {{ s.endDate | date:'MMM d, y' }}
+              </div>
+              <p *ngIf="s.goal" class="sprint-goal">{{ s.goal }}</p>
+            </div>
+            <div class="sprint-right">
+              <div class="sprint-stats">
+                <span class="stat">
+                  <span class="material-icons-round stat-ico">assignment</span>
+                  {{ tasksBySprint(s.id).length }} tasks
+                </span>
+                <span class="stat done" *ngIf="tasksBySprint(s.id).length > 0">
+                  <span class="material-icons-round stat-ico">task_alt</span>
+                  {{ doneTasksBySprint(s.id) }} done
+                </span>
+              </div>
+              <div class="sprint-menu">
+                <button class="icon-btn" (click)="toggleSprintMenu(s.id)">
+                  <span class="material-icons-round">more_vert</span>
+                </button>
+                <div class="dropdown" *ngIf="openSprintMenuId === s.id" (click)="$event.stopPropagation()">
+                  <button class="dd-item" *ngIf="!s.isActive" (click)="activateSprint(s); openSprintMenuId = null">
+                    <span class="material-icons-round">play_arrow</span> Activate
+                  </button>
+                  <button class="dd-item" *ngIf="s.isActive" (click)="completeSprint(s); openSprintMenuId = null">
+                    <span class="material-icons-round">check_circle</span> Complete
+                  </button>
+                  <button class="dd-item" (click)="openEditSprint(s); openSprintMenuId = null">
+                    <span class="material-icons-round">edit</span> Edit
+                  </button>
+                  <button class="dd-item danger" (click)="confirmDeleteSprint(s); openSprintMenuId = null">
+                    <span class="material-icons-round">delete</span> Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <p *ngIf="sprints().length === 0" class="empty-text">No sprints yet.</p>
+      </div>
+
+      <!-- ── Issues tab ─────────────────────────── -->
+      <div *ngIf="activeTab === 'issues'" class="issues-section">
+
+        <!-- Filter bar -->
+        <div class="issue-filter-bar">
+          <div class="status-toggle">
+            <button class="st-btn" [class.active]="issueFilterStatus === 'open'"
+                    (click)="issueFilterStatus = 'open'">
+              <span class="material-icons-round">radio_button_unchecked</span>
+              {{ openIssueCount() }} Open
+            </button>
+            <button class="st-btn" [class.active]="issueFilterStatus === 'closed'"
+                    (click)="issueFilterStatus = 'closed'">
+              <span class="material-icons-round">check_circle_outline</span>
+              {{ closedIssueCount() }} Closed
+            </button>
+          </div>
+          <div style="flex:1"></div>
+          <select class="filter-select" [(ngModel)]="issueFilterType">
+            <option [ngValue]="null">All Types</option>
+            <option [ngValue]="0">Bug</option>
+            <option [ngValue]="1">Feature</option>
+            <option [ngValue]="2">Question</option>
+            <option [ngValue]="3">Chore</option>
+          </select>
+          <select class="filter-select" [(ngModel)]="issueFilterAssignee">
+            <option [ngValue]="null">Anyone</option>
+            <option *ngFor="let u of users()" [value]="u.id">{{ u.fullName }}</option>
+          </select>
+        </div>
+
+        <!-- Loading -->
+        <div *ngIf="issuesLoading()" class="loading-wrap"><div class="spinner"></div></div>
+
+        <!-- List -->
+        <div *ngIf="!issuesLoading()" class="issue-list">
+          <div *ngFor="let issue of filteredIssues()" class="issue-row" (click)="openIssue(issue)">
+            <span class="issue-type-dot type-{{ issueTypeColor(issue.type) }}" [title]="issueTypeLabel(issue.type)">
+              <span class="material-icons-round">{{ issueTypeIcon(issue.type) }}</span>
+            </span>
+            <span class="issue-num">#{{ issue.number }}</span>
+            <div class="issue-info">
+              <span class="issue-title">{{ issue.title }}</span>
+              <span class="issue-meta">
+                <span *ngIf="issue.convertedToTaskId" class="issue-converted-badge">
+                  <span class="material-icons-round">done_all</span> converted to task
+                </span>
+                <ng-container *ngIf="!issue.convertedToTaskId">
+                  opened by {{ issue.reporterName || 'Unknown' }}
+                  <ng-container *ngIf="issue.commentCount > 0"> · {{ issue.commentCount }} comments</ng-container>
+                </ng-container>
+              </span>
+            </div>
+            <div class="issue-badges">
+              <span class="issue-type-badge type-{{ issueTypeColor(issue.type) }}">{{ issueTypeLabel(issue.type) }}</span>
+              <div *ngIf="issue.assigneeName" class="assignee-ava" [title]="issue.assigneeName">
+                {{ nameInitials(issue.assigneeName) }}
+              </div>
+            </div>
+          </div>
+          <div *ngIf="filteredIssues().length === 0" class="issues-empty">
+            <span class="material-icons-round">{{ issueFilterStatus === 'closed' ? 'check_circle' : 'bug_report' }}</span>
+            <p>No {{ issueFilterStatus }} issues{{ issueFilterType !== null ? ' of this type' : '' }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Timeline tab ─────────────────────────── -->
+      <div *ngIf="activeTab === 'timeline'" class="tl-section">
+
+        <!-- Empty state -->
+        <div *ngIf="sprints().length === 0" class="tl-empty">
+          <span class="material-icons-round">timeline</span>
+          <p>No sprints yet — create a sprint to see the timeline</p>
+          <button class="btn-primary sm" (click)="activeTab = 'sprints'; showCreateSprint.set(true)">
+            <span class="material-icons-round">add</span> New Sprint
+          </button>
+        </div>
+
+        <ng-container *ngIf="sprints().length > 0">
+
+          <!-- Axis row (month labels) -->
+          <div class="tl-row tl-axis-row">
+            <div class="tl-label"></div>
+            <div class="tl-track tl-axis-track">
+              <div *ngFor="let m of timelineMonths()" class="tl-month-tick"
+                   [style.left.%]="m.pct">
+                <span class="tl-month-label">{{ m.label }}</span>
+              </div>
+              <div class="tl-today-line tl-today-line--axis" [style.left.%]="todayPct()"></div>
+            </div>
+          </div>
+
+          <!-- Sprint rows -->
+          <div *ngFor="let s of sprints()" class="tl-row">
+            <div class="tl-label">
+              <span class="tl-sprint-name" [title]="s.name">{{ s.name }}</span>
+              <span class="ph-badge active" *ngIf="s.isActive">Active</span>
+            </div>
+            <div class="tl-track">
+              <!-- Grid lines aligned to month ticks -->
+              <div *ngFor="let m of timelineMonths()" class="tl-grid-line"
+                   [style.left.%]="m.pct"></div>
+              <!-- Today line -->
+              <div class="tl-today-line" [style.left.%]="todayPct()"></div>
+              <!-- Sprint bar -->
+              <div class="tl-bar" [class.tl-bar-active]="s.isActive"
+                   [style.left.%]="sprintLeft(s)"
+                   [style.width.%]="sprintWidth(s)"
+                   [title]="s.name + ': ' + (s.startDate | date:'MMM d') + ' – ' + (s.endDate | date:'MMM d, y')">
+                <span class="tl-bar-dates">{{ s.startDate | date:'MMM d' }} – {{ s.endDate | date:'MMM d' }}</span>
+              </div>
+              <!-- Task dots (only those with a due date) -->
+              <ng-container *ngFor="let t of tasksBySprint(s.id)">
+                <div *ngIf="t.dueDate"
+                     class="tl-dot prio-{{ priorityClass(t.priority) }}"
+                     [style.left.%]="pct(t.dueDate)"
+                     [title]="t.title + ' · Due ' + (t.dueDate | date:'MMM d') + ' · ' + priorityLabel(t.priority)">
+                </div>
+              </ng-container>
+            </div>
+          </div>
+
+          <!-- Backlog row -->
+          <div class="tl-row tl-backlog-row" *ngIf="backlogTasksWithDue().length > 0">
+            <div class="tl-label">
+              <span class="tl-sprint-name">Backlog</span>
+            </div>
+            <div class="tl-track">
+              <div *ngFor="let m of timelineMonths()" class="tl-grid-line"
+                   [style.left.%]="m.pct"></div>
+              <div class="tl-today-line" [style.left.%]="todayPct()"></div>
+              <ng-container *ngFor="let t of backlogTasksWithDue()">
+                <div class="tl-dot prio-{{ priorityClass(t.priority) }}"
+                     [style.left.%]="pct(t.dueDate!)"
+                     [title]="t.title + ' · Due ' + (t.dueDate | date:'MMM d') + ' · ' + priorityLabel(t.priority)">
+                </div>
+              </ng-container>
+            </div>
+          </div>
+
+          <!-- Legend -->
+          <div class="tl-legend">
+            <div class="tl-legend-item">
+              <div class="tl-legend-bar planned"></div><span>Planned sprint</span>
+            </div>
+            <div class="tl-legend-item">
+              <div class="tl-legend-bar active-bar"></div><span>Active sprint</span>
+            </div>
+            <div class="tl-legend-item">
+              <div class="tl-dot prio-low" style="position:static;transform:none"></div><span>Low</span>
+            </div>
+            <div class="tl-legend-item">
+              <div class="tl-dot prio-medium" style="position:static;transform:none"></div><span>Medium</span>
+            </div>
+            <div class="tl-legend-item">
+              <div class="tl-dot prio-high" style="position:static;transform:none"></div><span>High</span>
+            </div>
+            <div class="tl-legend-item">
+              <div class="tl-dot prio-critical" style="position:static;transform:none"></div><span>Critical</span>
+            </div>
+            <div class="tl-legend-item">
+              <div class="tl-today-legend"></div><span>Today</span>
+            </div>
+          </div>
+
+        </ng-container>
+      </div>
+
+      <!-- ── Members tab ───────────────────────────── -->
+      <div *ngIf="activeTab === 'members'" class="members-section">
+
+        <!-- Header row -->
+        <div class="members-header">
+          <p class="members-subtitle">People working on this project and their open task workload.</p>
+          <button class="btn-primary sm" (click)="showAddMember.set(true)">
+            <span class="material-icons-round">person_add</span> Add Member
+          </button>
+        </div>
+
+        <!-- Loading / empty -->
+        <div *ngIf="membersLoading()" class="loading-wrap">
+          <span class="material-icons-round spin">autorenew</span>
+        </div>
+        <div *ngIf="!membersLoading() && members().length === 0" class="members-empty">
+          <span class="material-icons-round">group_off</span>
+          <p>No members yet — add someone to get started.</p>
+        </div>
+
+        <!-- Member cards grid -->
+        <div *ngIf="!membersLoading() && members().length > 0" class="member-grid">
+          <div *ngFor="let m of members()" class="member-card">
+
+            <!-- Avatar -->
+            <div class="member-avatar">{{ initials(m.fullName) }}</div>
+
+            <!-- Info -->
+            <div class="member-info">
+              <p class="member-name">{{ m.fullName }}</p>
+              <p class="member-email">{{ m.email }}</p>
+              <div class="member-meta">
+                <span class="member-role-badge role-{{ m.role }}">{{ roleLabel(m.role) }}</span>
+                <span class="member-tasks" [class.tasks-warn]="m.openTaskCount >= 5">
+                  <span class="material-icons-round">task_alt</span>
+                  {{ m.openTaskCount }} open {{ m.openTaskCount === 1 ? 'task' : 'tasks' }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="member-actions">
+              <select class="role-select" [ngModel]="m.role" (ngModelChange)="changeMemberRole(m, $event)">
+                <option [value]="0">Viewer</option>
+                <option [value]="1">Member</option>
+                <option [value]="2">Lead</option>
+              </select>
+              <button class="icon-btn danger-icon" title="Remove from project" (click)="removeMember(m)">
+                <span class="material-icons-round">person_remove</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ── Issue detail panel ────────────────────── -->
+    <div *ngIf="selectedIssue()" class="panel-overlay" (click)="closeIssue()">
+      <div class="task-panel" (click)="$event.stopPropagation()">
+        <ng-container *ngIf="selectedIssue() as issue">
+
+          <div class="panel-header">
+            <div class="panel-title-row">
+              <div class="issue-panel-meta">
+                <span class="issue-type-dot type-{{ issueTypeColor(issue.type) }}">
+                  <span class="material-icons-round">{{ issueTypeIcon(issue.type) }}</span>
+                </span>
+                <span class="panel-task-id">#{{ issue.number }}</span>
+                <span class="issue-status-badge" [class]="'is-' + issueStatusKey(issue.status)">
+                  {{ issueStatusLabel(issue.status) }}
+                </span>
+              </div>
+              <div class="panel-actions">
+                <button class="icon-btn" title="Close panel" (click)="closeIssue()">
+                  <span class="material-icons-round">close</span>
+                </button>
+              </div>
+            </div>
+            <h2 class="panel-task-title">{{ issue.title }}</h2>
+          </div>
+
+          <div class="panel-divider"></div>
+
+          <div class="panel-body">
+            <p *ngIf="issue.description" class="panel-desc">{{ issue.description }}</p>
+
+            <!-- Issue metadata -->
+            <div class="detail-grid">
+              <div class="detail-item">
+                <span class="detail-label">Type</span>
+                <span class="issue-type-badge type-{{ issueTypeColor(issue.type) }}">
+                  {{ issueTypeLabel(issue.type) }}
+                </span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Priority</span>
+                <span class="ph-priority {{ priorityClass(issue.priority) }}">{{ priorityIcon(issue.priority) }}</span>
+                <span class="detail-val">{{ priorityLabel(issue.priority) }}</span>
+              </div>
+              <div class="detail-item" *ngIf="issue.reporterName">
+                <span class="detail-label">Reported by</span>
+                <span class="detail-val">{{ issue.reporterName }}</span>
+              </div>
+              <div class="detail-item" *ngIf="issue.assigneeName">
+                <span class="detail-label">Assignee</span>
+                <span class="detail-val">{{ issue.assigneeName }}</span>
+              </div>
+            </div>
+
+            <!-- Action buttons -->
+            <div class="issue-actions">
+              <button class="btn-ghost sm" *ngIf="issue.status !== 2" (click)="closeIssueItem(issue)">
+                <span class="material-icons-round">check_circle_outline</span> Close Issue
+              </button>
+              <button class="btn-ghost sm" *ngIf="issue.status === 2" (click)="reopenIssueItem(issue)">
+                <span class="material-icons-round">radio_button_unchecked</span> Reopen
+              </button>
+              <button class="btn-primary sm"
+                      *ngIf="issue.status !== 2 && !issue.convertedToTaskId"
+                      (click)="openConvert(issue)">
+                <span class="material-icons-round">move_to_inbox</span> Convert to Task
+              </button>
+              <span *ngIf="issue.convertedToTaskId" class="converted-note">
+                <span class="material-icons-round">done_all</span> Converted to task
+              </span>
+            </div>
+
+            <div class="panel-divider"></div>
+
+            <!-- Issue comments -->
+            <div class="comments-section">
+              <div class="comments-header">
+                <span class="comments-title">Comments</span>
+                <span class="comments-count" *ngIf="issueComments().length > 0">{{ issueComments().length }}</span>
+              </div>
+
+              <div *ngIf="issueCommentsLoading()" class="comments-loading">
+                <div class="spinner-sm"></div>
+              </div>
+
+              <div class="comment-list">
+                <div *ngFor="let c of issueComments()" class="comment-item">
+                  <div class="comment-ava">{{ nameInitials(c.authorName || 'U') }}</div>
+                  <div class="comment-body">
+                    <div class="comment-meta">
+                      <span class="comment-author">{{ c.authorName || 'User' }}</span>
+                      <span class="comment-date">{{ c.createdAt | date:'MMM d, y' }}</span>
+                    </div>
+                    <p class="comment-content">{{ c.content }}</p>
+                  </div>
+                </div>
+                <p *ngIf="issueComments().length === 0 && !issueCommentsLoading()" class="no-comments">No comments yet.</p>
+              </div>
+
+              <form [formGroup]="issueCommentForm" (ngSubmit)="addIssueComment()" class="comment-form">
+                <textarea class="comment-input" formControlName="content" rows="2"
+                          placeholder="Write a comment…"></textarea>
+                <div class="comment-form-actions">
+                  <button type="button" class="btn-danger-ghost" (click)="confirmDeleteIssue(issue)">
+                    <span class="material-icons-round">delete</span> Delete Issue
+                  </button>
+                  <button type="submit" class="btn-primary sm" [disabled]="issueCommentForm.invalid">
+                    <span class="material-icons-round">send</span> Post
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+        </ng-container>
+      </div>
+    </div>
+
+    <!-- ── Task detail panel ──────────────────────── -->
+    <div *ngIf="selectedTask()" class="panel-overlay" (click)="closeTask()">
+      <div class="task-panel" (click)="$event.stopPropagation()">
+
+        <div class="panel-header">
+          <div class="panel-title-row" *ngIf="!editMode()">
+            <span class="panel-task-id">{{ taskId(selectedTask()!) }}</span>
+            <div class="panel-actions">
+              <button class="icon-btn" title="Edit" (click)="startEdit()">
+                <span class="material-icons-round">edit</span>
+              </button>
+              <button class="icon-btn" title="Close" (click)="closeTask()">
+                <span class="material-icons-round">close</span>
+              </button>
+            </div>
+          </div>
+          <div class="panel-title-row" *ngIf="editMode()">
+            <span class="panel-edit-label">Edit Task</span>
+            <button class="icon-btn" (click)="editMode.set(false)">
+              <span class="material-icons-round">close</span>
+            </button>
+          </div>
+          <h2 class="panel-task-title" *ngIf="!editMode()">{{ selectedTask()!.title }}</h2>
+        </div>
+
+        <div class="panel-divider"></div>
+
+        <!-- View mode -->
+        <div class="panel-body" *ngIf="!editMode()">
+          <p *ngIf="selectedTask()!.description" class="panel-desc">{{ selectedTask()!.description }}</p>
+
+          <div class="detail-grid">
+            <div class="detail-item">
+              <span class="detail-label">Status</span>
+              <select class="detail-select" [ngModel]="selectedTask()!.status" (ngModelChange)="changeStatus($event)">
+                <option [ngValue]="0">To Do</option>
+                <option [ngValue]="1">In Progress</option>
+                <option [ngValue]="2">In Review</option>
+                <option [ngValue]="3">Done</option>
+              </select>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Priority</span>
+              <span class="ph-priority {{ priorityClass(selectedTask()!.priority) }}">{{ priorityIcon(selectedTask()!.priority) }}</span>
+              <span class="detail-val">{{ priorityLabel(selectedTask()!.priority) }}</span>
+            </div>
+            <div class="detail-item" *ngIf="selectedTask()!.dueDate">
+              <span class="detail-label">Due Date</span>
+              <span [class.overdue-text]="isOverdue(selectedTask()!.dueDate)">{{ selectedTask()!.dueDate | date:'MMM d, y' }}</span>
+            </div>
+            <div class="detail-item" *ngIf="selectedTask()!.storyPoints">
+              <span class="detail-label">Story Points</span>
+              <span>{{ selectedTask()!.storyPoints }}</span>
+            </div>
+            <div class="detail-item" *ngIf="selectedTask()!.assigneeId">
+              <span class="detail-label">Assignee</span>
+              <span>{{ assigneeName(selectedTask()!.assigneeId) }}</span>
+            </div>
+          </div>
+
+          <!-- Labels section -->
+          <div class="panel-labels-section" *ngIf="labels().length > 0">
+            <span class="detail-label">Labels</span>
+            <div class="panel-labels-row">
+              <span *ngFor="let l of selectedTask()!.labels"
+                    class="label-chip label-{{ l.color }} label-removable"
+                    (click)="removeLabelFromTask(l.id)">
+                {{ l.name }} <span class="material-icons-round">close</span>
+              </span>
+              <div class="label-add-wrap" (click)="$event.stopPropagation()">
+                <button class="label-add-btn" (click)="showLabelPicker.set(!showLabelPicker())">
+                  <span class="material-icons-round">label</span>
+                </button>
+                <div class="label-picker" *ngIf="showLabelPicker()">
+                  <div *ngFor="let l of labelsNotOnTask()" class="label-picker-item"
+                       (click)="addLabelToTask(l.id)">
+                    <span class="label-dot label-{{ l.color }}"></span>{{ l.name }}
+                  </div>
+                  <div *ngIf="labelsNotOnTask().length === 0" class="label-picker-empty">All labels applied</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel-divider"></div>
+
+          <!-- Comments -->
+          <div class="comments-section">
+            <div class="comments-header">
+              <span class="comments-title">Comments</span>
+              <span class="comments-count" *ngIf="comments().length > 0">{{ comments().length }}</span>
+            </div>
+
+            <div *ngIf="commentsLoading()" class="comments-loading">
+              <div class="spinner-sm"></div>
+            </div>
+
+            <div class="comment-list">
+              <div *ngFor="let c of comments()" class="comment-item">
+                <div class="comment-ava">{{ nameInitials(c.authorName || 'U') }}</div>
+                <div class="comment-body">
+                  <div class="comment-meta">
+                    <span class="comment-author">{{ c.authorName || 'User' }}</span>
+                    <span class="comment-date">{{ c.createdAt | date:'MMM d, y' }}</span>
+                    <button class="del-btn" title="Delete" (click)="deleteComment(c)">
+                      <span class="material-icons-round">delete_outline</span>
+                    </button>
+                  </div>
+                  <p class="comment-content">{{ c.content }}</p>
+                </div>
+              </div>
+              <p *ngIf="comments().length === 0 && !commentsLoading()" class="no-comments">No comments yet.</p>
+            </div>
+
+            <form [formGroup]="commentForm" (ngSubmit)="addComment()" class="comment-form">
+              <textarea class="comment-input" formControlName="content" rows="2"
+                        placeholder="Write a comment…"></textarea>
+              <div class="comment-form-actions">
+                <button type="button" class="btn-danger-ghost" (click)="confirmDeleteTask(selectedTask()!)">
+                  <span class="material-icons-round">delete</span> Delete Task
+                </button>
+                <button type="submit" class="btn-primary sm" [disabled]="commentForm.invalid">
+                  <span class="material-icons-round">send</span> Post
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Edit mode -->
+        <div class="panel-body" *ngIf="editMode()">
+          <form [formGroup]="editTaskForm" (ngSubmit)="saveEdit()">
+            <div class="field-group">
+              <label class="field-label">Title</label>
+              <input class="field-input" formControlName="title" />
+            </div>
+            <div class="field-group">
+              <label class="field-label">Description</label>
+              <textarea class="field-input" formControlName="description" rows="3"></textarea>
+            </div>
+            <div class="form-row">
+              <div class="field-group">
+                <label class="field-label">Priority</label>
+                <select class="field-input" formControlName="priority">
+                  <option [ngValue]="0">Low</option>
+                  <option [ngValue]="1">Medium</option>
+                  <option [ngValue]="2">High</option>
+                  <option [ngValue]="3">Critical</option>
+                </select>
+              </div>
+              <div class="field-group">
+                <label class="field-label">Story Points</label>
+                <input class="field-input" type="number" formControlName="storyPoints" min="1" max="100" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="field-group">
+                <label class="field-label">Due Date</label>
+                <input class="field-input" type="date" formControlName="dueDate" />
+              </div>
+              <div class="field-group" *ngIf="sprints().length > 0">
+                <label class="field-label">Sprint</label>
+                <select class="field-input" formControlName="sprintId">
+                  <option [ngValue]="null">— None —</option>
+                  <option *ngFor="let s of sprints()" [value]="s.id">{{ s.name }}</option>
+                </select>
+              </div>
+            </div>
+            <div class="field-group" *ngIf="users().length > 0">
+              <label class="field-label">Assignee</label>
+              <select class="field-input" formControlName="assigneeId">
+                <option [ngValue]="null">— Unassigned —</option>
+                <option *ngFor="let u of users()" [value]="u.id">{{ u.fullName }}</option>
+              </select>
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn-ghost" (click)="editMode.set(false)">Cancel</button>
+              <button type="submit" class="btn-primary sm" [disabled]="editTaskForm.invalid">Save Changes</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Create Task dialog ─────────────────────── -->
+    <div *ngIf="showCreateTask()" class="overlay" (click)="showCreateTask.set(false)">
+      <div class="dialog-card" (click)="$event.stopPropagation()">
+        <div class="dialog-header">
+          <h2 class="dialog-title">New Task</h2>
+          <button class="icon-btn" (click)="showCreateTask.set(false)">
+            <span class="material-icons-round">close</span>
+          </button>
+        </div>
+        <form [formGroup]="taskForm" (ngSubmit)="createTask()">
+          <div class="field-group">
+            <label class="field-label">Title</label>
+            <input class="field-input" formControlName="title" placeholder="Task title" />
+          </div>
+          <div class="field-group">
+            <label class="field-label">Description</label>
+            <textarea class="field-input" formControlName="description" rows="2" placeholder="Optional description"></textarea>
+          </div>
+          <div class="form-row">
+            <div class="field-group">
+              <label class="field-label">Priority</label>
+              <select class="field-input" formControlName="priority">
+                <option [ngValue]="0">Low</option>
+                <option [ngValue]="1">Medium</option>
+                <option [ngValue]="2">High</option>
+                <option [ngValue]="3">Critical</option>
+              </select>
+            </div>
+            <div class="field-group">
+              <label class="field-label">Story Points</label>
+              <input class="field-input" type="number" formControlName="storyPoints" min="1" max="100" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="field-group">
+              <label class="field-label">Due Date</label>
+              <input class="field-input" type="date" formControlName="dueDate" />
+            </div>
+            <div class="field-group" *ngIf="sprints().length > 0">
+              <label class="field-label">Sprint</label>
+              <select class="field-input" formControlName="sprintId">
+                <option [ngValue]="null">— None —</option>
+                <option *ngFor="let s of sprints()" [value]="s.id">{{ s.name }}</option>
+              </select>
+            </div>
+          </div>
+          <div class="field-group" *ngIf="users().length > 0">
+            <label class="field-label">Assignee</label>
+            <select class="field-input" formControlName="assigneeId">
+              <option [ngValue]="null">— Unassigned —</option>
+              <option *ngFor="let u of users()" [value]="u.id">{{ u.fullName }}</option>
+            </select>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn-ghost" (click)="showCreateTask.set(false)">Cancel</button>
+            <button type="submit" class="btn-primary" [disabled]="taskForm.invalid">Create Task</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ── Create Sprint dialog ───────────────────── -->
+    <div *ngIf="showCreateSprint()" class="overlay" (click)="showCreateSprint.set(false)">
+      <div class="dialog-card" (click)="$event.stopPropagation()">
+        <div class="dialog-header">
+          <h2 class="dialog-title">New Sprint</h2>
+          <button class="icon-btn" (click)="showCreateSprint.set(false)">
+            <span class="material-icons-round">close</span>
+          </button>
+        </div>
+        <form [formGroup]="sprintForm" (ngSubmit)="createSprint()">
+          <div class="field-group">
+            <label class="field-label">Sprint Name</label>
+            <input class="field-input" formControlName="name" placeholder="e.g. Sprint 1" />
+          </div>
+          <div class="field-group">
+            <label class="field-label">Goal</label>
+            <input class="field-input" formControlName="goal" placeholder="What's the sprint goal?" />
+          </div>
+          <div class="form-row">
+            <div class="field-group">
+              <label class="field-label">Start Date</label>
+              <input class="field-input" type="date" formControlName="startDate" />
+            </div>
+            <div class="field-group">
+              <label class="field-label">End Date</label>
+              <input class="field-input" type="date" formControlName="endDate" />
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn-ghost" (click)="showCreateSprint.set(false)">Cancel</button>
+            <button type="submit" class="btn-primary" [disabled]="sprintForm.invalid">Create Sprint</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ── Edit Sprint dialog ─────────────────────── -->
+    <div *ngIf="editingSprint()" class="overlay" (click)="editingSprint.set(null)">
+      <div class="dialog-card" (click)="$event.stopPropagation()">
+        <div class="dialog-header">
+          <h2 class="dialog-title">Edit Sprint</h2>
+          <button class="icon-btn" (click)="editingSprint.set(null)">
+            <span class="material-icons-round">close</span>
+          </button>
+        </div>
+        <form [formGroup]="editSprintForm" (ngSubmit)="saveEditSprint()">
+          <div class="field-group">
+            <label class="field-label">Sprint Name</label>
+            <input class="field-input" formControlName="name" />
+          </div>
+          <div class="field-group">
+            <label class="field-label">Goal</label>
+            <input class="field-input" formControlName="goal" />
+          </div>
+          <div class="form-row">
+            <div class="field-group">
+              <label class="field-label">Start Date</label>
+              <input class="field-input" type="date" formControlName="startDate" />
+            </div>
+            <div class="field-group">
+              <label class="field-label">End Date</label>
+              <input class="field-input" type="date" formControlName="endDate" />
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn-ghost" (click)="editingSprint.set(null)">Cancel</button>
+            <button type="submit" class="btn-primary" [disabled]="editSprintForm.invalid">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ── Create Issue dialog ───────────────────── -->
+    <div *ngIf="showCreateIssue()" class="overlay" (click)="showCreateIssue.set(false)">
+      <div class="dialog-card" (click)="$event.stopPropagation()">
+        <div class="dialog-header">
+          <h2 class="dialog-title">New Issue</h2>
+          <button class="icon-btn" (click)="showCreateIssue.set(false)">
+            <span class="material-icons-round">close</span>
+          </button>
+        </div>
+        <form [formGroup]="issueForm" (ngSubmit)="createIssue()">
+          <div class="field-group">
+            <label class="field-label">Title</label>
+            <input class="field-input" formControlName="title" placeholder="Short, descriptive title" />
+          </div>
+          <div class="field-group">
+            <label class="field-label">Description</label>
+            <textarea class="field-input" formControlName="description" rows="3"
+                      placeholder="Steps to reproduce, expected vs actual…"></textarea>
+          </div>
+          <div class="form-row">
+            <div class="field-group">
+              <label class="field-label">Type</label>
+              <select class="field-input" formControlName="type">
+                <option [ngValue]="0">🐛 Bug</option>
+                <option [ngValue]="1">✨ Feature</option>
+                <option [ngValue]="2">❓ Question</option>
+                <option [ngValue]="3">🔧 Chore</option>
+              </select>
+            </div>
+            <div class="field-group">
+              <label class="field-label">Priority</label>
+              <select class="field-input" formControlName="priority">
+                <option [ngValue]="0">↓ Low</option>
+                <option [ngValue]="1">→ Medium</option>
+                <option [ngValue]="2">↑ High</option>
+                <option [ngValue]="3">⬆ Critical</option>
+              </select>
+            </div>
+          </div>
+          <div class="field-group" *ngIf="users().length > 0">
+            <label class="field-label">Assignee</label>
+            <select class="field-input" formControlName="assigneeId">
+              <option [ngValue]="null">— Unassigned —</option>
+              <option *ngFor="let u of users()" [value]="u.id">{{ u.fullName }}</option>
+            </select>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn-ghost" (click)="showCreateIssue.set(false)">Cancel</button>
+            <button type="submit" class="btn-primary" [disabled]="issueForm.invalid">Submit Issue</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ── Convert to Task dialog ────────────────── -->
+    <div *ngIf="showConvertDialog()" class="overlay" (click)="showConvertDialog.set(false)">
+      <div class="dialog-card" (click)="$event.stopPropagation()" style="max-width:400px">
+        <div class="dialog-header">
+          <h2 class="dialog-title">Convert to Task</h2>
+          <button class="icon-btn" (click)="showConvertDialog.set(false)">
+            <span class="material-icons-round">close</span>
+          </button>
+        </div>
+        <ng-container *ngIf="convertingIssue() as ci">
+          <p class="convert-desc">
+            This will create a task from <strong>#{{ ci.number }} {{ ci.title }}</strong>
+            and close the issue.
+          </p>
+          <form [formGroup]="convertForm" (ngSubmit)="submitConvert()">
+            <div class="field-group" *ngIf="sprints().length > 0">
+              <label class="field-label">Sprint (optional)</label>
+              <select class="field-input" formControlName="sprintId">
+                <option [ngValue]="null">— Backlog —</option>
+                <option *ngFor="let s of sprints()" [value]="s.id">{{ s.name }}</option>
+              </select>
+            </div>
+            <div class="field-group">
+              <label class="field-label">Priority</label>
+              <select class="field-input" formControlName="priority">
+                <option [ngValue]="null">Same as issue ({{ priorityLabel(ci.priority) }})</option>
+                <option [ngValue]="0">↓ Low</option>
+                <option [ngValue]="1">→ Medium</option>
+                <option [ngValue]="2">↑ High</option>
+                <option [ngValue]="3">⬆ Critical</option>
+              </select>
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn-ghost" (click)="showConvertDialog.set(false)">Cancel</button>
+              <button type="submit" class="btn-primary">
+                <span class="material-icons-round">move_to_inbox</span> Convert
+              </button>
+            </div>
+          </form>
+        </ng-container>
+      </div>
+    </div>
+
+    <!-- ── Add Member dialog ────────────────────── -->
+    <div *ngIf="showAddMember()" class="overlay" (click)="showAddMember.set(false)">
+      <div class="dialog-card" (click)="$event.stopPropagation()" style="max-width:400px">
+        <div class="dialog-header">
+          <h2 class="dialog-title">Add Member</h2>
+          <button class="icon-btn" (click)="showAddMember.set(false)">
+            <span class="material-icons-round">close</span>
+          </button>
+        </div>
+        <form [formGroup]="addMemberForm" (ngSubmit)="submitAddMember()" class="form-body">
+          <div class="field-group">
+            <label class="field-label">User</label>
+            <select class="field-input" formControlName="userId">
+              <option value="">— Select user —</option>
+              <option *ngFor="let u of availableUsers()" [value]="u.id">{{ u.fullName }} ({{ u.email }})</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label class="field-label">Role</label>
+            <select class="field-input" formControlName="role">
+              <option [value]="0">Viewer</option>
+              <option [value]="1">Member</option>
+              <option [value]="2">Lead</option>
+            </select>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn-ghost" (click)="showAddMember.set(false)">Cancel</button>
+            <button type="submit" class="btn-primary" [disabled]="addMemberForm.invalid">Add</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ── Manage Labels dialog ──────────────────── -->
+    <div *ngIf="showManageLabels()" class="overlay" (click)="showManageLabels.set(false)">
+      <div class="dialog-card" (click)="$event.stopPropagation()" style="max-width:440px">
+        <div class="dialog-header">
+          <h2 class="dialog-title">Labels</h2>
+          <button class="icon-btn" (click)="showManageLabels.set(false)">
+            <span class="material-icons-round">close</span>
+          </button>
+        </div>
+
+        <!-- Existing labels -->
+        <div class="manage-labels-list">
+          <div *ngFor="let l of labels()" class="manage-label-row">
+            <span class="label-dot label-{{ l.color }}"></span>
+            <span class="manage-label-name">{{ l.name }}</span>
+            <button class="icon-btn danger-icon" (click)="deleteLabel(l)" title="Delete">
+              <span class="material-icons-round">delete_outline</span>
+            </button>
+          </div>
+          <p *ngIf="labels().length === 0" class="no-comments">No labels yet.</p>
+        </div>
+
+        <div class="panel-divider"></div>
+
+        <!-- Create new label -->
+        <form [formGroup]="newLabelForm" (ngSubmit)="createLabel()" class="new-label-form">
+          <p class="field-label" style="margin:0 0 8px">New Label</p>
+          <div class="new-label-row">
+            <input class="field-input" formControlName="name" placeholder="Label name" style="flex:1" />
+            <select class="field-input" formControlName="color" style="width:110px">
+              <option *ngFor="let c of labelColors" [value]="c.value">{{ c.label }}</option>
+            </select>
+          </div>
+          <!-- Color preview -->
+          <div class="color-preview-row">
+            <span class="label-chip label-{{ newLabelForm.value.color }}">
+              {{ newLabelForm.value.name || 'Preview' }}
+            </span>
+          </div>
+          <div class="form-actions" style="margin-top:8px">
+            <button type="submit" class="btn-primary sm" [disabled]="newLabelForm.invalid">
+              <span class="material-icons-round">add</span> Add Label
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Backdrop to close sprint menu -->
+    <div *ngIf="openSprintMenuId" class="menu-backdrop" (click)="openSprintMenuId = null"></div>
+  `,
+  styles: [`
+    /* ── Loading ── */
+    .loading-wrap { display: flex; justify-content: center; padding: 64px; }
+    .spinner {
+      width: 32px; height: 32px; border-radius: 50%;
+      border: 3px solid var(--border); border-top-color: var(--violet);
+      animation: spin 0.7s linear infinite;
+    }
+    .spinner-sm {
+      width: 20px; height: 20px; border-radius: 50%;
+      border: 2px solid var(--border); border-top-color: var(--violet);
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Page ── */
+    .detail-page {
+      padding: 28px 32px;
+      display: flex; flex-direction: column; gap: 20px;
+    }
+
+    /* ── Topbar ── */
+    .topbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+    .page-title { margin: 0 0 2px; font-size: 20px; font-weight: 700; color: var(--ink); }
+    .page-sub   { margin: 0; font-size: 13px; color: var(--muted); }
+
+    /* ── Tabs ── */
+    .tab-bar {
+      display: flex; gap: 4px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0;
+    }
+    .tab {
+      display: flex; align-items: center; gap: 6px;
+      padding: 8px 16px; border: none; background: transparent;
+      font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600;
+      color: var(--muted); cursor: pointer; border-radius: var(--r-md) var(--r-md) 0 0;
+      border-bottom: 2px solid transparent; margin-bottom: -1px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .tab .material-icons-round { font-size: 16px; }
+    .tab:hover { color: var(--ink); }
+    .tab.active { color: var(--violet); border-bottom-color: var(--violet); }
+
+    /* ── Buttons ── */
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 9px 18px; background: var(--violet); color: #fff;
+      border: none; border-radius: var(--r-full);
+      font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 700;
+      cursor: pointer; transition: background 0.15s, opacity 0.15s;
+    }
+    .btn-primary .material-icons-round { font-size: 16px; }
+    .btn-primary:hover:not(:disabled) { background: var(--violet-2); }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-primary.sm { padding: 7px 14px; }
+
+    .btn-ghost {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 14px; background: transparent;
+      border: 1px solid var(--border); border-radius: var(--r-full);
+      font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600;
+      color: var(--muted); cursor: pointer; transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-ghost:hover { border-color: var(--violet); color: var(--violet); }
+
+    .btn-danger-ghost {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 6px 12px; background: transparent;
+      border: 1px solid var(--rose-c); border-radius: var(--r-full);
+      font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600;
+      color: var(--rose); cursor: pointer; transition: background 0.15s;
+    }
+    .btn-danger-ghost:hover { background: var(--rose-c); }
+    .btn-danger-ghost .material-icons-round { font-size: 14px; }
+
+    .icon-btn {
+      width: 30px; height: 30px; border: none; background: transparent;
+      border-radius: var(--r-md); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--soft); transition: background 0.12s, color 0.12s;
+    }
+    .icon-btn:hover { background: var(--surface); color: var(--ink); }
+    .icon-btn .material-icons-round { font-size: 18px; }
+
+    /* ── Filter bar ── */
+    .filter-bar {
+      display: flex; gap: 8px; align-items: center;
+      flex-wrap: wrap; padding: 12px 0 4px;
+    }
+    .filter-select {
+      padding: 7px 10px; border-radius: var(--r-md);
+      border: 1px solid var(--border); background: var(--white);
+      font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--ink);
+      cursor: pointer; outline: none; transition: border-color 0.15s;
+    }
+    .filter-select:focus { border-color: var(--violet); }
+    .clear-filter {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 6px 12px; background: var(--surface);
+      border: 1px solid var(--border); border-radius: var(--r-full);
+      font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--muted);
+      cursor: pointer; transition: color 0.15s;
+    }
+    .clear-filter .material-icons-round { font-size: 14px; }
+    .clear-filter:hover { color: var(--rose); border-color: var(--rose-c); }
+
+    /* ── Kanban ── */
+    .kanban-board {
+      display: flex; gap: 12px;
+      overflow-x: auto; padding: 12px 0 24px;
+      align-items: flex-start;
+    }
+    .kanban-col { min-width: 240px; max-width: 240px; display: flex; flex-direction: column; flex-shrink: 0; }
+
+    .col-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 10px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--r-md) var(--r-md) 0 0; border-bottom: none;
+    }
+    .col-header-left { display: flex; align-items: center; gap: 7px; }
+    .col-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .col-label { font-size: 10px; font-weight: 700; letter-spacing: 0.5px; color: var(--muted); }
+    .col-count {
+      font-size: 10px; font-weight: 700;
+      background: var(--border); color: var(--muted);
+      border-radius: var(--r-full); padding: 1px 6px;
+    }
+
+    .task-list {
+      flex: 1; display: flex; flex-direction: column; gap: 6px;
+      padding: 8px 6px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-top: none; border-radius: 0 0 var(--r-md) var(--r-md);
+      min-height: 100px; transition: background 0.12s;
+    }
+    .task-list.cdk-drop-list-dragging { background: var(--violet-mid); }
+
+    .task-card {
+      background: var(--white); border: 1px solid var(--border);
+      border-radius: var(--r-md); padding: 10px 12px;
+      cursor: pointer; transition: box-shadow 0.15s, transform 0.12s;
+      box-shadow: var(--shadow-sm);
+    }
+    .task-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+    .task-card.cdk-drag-dragging { box-shadow: var(--shadow-lg); transform: rotate(1.5deg); }
+
+    .drag-placeholder {
+      background: var(--violet-mid); border: 2px dashed var(--violet-2);
+      border-radius: var(--r-md); min-height: 60px;
+    }
+
+    .task-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
+    .task-id {
+      font-family: 'DM Mono', monospace; font-size: 10px;
+      font-weight: 500; color: var(--soft); letter-spacing: 0.3px;
+    }
+
+    .task-title { font-size: 12px; font-weight: 600; color: var(--ink); line-height: 1.35; margin-bottom: 4px; }
+    .task-desc {
+      font-size: 11px; color: var(--muted); margin: 0 0 6px;
+      overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    }
+
+    .task-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; }
+    .task-tags { display: flex; gap: 5px; flex-wrap: wrap; }
+    .tag {
+      display: inline-flex; align-items: center; gap: 3px;
+      font-size: 10px; color: var(--muted);
+      background: var(--surface); border-radius: var(--r-full);
+      padding: 2px 6px; border: 1px solid var(--border);
+    }
+    .tag-ico { font-size: 11px; }
+    .tag-overdue { color: var(--rose); border-color: var(--rose-c); background: var(--rose-c); }
+
+    .assignee-ava {
+      width: 20px; height: 20px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--violet), var(--teal));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 8px; font-weight: 700; color: #fff; flex-shrink: 0;
+    }
+
+    .col-empty {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 4px;
+      color: var(--border); font-size: 11px; padding: 16px 0;
+    }
+    .col-empty .material-icons-round { font-size: 20px; }
+
+    /* ── Sprints tab ── */
+    .sprints-section { display: flex; flex-direction: column; gap: 12px; padding: 12px 0; }
+    .sprints-header { display: flex; justify-content: flex-end; gap: 8px; align-items: center; }
+
+    .sprint-card {
+      background: var(--white); border: 1px solid var(--border);
+      border-radius: var(--r-lg); padding: 16px 20px;
+      box-shadow: var(--shadow-sm);
+    }
+    .sprint-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+    .sprint-left { flex: 1; }
+    .sprint-name-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap; }
+    .sprint-name { font-size: 14px; font-weight: 700; color: var(--ink); }
+    .sprint-dates {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 12px; color: var(--soft); margin-bottom: 4px;
+    }
+    .date-ico { font-size: 13px; color: var(--soft); }
+    .sprint-goal { margin: 0; font-size: 12px; color: var(--muted); font-style: italic; }
+
+    .sprint-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+    .sprint-stats { display: flex; gap: 10px; }
+    .stat { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
+    .stat-ico { font-size: 14px; }
+    .stat.done { color: var(--emerald); }
+
+    /* Dropdown menu */
+    .sprint-menu { position: relative; }
+    .dropdown {
+      position: absolute; right: 0; top: 32px; z-index: 100;
+      background: var(--white); border: 1px solid var(--border);
+      border-radius: var(--r-md); box-shadow: var(--shadow-md);
+      min-width: 160px; overflow: hidden;
+    }
+    .dd-item {
+      display: flex; align-items: center; gap: 8px;
+      width: 100%; padding: 9px 14px;
+      background: none; border: none;
+      font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--ink);
+      cursor: pointer; text-align: left;
+      transition: background 0.12s;
+    }
+    .dd-item .material-icons-round { font-size: 16px; color: var(--muted); }
+    .dd-item:hover { background: var(--surface); }
+    .dd-item.danger { color: var(--rose); }
+    .dd-item.danger .material-icons-round { color: var(--rose); }
+
+    .menu-backdrop { position: fixed; inset: 0; z-index: 99; }
+
+    .empty-text { margin: 0; font-size: 13px; color: var(--soft); text-align: center; padding: 32px; }
+
+    /* ── Task panel ── */
+    .panel-overlay {
+      position: fixed; inset: 0; background: rgba(15,15,20,0.35);
+      z-index: 800; display: flex; justify-content: flex-end;
+    }
+    .task-panel {
+      width: 440px; height: 100%; background: var(--white);
+      box-shadow: -8px 0 32px rgba(15,15,20,0.12);
+      display: flex; flex-direction: column;
+      animation: slideIn 0.2s ease;
+    }
+    @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+
+    .panel-header { padding: 16px 20px 12px; }
+    .panel-title-row {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .panel-task-id {
+      font-family: 'DM Mono', monospace; font-size: 11px;
+      color: var(--soft); letter-spacing: 0.3px;
+    }
+    .panel-edit-label { font-size: 13px; font-weight: 600; color: var(--muted); }
+    .panel-actions { display: flex; gap: 2px; }
+    .panel-task-title { margin: 0; font-size: 16px; font-weight: 700; color: var(--ink); line-height: 1.3; }
+    .panel-divider { height: 1px; background: var(--border); }
+
+    .panel-body { padding: 16px 20px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 14px; }
+    .panel-desc { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .detail-item { display: flex; flex-direction: column; gap: 4px; }
+    .detail-label {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.5px; color: var(--soft);
+    }
+    .detail-val { font-size: 13px; color: var(--ink); }
+    .detail-select {
+      padding: 5px 8px; border-radius: var(--r-md);
+      border: 1px solid var(--border); background: var(--surface);
+      font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--ink);
+      outline: none; cursor: pointer;
+    }
+    .detail-select:focus { border-color: var(--violet); }
+    .overdue-text { color: var(--rose); font-weight: 600; }
+
+    /* Comments */
+    .comments-section { display: flex; flex-direction: column; gap: 10px; }
+    .comments-header { display: flex; align-items: center; gap: 8px; }
+    .comments-title { font-size: 13px; font-weight: 700; color: var(--ink); }
+    .comments-count {
+      font-size: 10px; background: var(--border); color: var(--muted);
+      border-radius: var(--r-full); padding: 1px 6px;
+    }
+    .comments-loading { display: flex; justify-content: center; padding: 12px; }
+
+    .comment-list { display: flex; flex-direction: column; gap: 8px; }
+    .comment-item { display: flex; gap: 10px; }
+    .comment-ava {
+      width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+      background: linear-gradient(135deg, var(--violet), var(--teal));
+      color: #fff; display: flex; align-items: center; justify-content: center;
+      font-size: 9px; font-weight: 700;
+    }
+    .comment-body { flex: 1; }
+    .comment-meta { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+    .comment-author { font-size: 12px; font-weight: 700; color: var(--ink); }
+    .comment-date { font-size: 11px; color: var(--soft); flex: 1; }
+    .del-btn {
+      background: none; border: none; cursor: pointer; padding: 2px;
+      color: var(--soft); opacity: 0; border-radius: var(--r-sm);
+      display: flex; align-items: center; transition: opacity 0.12s, color 0.12s;
+    }
+    .del-btn .material-icons-round { font-size: 14px; }
+    .comment-item:hover .del-btn { opacity: 1; }
+    .del-btn:hover { color: var(--rose); }
+    .comment-content { margin: 0; font-size: 12px; color: var(--muted); white-space: pre-wrap; line-height: 1.5; }
+    .no-comments { margin: 0; font-size: 12px; color: var(--soft); text-align: center; padding: 8px; }
+
+    .comment-form { display: flex; flex-direction: column; gap: 8px; }
+    .comment-input {
+      width: 100%; padding: 9px 12px; resize: vertical;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--r-md); color: var(--ink);
+      font-family: 'DM Sans', sans-serif; font-size: 13px;
+      outline: none; transition: border-color 0.15s; box-sizing: border-box;
+    }
+    .comment-input:focus { border-color: var(--violet); }
+    .comment-form-actions { display: flex; align-items: center; justify-content: space-between; }
+
+    /* Shared form styles */
+    .field-group { display: flex; flex-direction: column; gap: 5px; }
+    .field-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
+    .field-input {
+      width: 100%; padding: 9px 12px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--r-md); color: var(--ink);
+      font-family: 'DM Sans', sans-serif; font-size: 13px;
+      outline: none; transition: border-color 0.15s; box-sizing: border-box;
+    }
+    .field-input:focus { border-color: var(--violet); }
+    textarea.field-input { resize: vertical; }
+    .form-row { display: flex; gap: 12px; }
+    .form-row .field-group { flex: 1; }
+    .form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+
+    /* ── Overlay dialogs ── */
+    .overlay {
+      position: fixed; inset: 0; background: rgba(15,15,20,0.5);
+      display: flex; align-items: center; justify-content: center; z-index: 1000;
+    }
+    .dialog-card {
+      width: 100%; max-width: 500px;
+      background: var(--white); border-radius: var(--r-xl);
+      padding: 28px; box-shadow: var(--shadow-lg);
+      display: flex; flex-direction: column; gap: 16px;
+      max-height: 90vh; overflow-y: auto;
+    }
+    .dialog-header { display: flex; align-items: center; justify-content: space-between; }
+    .dialog-title { margin: 0; font-size: 16px; font-weight: 700; color: var(--ink); }
+
+    /* ── Issues tab ── */
+    .issues-section { display: flex; flex-direction: column; gap: 0; padding: 12px 0; }
+
+    .issue-filter-bar {
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+      padding: 0 0 12px; border-bottom: 1px solid var(--border);
+    }
+    .status-toggle { display: flex; gap: 2px; }
+    .st-btn {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 6px 12px; background: transparent;
+      border: 1px solid var(--border); border-radius: var(--r-full);
+      font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; color: var(--muted);
+      cursor: pointer; transition: all 0.15s;
+    }
+    .st-btn .material-icons-round { font-size: 14px; }
+    .st-btn:hover { border-color: var(--violet); color: var(--violet); }
+    .st-btn.active { background: var(--violet); border-color: var(--violet); color: #fff; }
+
+    /* Tab badge */
+    .tab-badge {
+      font-size: 10px; font-weight: 700; line-height: 1;
+      background: var(--rose); color: #fff;
+      border-radius: var(--r-full); padding: 2px 5px;
+      margin-left: 2px;
+    }
+
+    /* Issue list */
+    .issue-list { display: flex; flex-direction: column; }
+    .issue-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 4px; border-bottom: 1px solid var(--border);
+      cursor: pointer; transition: background 0.12s; border-radius: var(--r-sm);
+    }
+    .issue-row:hover { background: var(--surface); }
+
+    .issue-type-dot {
+      width: 24px; height: 24px; border-radius: var(--r-sm); flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .issue-type-dot .material-icons-round { font-size: 14px; }
+
+    .issue-num {
+      font-family: 'DM Mono', monospace; font-size: 11px;
+      color: var(--soft); flex-shrink: 0; min-width: 28px;
+    }
+    .issue-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .issue-title { font-size: 13px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .issue-meta { font-size: 11px; color: var(--soft); }
+    .issue-converted-badge {
+      display: inline-flex; align-items: center; gap: 3px;
+      font-size: 10px; font-weight: 600; color: var(--emerald);
+    }
+    .issue-converted-badge .material-icons-round { font-size: 12px; }
+
+    .issue-badges { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .issue-type-badge {
+      font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: var(--r-full);
+      text-transform: uppercase; letter-spacing: 0.4px;
+    }
+
+    /* Type colours */
+    .type-rose   { background: var(--rose-c);    color: var(--rose);    }
+    .type-violet { background: var(--violet-mid); color: var(--violet);  }
+    .type-blue   { background: var(--blue-c);     color: var(--blue);    }
+    .type-amber  { background: var(--amber-c);    color: var(--amber);   }
+
+    .issues-empty {
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      padding: 48px 0; color: var(--border);
+    }
+    .issues-empty .material-icons-round { font-size: 36px; }
+    .issues-empty p { margin: 0; font-size: 13px; color: var(--soft); }
+
+    /* Issue panel extras */
+    .issue-panel-meta { display: flex; align-items: center; gap: 8px; }
+    .issue-status-badge {
+      font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: var(--r-full);
+      text-transform: uppercase; letter-spacing: 0.4px;
+    }
+    .is-open       { background: var(--blue-c);    color: var(--blue);    }
+    .is-inprogress { background: var(--amber-c);   color: var(--amber);   }
+    .is-closed     { background: var(--surface);   color: var(--soft);    border: 1px solid var(--border); }
+
+    .issue-actions {
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    }
+    .btn-ghost.sm { padding: 5px 12px; font-size: 12px; }
+    .converted-note {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 12px; color: var(--emerald); font-weight: 600;
+    }
+    .converted-note .material-icons-round { font-size: 14px; }
+
+    /* Convert dialog */
+    .convert-desc { margin: 0 0 16px; font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+    /* ── Members tab ── */
+    .members-section { display: flex; flex-direction: column; gap: 20px; }
+
+    .members-header {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    .members-subtitle { margin: 0; font-size: 13px; color: var(--muted); }
+
+    .members-empty {
+      display: flex; flex-direction: column; align-items: center; gap: 10px;
+      padding: 60px 0; color: var(--soft);
+    }
+    .members-empty .material-icons-round { font-size: 40px; }
+    .members-empty p { margin: 0; font-size: 14px; }
+
+    .member-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px;
+    }
+
+    .member-card {
+      display: flex; align-items: flex-start; gap: 14px;
+      padding: 16px; border-radius: var(--r-md);
+      border: 1px solid var(--border); background: var(--white);
+      transition: box-shadow 0.15s;
+    }
+    .member-card:hover { box-shadow: var(--shadow-sm); }
+
+    .member-avatar {
+      width: 42px; height: 42px; border-radius: var(--r-full); flex-shrink: 0;
+      background: var(--violet-mid); color: var(--violet);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700; letter-spacing: 0.5px;
+    }
+
+    .member-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .member-name { margin: 0; font-size: 14px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .member-email { margin: 0; font-size: 11px; color: var(--soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .member-meta { display: flex; align-items: center; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+
+    .member-role-badge {
+      font-size: 10px; font-weight: 700; padding: 2px 7px;
+      border-radius: var(--r-full); border: 1px solid transparent;
+    }
+    .role-0 { background: var(--surface); color: var(--soft); border-color: var(--border); }
+    .role-1 { background: var(--blue-c); color: var(--blue); border-color: var(--blue); }
+    .role-2 { background: var(--violet-mid); color: var(--violet); border-color: var(--violet-2); }
+
+    .member-tasks {
+      display: flex; align-items: center; gap: 3px;
+      font-size: 11px; color: var(--soft);
+    }
+    .member-tasks .material-icons-round { font-size: 12px; }
+    .tasks-warn { color: var(--amber); }
+
+    .member-actions {
+      display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0;
+    }
+    .role-select {
+      font-size: 11px; padding: 3px 6px; border-radius: var(--r-sm);
+      border: 1px solid var(--border); background: var(--surface); color: var(--ink);
+      cursor: pointer;
+    }
+    .role-select:focus { outline: none; border-color: var(--violet); }
+
+    /* ── Labels ── */
+    .label-chip {
+      display: inline-flex; align-items: center; gap: 3px;
+      font-size: 10px; font-weight: 700; padding: 2px 7px;
+      border-radius: var(--r-full); border: 1px solid transparent;
+      white-space: nowrap; user-select: none;
+    }
+    .label-chip .material-icons-round { font-size: 11px; }
+
+    .label-violet  { background: var(--violet-mid); color: var(--violet);  border-color: var(--violet-2); }
+    .label-blue    { background: var(--blue-c);     color: var(--blue);    border-color: var(--blue); }
+    .label-teal    { background: rgba(20,184,166,.12); color: var(--teal); border-color: var(--teal); }
+    .label-emerald { background: rgba(16,185,129,.12); color: var(--emerald); border-color: var(--emerald); }
+    .label-amber   { background: var(--amber-c);    color: var(--amber);   border-color: var(--amber); }
+    .label-rose    { background: var(--rose-c);     color: var(--rose);    border-color: var(--rose); }
+    .label-soft    { background: var(--surface);    color: var(--soft);    border-color: var(--border); }
+
+    .label-dot {
+      width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; display: inline-block;
+    }
+
+    .task-labels { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 5px; }
+
+    /* Panel label section */
+    .panel-labels-section { display: flex; flex-direction: column; gap: 6px; }
+    .panel-labels-row { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+
+    .label-removable { cursor: pointer; }
+    .label-removable:hover { opacity: 0.7; }
+
+    .label-add-wrap { position: relative; }
+    .label-add-btn {
+      width: 24px; height: 24px; border: 1px dashed var(--border); border-radius: var(--r-full);
+      background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      color: var(--soft); transition: border-color 0.12s, color 0.12s;
+    }
+    .label-add-btn:hover { border-color: var(--violet); color: var(--violet); }
+    .label-add-btn .material-icons-round { font-size: 13px; }
+
+    .label-picker {
+      position: absolute; top: 28px; left: 0; z-index: 200;
+      background: var(--white); border: 1px solid var(--border);
+      border-radius: var(--r-md); box-shadow: var(--shadow-md);
+      min-width: 140px; overflow: hidden;
+    }
+    .label-picker-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 12px; font-size: 12px; color: var(--ink);
+      cursor: pointer; transition: background 0.12s;
+    }
+    .label-picker-item:hover { background: var(--surface); }
+    .label-picker-empty { padding: 10px 12px; font-size: 11px; color: var(--soft); }
+
+    /* Manage labels dialog */
+    .manage-labels-list { display: flex; flex-direction: column; gap: 2px; max-height: 220px; overflow-y: auto; }
+    .manage-label-row {
+      display: flex; align-items: center; gap: 8px; padding: 6px 4px;
+      border-radius: var(--r-sm); transition: background 0.1s;
+    }
+    .manage-label-row:hover { background: var(--surface); }
+    .manage-label-name { flex: 1; font-size: 13px; color: var(--ink); }
+    .danger-icon { color: var(--soft); }
+    .danger-icon:hover { color: var(--rose) !important; background: var(--rose-c) !important; }
+
+    .new-label-form { display: flex; flex-direction: column; gap: 8px; }
+    .new-label-row { display: flex; gap: 8px; }
+    .color-preview-row { padding: 4px 0; }
+
+    /* ── Timeline ── */
+    .tl-section {
+      display: flex; flex-direction: column; gap: 0;
+      padding: 12px 0 24px; overflow-x: auto;
+      min-width: 0;
+    }
+
+    .tl-row {
+      display: flex; align-items: stretch; min-height: 52px;
+      border-bottom: 1px solid var(--border);
+    }
+    .tl-row:last-child { border-bottom: none; }
+
+    .tl-label {
+      width: 160px; min-width: 160px; padding: 0 12px 0 0;
+      display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+    }
+    .tl-sprint-name {
+      font-size: 12px; font-weight: 600; color: var(--ink);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      max-width: 110px;
+    }
+
+    /* Axis row */
+    .tl-axis-row { min-height: 28px; border-bottom: 2px solid var(--border); }
+    .tl-axis-track { border-bottom: none; }
+    .tl-month-tick {
+      position: absolute; top: 0; transform: translateX(-50%);
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+    }
+    .tl-month-label {
+      font-size: 10px; font-weight: 600; color: var(--soft);
+      white-space: nowrap; letter-spacing: 0.3px; text-transform: uppercase;
+    }
+    .tl-month-tick::before {
+      content: ''; width: 1px; height: 6px; background: var(--border);
+    }
+
+    /* Track */
+    .tl-track {
+      flex: 1; position: relative; min-width: 0;
+      display: flex; align-items: center;
+    }
+    .tl-axis-track { align-items: flex-end; padding-bottom: 4px; }
+
+    /* Grid lines */
+    .tl-grid-line {
+      position: absolute; top: 0; bottom: 0;
+      width: 1px; background: var(--border); opacity: 0.5; pointer-events: none;
+    }
+
+    /* Today line */
+    .tl-today-line {
+      position: absolute; top: 0; bottom: 0;
+      width: 2px; background: var(--rose); z-index: 4; pointer-events: none;
+    }
+    .tl-today-line--axis { height: 12px; top: auto; bottom: 0; }
+
+    /* Sprint bar */
+    .tl-bar {
+      position: absolute; height: 28px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--r-md); z-index: 2;
+      display: flex; align-items: center; padding: 0 8px;
+      overflow: hidden; box-sizing: border-box;
+      transition: box-shadow 0.15s;
+      min-width: 4px;
+    }
+    .tl-bar:hover { box-shadow: var(--shadow-md); }
+    .tl-bar-active {
+      background: var(--violet-mid); border-color: var(--violet-2);
+    }
+    .tl-bar-dates {
+      font-size: 10px; color: var(--muted); white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis; pointer-events: none;
+    }
+
+    /* Task dots */
+    .tl-dot {
+      position: absolute; width: 10px; height: 10px; border-radius: 50%;
+      transform: translateX(-50%); z-index: 3;
+      border: 2px solid var(--white); box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+      cursor: default; flex-shrink: 0;
+    }
+    .tl-dot.prio-low      { background: var(--soft); }
+    .tl-dot.prio-medium   { background: var(--blue); }
+    .tl-dot.prio-high     { background: var(--amber); }
+    .tl-dot.prio-critical { background: var(--rose); }
+
+    /* Backlog row */
+    .tl-backlog-row .tl-sprint-name { color: var(--soft); font-style: italic; }
+
+    /* Legend */
+    .tl-legend {
+      display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+      padding: 14px 0 0 160px; margin-top: 4px;
+    }
+    .tl-legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+    .tl-legend-bar {
+      width: 28px; height: 12px; border-radius: var(--r-sm);
+      border: 1px solid var(--border); background: var(--surface);
+    }
+    .tl-legend-bar.active-bar { background: var(--violet-mid); border-color: var(--violet-2); }
+    .tl-today-legend {
+      width: 2px; height: 14px; background: var(--rose); border-radius: 1px;
+    }
+
+    /* Empty state */
+    .tl-empty {
+      display: flex; flex-direction: column; align-items: center; gap: 12px;
+      padding: 64px 0; color: var(--border); text-align: center;
+    }
+    .tl-empty .material-icons-round { font-size: 40px; }
+    .tl-empty p { margin: 0; font-size: 13px; color: var(--soft); }
+  `],
+})
+export class ProjectDetailComponent implements OnInit {
+  private route = inject(ActivatedRoute);
+  private projectService = inject(ProjectService);
+  private taskService = inject(TaskService);
+  private commentService = inject(CommentService);
+  private issueService = inject(IssueService);
+  private labelService = inject(LabelService);
+  private memberService = inject(ProjectMemberService);
+  private userService = inject(UserService);
+  private fb = inject(FormBuilder);
+  private snackBar = inject(MatSnackBar);
+  private dialog = inject(MatDialog);
+
+  project = signal<Project | null>(null);
+  tasks = signal<Task[]>([]);
+  sprints = signal<Sprint[]>([]);
+  comments = signal<Comment[]>([]);
+  users = signal<User[]>([]);
+  loading = signal(true);
+  commentsLoading = signal(false);
+  showCreateTask = signal(false);
+  showCreateSprint = signal(false);
+  selectedTask = signal<Task | null>(null);
+  editMode = signal(false);
+  editingSprint = signal<Sprint | null>(null);
+
+  activeTab: 'board' | 'sprints' | 'issues' | 'timeline' | 'members' = 'board';
+  openSprintMenuId: string | null = null;
+
+  filterSprintId: string | null = null;
+  filterPriority: number | null = null;
+  filterAssigneeId: string | null = null;
+  filterLabelId: string | null = null;
+  filteredTasks = signal<Task[]>([]);
+
+  // ── Labels ───────────────────────────────────────
+  labels = signal<Label[]>([]);
+  showManageLabels = signal(false);
+  showLabelPicker = signal(false);
+  readonly labelColors = LABEL_COLORS;
+
+  newLabelForm = this.fb.group({
+    name: ['', Validators.required],
+    color: ['blue'],
+  });
+
+  // ── Members ─────────────────────────────────────
+  members = signal<ProjectMember[]>([]);
+  membersLoading = signal(false);
+  showAddMember = signal(false);
+
+  addMemberForm = this.fb.group({
+    userId: ['', Validators.required],
+    role: [1 as ProjectMemberRole],
+  });
+
+  // users already on this project (by userId set) — used to filter the add dropdown
+  availableUsers() {
+    const taken = new Set(this.members().map(m => m.userId));
+    return this.users().filter(u => !taken.has(u.id));
+  }
+
+  // ── Issues ──────────────────────────────────────
+  issues = signal<Issue[]>([]);
+  selectedIssue = signal<Issue | null>(null);
+  issueComments = signal<IssueComment[]>([]);
+  issueCommentsLoading = signal(false);
+  issuesLoading = signal(false);
+  showCreateIssue = signal(false);
+  showConvertDialog = signal(false);
+  convertingIssue = signal<Issue | null>(null);
+
+  issueFilterStatus: 'open' | 'closed' = 'open';
+  issueFilterType: number | null = null;
+  issueFilterAssignee: string | null = null;
+
+  filteredIssues(): Issue[] {
+    return this.issues().filter(i => {
+      const isOpen = i.status !== 2;
+      const statusMatch = this.issueFilterStatus === 'open' ? isOpen : !isOpen;
+      const typeMatch = this.issueFilterType === null || i.type === this.issueFilterType;
+      const assigneeMatch = this.issueFilterAssignee === null || i.assigneeId === this.issueFilterAssignee;
+      return statusMatch && typeMatch && assigneeMatch;
+    });
+  }
+  openIssueCount(): number { return this.issues().filter(i => i.status !== 2).length; }
+  closedIssueCount(): number { return this.issues().filter(i => i.status === 2).length; }
+
+  readonly columns = COLUMNS;
+  readonly columnIds = COLUMNS.map(c => c.id);
+
+  taskForm = this.fb.group({
+    title: ['', Validators.required], description: [''],
+    priority: [TaskPriority.Medium], storyPoints: [null as number | null],
+    dueDate: [null as string | null], sprintId: [null as string | null],
+    assigneeId: [null as string | null],
+  });
+
+  editTaskForm = this.fb.group({
+    title: ['', Validators.required], description: [''],
+    priority: [TaskPriority.Medium], storyPoints: [null as number | null],
+    dueDate: [null as string | null], sprintId: [null as string | null],
+    assigneeId: [null as string | null],
+  });
+
+  sprintForm = this.fb.group({
+    name: ['', Validators.required], goal: [''],
+    startDate: ['', Validators.required], endDate: ['', Validators.required],
+  });
+
+  editSprintForm = this.fb.group({
+    name: ['', Validators.required], goal: [''],
+    startDate: ['', Validators.required], endDate: ['', Validators.required],
+  });
+
+  commentForm = this.fb.group({ content: ['', Validators.required] });
+
+  issueForm = this.fb.group({
+    title: ['', Validators.required],
+    description: [''],
+    type: [IssueType.Bug],
+    priority: [TaskPriority.Medium],
+    assigneeId: [null as string | null],
+  });
+  issueCommentForm = this.fb.group({ content: ['', Validators.required] });
+  convertForm = this.fb.group({
+    sprintId: [null as string | null],
+    priority: [null as number | null],
+  });
+
+  ngOnInit() {
+    const id = this.route.snapshot.paramMap.get('id')!;
+    this.projectService.getById(id).subscribe(p => { this.project.set(p); this.loading.set(false); });
+    this.taskService.getByProject(id).subscribe(t => { this.tasks.set(t); this.filteredTasks.set(t); });
+    this.projectService.getSprints(id).subscribe(s => this.sprints.set(s));
+    this.userService.getAll().subscribe({ next: u => this.users.set(u), error: () => {} });
+    this.labelService.seed(id).subscribe({
+      complete: () => this.labelService.getByProject(id).subscribe(l => this.labels.set(l)),
+      error: () => this.labelService.getByProject(id).subscribe(l => this.labels.set(l)),
+    });
+  }
+
+  loadIssues() {
+    const id = this.route.snapshot.paramMap.get('id')!;
+    this.issuesLoading.set(true);
+    this.issueService.getByProject(id).subscribe({
+      next: items => { this.issues.set(items); this.issuesLoading.set(false); },
+      error: () => this.issuesLoading.set(false),
+    });
+  }
+
+  switchToIssues() {
+    this.activeTab = 'issues';
+    if (this.issues().length === 0) this.loadIssues();
+  }
+
+  switchToMembers() {
+    this.activeTab = 'members';
+    if (this.members().length === 0) this.loadMembers();
+  }
+
+  loadMembers() {
+    const id = this.route.snapshot.paramMap.get('id')!;
+    this.membersLoading.set(true);
+    this.memberService.getByProject(id).subscribe({
+      next: m => { this.members.set(m); this.membersLoading.set(false); },
+      error: () => this.membersLoading.set(false),
+    });
+  }
+
+  submitAddMember() {
+    if (this.addMemberForm.invalid) return;
+    const id = this.route.snapshot.paramMap.get('id')!;
+    const { userId, role } = this.addMemberForm.value;
+    this.memberService.add(id, userId!, role as ProjectMemberRole).subscribe({
+      next: m => {
+        this.members.update(all => [...all, m]);
+        this.addMemberForm.reset({ userId: '', role: 1 });
+        this.showAddMember.set(false);
+        this.toast('Member added');
+      },
+      error: (err) => this.toast(err?.error?.Description ?? 'Failed to add member', true),
+    });
+  }
+
+  changeMemberRole(member: ProjectMember, role: number) {
+    const id = this.route.snapshot.paramMap.get('id')!;
+    this.memberService.updateRole(id, member.userId, role as ProjectMemberRole).subscribe({
+      next: updated => this.members.update(all => all.map(m => m.id === member.id ? updated : m)),
+      error: () => this.toast('Failed to update role', true),
+    });
+  }
+
+  removeMember(member: ProjectMember) {
+    const id = this.route.snapshot.paramMap.get('id')!;
+    this.memberService.remove(id, member.userId).subscribe({
+      next: () => {
+        this.members.update(all => all.filter(m => m.id !== member.id));
+        this.toast(`${member.fullName} removed`);
+      },
+      error: () => this.toast('Failed to remove member', true),
+    });
+  }
+
+  initials(fullName: string): string {
+    return fullName.split(' ').filter(Boolean).slice(0, 2).map(n => n[0].toUpperCase()).join('');
+  }
+
+  roleLabel(role: ProjectMemberRole): string {
+    return PROJECT_MEMBER_ROLE_LABELS[role] ?? String(role);
+  }
+
+  toggleSprintMenu(id: string) {
+    this.openSprintMenuId = this.openSprintMenuId === id ? null : id;
+  }
+
+  applyFilters() {
+    let result = this.tasks();
+    if (this.filterSprintId === 'backlog') result = result.filter(t => !t.sprintId);
+    else if (this.filterSprintId) result = result.filter(t => t.sprintId === this.filterSprintId);
+    if (this.filterPriority !== null) result = result.filter(t => t.priority === this.filterPriority);
+    if (this.filterAssigneeId === 'unassigned') result = result.filter(t => !t.assigneeId);
+    else if (this.filterAssigneeId) result = result.filter(t => t.assigneeId === this.filterAssigneeId);
+    if (this.filterLabelId) result = result.filter(t => t.labels?.some(l => l.id === this.filterLabelId));
+    this.filteredTasks.set(result);
+  }
+
+  clearFilters() {
+    this.filterSprintId = null; this.filterPriority = null;
+    this.filterAssigneeId = null; this.filterLabelId = null;
+    this.filteredTasks.set(this.tasks());
+  }
+
+  hasActiveFilter(): boolean {
+    return this.filterSprintId !== null || this.filterPriority !== null
+        || this.filterAssigneeId !== null || this.filterLabelId !== null;
+  }
+
+  getTasksByStatus(status: TaskStatus): Task[] {
+    return this.filteredTasks().filter(t => t.status === status);
+  }
+
+  tasksBySprint(sprintId: string): Task[] { return this.tasks().filter(t => t.sprintId === sprintId); }
+  doneTasksBySprint(sprintId: string): number { return this.tasks().filter(t => t.sprintId === sprintId && t.status === TaskStatus.Done).length; }
+
+  onDrop(event: CdkDragDrop<Task[]>, targetStatus: TaskStatus) {
+    if (event.previousContainer === event.container) return;
+    const task: Task = event.item.data;
+    const originalStatus = task.status;
+
+    // Optimistically update both signals so the board re-renders immediately
+    const apply = (all: Task[]) => all.map(t => t.id === task.id ? { ...t, status: targetStatus } : t);
+    this.tasks.update(apply);
+    this.filteredTasks.update(apply);
+
+    this.taskService.updateStatus(task.id, { status: targetStatus }).subscribe({
+      next: () => this.toast(`Moved to ${this.statusLabel(targetStatus)}`),
+      error: () => {
+        // Revert both signals on failure
+        const revert = (all: Task[]) => all.map(t => t.id === task.id ? { ...t, status: originalStatus } : t);
+        this.tasks.update(revert);
+        this.filteredTasks.update(revert);
+        this.toast('Failed to update task status', true);
+      },
+    });
+  }
+
+  openTask(task: Task) {
+    this.selectedTask.set(task);
+    this.editMode.set(false);
+    this.commentsLoading.set(true);
+    this.commentService.getByTask(task.id).subscribe({
+      next: c => { this.comments.set(c); this.commentsLoading.set(false); },
+      error: () => this.commentsLoading.set(false),
+    });
+  }
+
+  closeTask() { this.selectedTask.set(null); this.editMode.set(false); this.comments.set([]); }
+
+  startEdit() {
+    const t = this.selectedTask()!;
+    this.editTaskForm.patchValue({
+      title: t.title, description: t.description ?? '',
+      priority: t.priority, storyPoints: t.storyPoints ?? null,
+      dueDate: t.dueDate ? t.dueDate.substring(0, 10) : null,
+      sprintId: t.sprintId ?? null, assigneeId: t.assigneeId ?? null,
+    });
+    this.editMode.set(true);
+  }
+
+  saveEdit() {
+    if (this.editTaskForm.invalid) return;
+    const task = this.selectedTask()!;
+    const v = this.editTaskForm.value;
+    this.taskService.update(task.id, {
+      title: v.title!, description: v.description ?? undefined,
+      priority: v.priority ?? TaskPriority.Medium,
+      dueDate: v.dueDate ? new Date(v.dueDate).toISOString() : undefined,
+      sprintId: v.sprintId ?? undefined, storyPoints: v.storyPoints ?? undefined,
+      assigneeId: v.assigneeId ?? undefined,
+    } as any).subscribe({
+      next: updated => { this.tasks.update(all => all.map(t => t.id === updated.id ? updated : t)); this.selectedTask.set(updated); this.editMode.set(false); this.toast('Task updated'); },
+      error: () => this.toast('Failed to update task', true),
+    });
+  }
+
+  changeStatus(status: TaskStatus) {
+    const task = this.selectedTask()!;
+    this.taskService.updateStatus(task.id, { status }).subscribe({
+      next: updated => { this.tasks.update(all => all.map(t => t.id === updated.id ? updated : t)); this.selectedTask.set(updated); this.toast(`Moved to ${this.statusLabel(status)}`); },
+      error: () => this.toast('Failed to update status', true),
+    });
+  }
+
+  addComment() {
+    if (this.commentForm.invalid) return;
+    this.commentService.create(this.selectedTask()!.id, { content: this.commentForm.value.content! }).subscribe({
+      next: c => { this.comments.update(all => [...all, c]); this.commentForm.reset(); },
+      error: () => this.toast('Failed to add comment', true),
+    });
+  }
+
+  deleteComment(c: Comment) {
+    this.commentService.delete(this.selectedTask()!.id, c.id).subscribe({
+      next: () => this.comments.update(all => all.filter(x => x.id !== c.id)),
+      error: () => this.toast('Failed to delete comment', true),
+    });
+  }
+
+  confirmDeleteTask(task: Task) {
+    this.dialog.open(ConfirmDialogComponent, {
+      data: { title: 'Delete Task', message: `Delete "${task.title}"?`, confirmLabel: 'Delete', danger: true },
+    }).afterClosed().subscribe(confirmed => {
+      if (!confirmed) return;
+      this.taskService.delete(task.id).subscribe({
+        next: () => { this.tasks.update(all => all.filter(t => t.id !== task.id)); this.applyFilters(); this.closeTask(); this.toast('Task deleted'); },
+        error: () => this.toast('Failed to delete task', true),
+      });
+    });
+  }
+
+  createTask() {
+    if (this.taskForm.invalid) return;
+    const projectId = this.route.snapshot.paramMap.get('id')!;
+    const v = this.taskForm.value;
+    this.taskService.create({
+      title: v.title!, description: v.description ?? undefined,
+      priority: v.priority ?? 1, projectId,
+      dueDate: v.dueDate ? new Date(v.dueDate).toISOString() : undefined,
+      storyPoints: v.storyPoints ?? undefined, sprintId: v.sprintId ?? undefined,
+      assigneeId: v.assigneeId ?? undefined,
+    } as any).subscribe({
+      next: t => { this.tasks.update(prev => [...prev, t]); this.applyFilters(); this.showCreateTask.set(false); this.taskForm.reset({ priority: TaskPriority.Medium }); this.toast('Task created'); },
+      error: () => this.toast('Failed to create task', true),
+    });
+  }
+
+  createSprint() {
+    if (this.sprintForm.invalid) return;
+    const projectId = this.route.snapshot.paramMap.get('id')!;
+    const v = this.sprintForm.value;
+    this.projectService.createSprint(projectId, {
+      name: v.name!, goal: v.goal ?? undefined,
+      startDate: new Date(v.startDate!).toISOString(),
+      endDate: new Date(v.endDate!).toISOString(),
+    } as any).subscribe({
+      next: s => { this.sprints.update(prev => [...prev, s]); this.showCreateSprint.set(false); this.sprintForm.reset(); this.toast('Sprint created'); },
+      error: () => this.toast('Failed to create sprint', true),
+    });
+  }
+
+  openEditSprint(s: Sprint) {
+    this.editSprintForm.patchValue({ name: s.name, goal: s.goal ?? '', startDate: s.startDate.substring(0, 10), endDate: s.endDate.substring(0, 10) });
+    this.editingSprint.set(s);
+  }
+
+  saveEditSprint() {
+    if (this.editSprintForm.invalid) return;
+    const sprint = this.editingSprint()!;
+    const v = this.editSprintForm.value;
+    this.projectService.updateSprint(sprint.id, {
+      name: v.name!, goal: v.goal ?? undefined,
+      startDate: new Date(v.startDate!).toISOString(),
+      endDate: new Date(v.endDate!).toISOString(),
+    } as any).subscribe({
+      next: updated => { this.sprints.update(all => all.map(s => s.id === updated.id ? updated : s)); this.editingSprint.set(null); this.toast('Sprint updated'); },
+      error: () => this.toast('Failed to update sprint', true),
+    });
+  }
+
+  activateSprint(s: Sprint) {
+    this.projectService.activateSprint(s.id).subscribe({
+      next: updated => { this.sprints.update(all => all.map(x => x.id === updated.id ? updated : x)); this.toast('Sprint activated'); },
+      error: () => this.toast('Failed to activate sprint', true),
+    });
+  }
+
+  completeSprint(s: Sprint) {
+    this.projectService.completeSprint(s.id).subscribe({
+      next: updated => { this.sprints.update(all => all.map(x => x.id === updated.id ? updated : x)); this.toast('Sprint completed'); },
+      error: () => this.toast('Failed to complete sprint', true),
+    });
+  }
+
+  confirmDeleteSprint(s: Sprint) {
+    this.dialog.open(ConfirmDialogComponent, {
+      data: { title: 'Delete Sprint', message: `Delete sprint "${s.name}"? Tasks will not be deleted.`, confirmLabel: 'Delete', danger: true },
+    }).afterClosed().subscribe(confirmed => {
+      if (!confirmed) return;
+      this.projectService.deleteSprint(s.id).subscribe({
+        next: () => { this.sprints.update(all => all.filter(x => x.id !== s.id)); this.toast('Sprint deleted'); },
+        error: () => this.toast('Failed to delete sprint', true),
+      });
+    });
+  }
+
+  taskId(task: Task): string { return task.id.slice(0, 8).toUpperCase(); }
+  priorityIcon(p: number): string { return ['↓', '→', '↑', '⬆'][p] ?? '→'; }
+  priorityClass(p: number): string { return ['low', 'medium', 'high', 'critical'][p] ?? 'low'; }
+  priorityLabel(p: number): string { return ['Low', 'Medium', 'High', 'Critical'][p] ?? ''; }
+  statusLabel(s: number): string { return ['To Do', 'In Progress', 'In Review', 'Done'][s] ?? ''; }
+  isOverdue(date: string | null | undefined): boolean { return !!date && new Date(date) < new Date(); }
+  assigneeName(userId: string | null | undefined): string {
+    if (!userId) return '';
+    return this.users().find(x => x.id === userId)?.fullName ?? userId;
+  }
+  nameInitials(name: string): string {
+    const parts = name.trim().split(' ');
+    return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase();
+  }
+
+  // ── Label methods ────────────────────────────────
+
+  labelsNotOnTask(): Label[] {
+    const task = this.selectedTask();
+    if (!task) return this.labels();
+    const taskLabelIds = new Set((task.labels ?? []).map(l => l.id));
+    return this.labels().filter(l => !taskLabelIds.has(l.id));
+  }
+
+  addLabelToTask(labelId: string) {
+    const task = this.selectedTask()!;
+    const label = this.labels().find(l => l.id === labelId)!;
+    this.labelService.addToTask(labelId, task.id).subscribe({
+      next: () => {
+        const updated = { ...task, labels: [...(task.labels ?? []), label] };
+        this.tasks.update(all => all.map(t => t.id === task.id ? updated : t));
+        this.filteredTasks.update(all => all.map(t => t.id === task.id ? updated : t));
+        this.selectedTask.set(updated);
+        this.showLabelPicker.set(false);
+      },
+      error: () => this.toast('Failed to add label', true),
+    });
+  }
+
+  removeLabelFromTask(labelId: string) {
+    const task = this.selectedTask()!;
+    this.labelService.removeFromTask(labelId, task.id).subscribe({
+      next: () => {
+        const updated = { ...task, labels: (task.labels ?? []).filter(l => l.id !== labelId) };
+        this.tasks.update(all => all.map(t => t.id === task.id ? updated : t));
+        this.filteredTasks.update(all => all.map(t => t.id === task.id ? updated : t));
+        this.selectedTask.set(updated);
+      },
+      error: () => this.toast('Failed to remove label', true),
+    });
+  }
+
+  createLabel() {
+    if (this.newLabelForm.invalid) return;
+    const projectId = this.route.snapshot.paramMap.get('id')!;
+    const v = this.newLabelForm.value;
+    this.labelService.create(projectId, v.name!, v.color ?? 'blue').subscribe({
+      next: label => {
+        this.labels.update(all => [...all, label].sort((a, b) => a.name.localeCompare(b.name)));
+        this.newLabelForm.reset({ name: '', color: 'blue' });
+        this.toast('Label created');
+      },
+      error: () => this.toast('Failed to create label', true),
+    });
+  }
+
+  deleteLabel(label: Label) {
+    this.labelService.delete(label.id).subscribe({
+      next: () => {
+        this.labels.update(all => all.filter(l => l.id !== label.id));
+        // Remove from any tasks in the local state
+        const strip = (t: Task) => ({ ...t, labels: (t.labels ?? []).filter(l => l.id !== label.id) });
+        this.tasks.update(all => all.map(strip));
+        this.filteredTasks.update(all => all.map(strip));
+        const sel = this.selectedTask();
+        if (sel) this.selectedTask.set(strip(sel));
+        this.toast('Label deleted');
+      },
+      error: () => this.toast('Failed to delete label', true),
+    });
+  }
+
+  // ── Timeline helpers ─────────────────────────────
+
+  private tlRange(): { startMs: number; days: number } {
+    const sprints = this.sprints();
+    if (sprints.length === 0) {
+      const now = Date.now();
+      return { startMs: now, days: 30 };
+    }
+    const startMs = Math.min(...sprints.map(s => new Date(s.startDate).getTime()));
+    const endMs   = Math.max(...sprints.map(s => new Date(s.endDate).getTime()));
+    // pad 3 days each side for breathing room
+    const pad = 3 * 86_400_000;
+    return { startMs: startMs - pad, days: Math.ceil((endMs - startMs + pad * 2) / 86_400_000) };
+  }
+
+  pct(date: string | Date): number {
+    const { startMs, days } = this.tlRange();
+    const ts = date instanceof Date ? date.getTime() : new Date(date).getTime();
+    return Math.max(0, Math.min(100, (ts - startMs) / (days * 86_400_000) * 100));
+  }
+
+  sprintLeft(s: Sprint): number { return this.pct(s.startDate); }
+
+  sprintWidth(s: Sprint): number {
+    const { days } = this.tlRange();
+    const w = (new Date(s.endDate).getTime() - new Date(s.startDate).getTime()) / (days * 86_400_000) * 100;
+    return Math.max(0.5, w);
+  }
+
+  todayPct(): number { return this.pct(new Date()); }
+
+  timelineMonths(): { label: string; pct: number }[] {
+    const { startMs, days } = this.tlRange();
+    const endMs = startMs + days * 86_400_000;
+    const result: { label: string; pct: number }[] = [];
+    const cur = new Date(startMs);
+    cur.setDate(1);
+    while (cur.getTime() <= endMs) {
+      result.push({
+        label: cur.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+        pct: this.pct(cur),
+      });
+      cur.setMonth(cur.getMonth() + 1);
+    }
+    return result;
+  }
+
+  backlogTasksWithDue(): Task[] {
+    return this.tasks().filter(t => !t.sprintId && !!t.dueDate);
+  }
+
+  // ── Issue methods ────────────────────────────────
+
+  openIssue(issue: Issue) {
+    this.selectedIssue.set(issue);
+    this.issueCommentsLoading.set(true);
+    this.issueService.getComments(issue.id).subscribe({
+      next: c => { this.issueComments.set(c); this.issueCommentsLoading.set(false); },
+      error: () => this.issueCommentsLoading.set(false),
+    });
+  }
+
+  closeIssue() {
+    this.selectedIssue.set(null);
+    this.issueComments.set([]);
+    this.issueCommentForm.reset();
+  }
+
+  createIssue() {
+    if (this.issueForm.invalid) return;
+    const projectId = this.route.snapshot.paramMap.get('id')!;
+    const v = this.issueForm.value;
+    this.issueService.create({
+      projectId,
+      title: v.title!,
+      description: v.description ?? undefined,
+      type: v.type ?? IssueType.Bug,
+      priority: v.priority ?? 1,
+      assigneeId: v.assigneeId ?? undefined,
+    } as any).subscribe({
+      next: issue => {
+        this.issues.update(all => [issue, ...all]);
+        this.showCreateIssue.set(false);
+        this.issueForm.reset({ type: IssueType.Bug, priority: TaskPriority.Medium });
+        this.toast('Issue created');
+      },
+      error: () => this.toast('Failed to create issue', true),
+    });
+  }
+
+  closeIssueItem(issue: Issue) {
+    this.issueService.close(issue.id).subscribe({
+      next: updated => {
+        this.issues.update(all => all.map(i => i.id === updated.id ? updated : i));
+        if (this.selectedIssue()?.id === updated.id) this.selectedIssue.set(updated);
+        this.toast('Issue closed');
+      },
+      error: () => this.toast('Failed to close issue', true),
+    });
+  }
+
+  reopenIssueItem(issue: Issue) {
+    this.issueService.reopen(issue.id).subscribe({
+      next: updated => {
+        this.issues.update(all => all.map(i => i.id === updated.id ? updated : i));
+        if (this.selectedIssue()?.id === updated.id) this.selectedIssue.set(updated);
+        this.toast('Issue reopened');
+      },
+      error: () => this.toast('Failed to reopen issue', true),
+    });
+  }
+
+  openConvert(issue: Issue) {
+    this.convertingIssue.set(issue);
+    this.convertForm.reset({ sprintId: null, priority: null });
+    this.showConvertDialog.set(true);
+  }
+
+  submitConvert() {
+    const issue = this.convertingIssue()!;
+    const v = this.convertForm.value;
+    this.issueService.convertToTask(issue.id, v.sprintId ?? null, v.priority ?? null).subscribe({
+      next: () => {
+        this.showConvertDialog.set(false);
+        this.loadIssues();
+        // reload tasks so the new one appears on the board
+        const projectId = this.route.snapshot.paramMap.get('id')!;
+        this.taskService.getByProject(projectId).subscribe(t => { this.tasks.set(t); this.applyFilters(); });
+        if (this.selectedIssue()?.id === issue.id) this.closeIssue();
+        this.toast('Issue converted to task');
+      },
+      error: () => this.toast('Failed to convert issue', true),
+    });
+  }
+
+  addIssueComment() {
+    if (this.issueCommentForm.invalid) return;
+    const issue = this.selectedIssue()!;
+    this.issueService.addComment(issue.id, this.issueCommentForm.value.content!).subscribe({
+      next: c => { this.issueComments.update(all => [...all, c]); this.issueCommentForm.reset(); },
+      error: () => this.toast('Failed to add comment', true),
+    });
+  }
+
+  confirmDeleteIssue(issue: Issue) {
+    // Issues don't have a delete endpoint — close them instead
+    this.dialog.open(ConfirmDialogComponent, {
+      data: { title: 'Close Issue', message: `Close issue #${issue.number} "${issue.title}"?`, confirmLabel: 'Close', danger: false },
+    }).afterClosed().subscribe(confirmed => {
+      if (!confirmed) return;
+      this.closeIssueItem(issue);
+      this.closeIssue();
+    });
+  }
+
+  // Issue type/status helpers
+  issueTypeLabel(type: number): string { return ISSUE_TYPE_LABELS[type as IssueType] ?? 'Unknown'; }
+  issueTypeIcon(type: number): string { return ISSUE_TYPE_ICONS[type as IssueType] ?? 'help'; }
+  issueTypeColor(type: number): string { return ISSUE_TYPE_COLORS[type as IssueType] ?? 'blue'; }
+  issueStatusLabel(status: number): string { return ['Open', 'In Progress', 'Closed'][status] ?? 'Open'; }
+  issueStatusKey(status: number): string { return ['open', 'inprogress', 'closed'][status] ?? 'open'; }
+
+  private toast(msg: string, isError = false) {
+    this.snackBar.open(msg, 'Dismiss', { duration: 3000, panelClass: isError ? ['snack-error'] : ['snack-success'], horizontalPosition: 'right', verticalPosition: 'bottom' });
+  }
+}

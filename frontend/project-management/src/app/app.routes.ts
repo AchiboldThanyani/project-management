@@ -1,0 +1,47 @@
+import { Route } from '@angular/router';
+import { authGuard, guestGuard } from '@pm/shared/util';
+
+export const appRoutes: Route[] = [
+  { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
+  {
+    path: 'auth',
+    canActivate: [guestGuard],
+    loadChildren: () => import('@pm/auth/feature').then((m) => m.authRoutes),
+  },
+  {
+    path: '',
+    canActivate: [authGuard],
+    loadComponent: () => import('@pm/layout/feature').then((m) => m.ShellComponent),
+    children: [
+      {
+        path: 'dashboard',
+        loadComponent: () => import('./dashboard.component').then((m) => m.DashboardComponent),
+      },
+      {
+        path: 'projects',
+        loadChildren: () => import('@pm/projects/feature').then((m) => m.projectsRoutes),
+      },
+      {
+        path: 'teams',
+        loadChildren: () => import('@pm/teams/feature').then((m) => m.teamsRoutes),
+      },
+      {
+        path: 'messages',
+        loadComponent: () => import('@pm/teams/feature').then((m) => m.MessagingComponent),
+      },
+      {
+        path: 'sprint-board',
+        loadComponent: () => import('./sprint-board.component').then((m) => m.SprintBoardComponent),
+      },
+      {
+        path: 'activity',
+        loadComponent: () => import('./activity-feed.component').then((m) => m.ActivityFeedComponent),
+      },
+      {
+        path: 'profile',
+        loadComponent: () => import('@pm/auth/feature').then((m) => m.ProfileComponent),
+      },
+    ],
+  },
+  { path: '**', redirectTo: 'dashboard' },
+];

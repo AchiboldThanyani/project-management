@@ -1,0 +1,31 @@
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "rootDir": ".",
+    "sourceMap": true,
+    "declaration": false,
+    "moduleResolution": "bundler",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "importHelpers": true,
+    "target": "es2022",
+    "module": "esnext",
+    "lib": ["es2022", "dom"],
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@pm/shared/models": ["libs/shared/models/src/index.ts"],
+      "@pm/shared/util": ["libs/shared/util/src/index.ts"],
+      "@pm/auth/data-access": ["libs/auth/data-access/src/index.ts"],
+      "@pm/auth/feature": ["libs/auth/feature/src/index.ts"],
+      "@pm/projects/data-access": ["libs/projects/data-access/src/index.ts"],
+      "@pm/projects/feature": ["libs/projects/feature/src/index.ts"],
+      "@pm/tasks/data-access": ["libs/tasks/data-access/src/index.ts"],
+      "@pm/teams/data-access": ["libs/teams/data-access/src/index.ts"],
+      "@pm/teams/feature": ["libs/teams/feature/src/index.ts"],
+      "@pm/layout/feature": ["libs/layout/feature/src/index.ts"]
+    }
+  },
+  "exclude": ["node_modules", "tmp"]
+}
