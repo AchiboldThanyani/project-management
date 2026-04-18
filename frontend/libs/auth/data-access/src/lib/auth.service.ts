@@ -2,7 +2,7 @@ import { Injectable, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { tap } from 'rxjs/operators';
 import { Router } from '@angular/router';
-import { AuthResponse, LoginRequest, RegisterRequest } from '@pm/shared/models';
+import { AuthResponse, LoginRequest, RegisterRequest, UserRole } from '@pm/shared/models';
 import { environment } from '@pm/shared/util';
 
 export interface StoredUser {
@@ -10,6 +10,7 @@ export interface StoredUser {
   email: string;
   firstName: string;
   lastName: string;
+  role: UserRole;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -20,6 +21,8 @@ export class AuthService {
   readonly token = this._token.asReadonly();
   readonly user = this._user.asReadonly();
   readonly isAuthenticated = computed(() => !!this._token());
+  readonly role = computed(() => this._user()?.role ?? 'Internal');
+  readonly isCustomer = computed(() => this.role() === 'Customer');
 
   constructor(private http: HttpClient, private router: Router) {
     // If token was cleared due to expiry, clean up storage and state
@@ -50,10 +53,21 @@ export class AuthService {
     if (res.refreshToken) {
       localStorage.setItem('refresh_token', res.refreshToken);
     }
-    const user: StoredUser = { userId: res.userId, email: res.email, firstName: res.firstName, lastName: res.lastName };
+    const role = this.extractRole(res.accessToken);
+    const user: StoredUser = { userId: res.userId, email: res.email, firstName: res.firstName, lastName: res.lastName, role };
     localStorage.setItem('auth_user', JSON.stringify(user));
     this._token.set(res.accessToken);
     this._user.set(user);
+  }
+
+  private extractRole(token: string): UserRole {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const role = payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] ?? payload['role'];
+      return role === 'Customer' ? 'Customer' : 'Internal';
+    } catch {
+      return 'Internal';
+    }
   }
 
   private clearSession() {

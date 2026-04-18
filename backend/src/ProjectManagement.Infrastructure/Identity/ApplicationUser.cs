@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using ProjectManagement.Domain.Enums;
 
 namespace ProjectManagement.Infrastructure.Identity;
 
@@ -10,4 +11,5 @@ public class ApplicationUser : IdentityUser
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public string? RefreshToken { get; set; }
     public DateTime? RefreshTokenExpiresAt { get; set; }
+    public UserRole Role { get; set; } = UserRole.Internal;
 }

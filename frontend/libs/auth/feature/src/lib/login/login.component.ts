@@ -225,7 +225,10 @@ export class LoginComponent {
     this.loading = true;
     this.error = null;
     this.authService.login(this.form.value).subscribe({
-      next: () => this.router.navigate(['/dashboard']),
+      next: () => {
+          const route = this.authService.isCustomer() ? '/portal/tickets' : '/dashboard';
+          this.router.navigate([route]);
+        },
       error: (err: any) => {
         this.error = err?.error?.errors?.Password?.[0] ?? err?.error?.error ?? 'Login failed';
         this.loading = false;

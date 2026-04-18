@@ -219,7 +219,10 @@ export class RegisterComponent {
     this.loading = true;
     this.error = null;
     this.authService.register(this.form.value).subscribe({
-      next: () => this.router.navigate(['/dashboard']),
+      next: () => {
+          const route = this.authService.isCustomer() ? '/portal/tickets' : '/dashboard';
+          this.router.navigate([route]);
+        },
       error: (err: any) => {
         this.error = err?.error?.errors?.Identity?.[0] ?? err?.error?.error ?? 'Registration failed';
         this.loading = false;

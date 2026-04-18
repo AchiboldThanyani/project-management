@@ -37,6 +37,10 @@ public static class DependencyInjection
         services.AddScoped<ILabelRepository, LabelRepository>();
         services.AddScoped<IProjectMemberRepository, ProjectMemberRepository>();
         services.AddScoped<ITaskDependencyRepository, TaskDependencyRepository>();
+        services.AddScoped<IProjectInviteRepository, ProjectInviteRepository>();
+        services.AddScoped<ICustomerProjectAccessRepository, CustomerProjectAccessRepository>();
+        services.AddScoped<ITicketRepository, TicketRepository>();
+        services.AddScoped<ITicketCommentRepository, TicketCommentRepository>();
 
         // HTTP context / current user
         services.AddHttpContextAccessor();

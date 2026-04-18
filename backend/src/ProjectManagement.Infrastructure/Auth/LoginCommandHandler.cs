@@ -25,7 +25,7 @@ internal sealed class LoginCommandHandler(
         if (!passwordValid)
             return Error.Validation("Auth.InvalidCredentials", "Invalid email or password.");
 
-        var accessToken = jwtTokenService.GenerateToken(user.Id, user.Email!, user.FirstName, user.LastName);
+        var accessToken = jwtTokenService.GenerateToken(user.Id, user.Email!, user.FirstName, user.LastName, user.Role.ToString());
         var refreshToken = jwtTokenService.GenerateRefreshToken();
         var expiryDays = int.Parse(configuration["JwtSettings:RefreshTokenExpiryDays"] ?? "7");
 

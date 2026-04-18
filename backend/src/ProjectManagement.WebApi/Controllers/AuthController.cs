@@ -19,7 +19,7 @@ public class AuthController(IMediator mediator, UserManager<ApplicationUser> use
     [HttpPost("register")]
     [EnableRateLimiting("auth")]
     public async Task<ActionResult<AuthResponseDto>> Register([FromBody] RegisterDto dto, CancellationToken ct)
-        => (await mediator.Send(new RegisterCommand(dto.FirstName, dto.LastName, dto.Email, dto.Password), ct)).ToActionResult(this);
+        => (await mediator.Send(new RegisterCommand(dto.FirstName, dto.LastName, dto.Email, dto.Password, dto.InviteToken), ct)).ToActionResult(this);
 
     [HttpPost("login")]
     [EnableRateLimiting("auth")]

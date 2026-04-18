@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet --version)",
+      "Bash(ng version:*)",
+      "Bash(dotnet new:*)",
+      "Bash(dotnet sln:*)",
+      "Bash(dotnet add:*)",
+      "Bash(dotnet nuget:*)",
+      "Bash(dotnet remove:*)"
+    ]
+  },
+  "enabledPlugins": {
+    "superpowers-developing-for-claude-code@superpowers-marketplace": true
+  }
+}

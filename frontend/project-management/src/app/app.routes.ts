@@ -1,5 +1,5 @@
 import { Route } from '@angular/router';
-import { authGuard, guestGuard } from '@pm/shared/util';
+import { authGuard, customerGuard, guestGuard } from '@pm/shared/util';
 
 export const appRoutes: Route[] = [
   { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
@@ -7,6 +7,30 @@ export const appRoutes: Route[] = [
     path: 'auth',
     canActivate: [guestGuard],
     loadChildren: () => import('@pm/auth/feature').then((m) => m.authRoutes),
+  },
+  {
+    path: 'join/:token',
+    loadComponent: () => import('./join-project.component').then((m) => m.JoinProjectComponent),
+  },
+  {
+    path: 'portal',
+    canActivate: [customerGuard],
+    loadComponent: () => import('./portal/portal-shell.component').then((m) => m.PortalShellComponent),
+    children: [
+      { path: '', redirectTo: 'tickets', pathMatch: 'full' },
+      {
+        path: 'tickets',
+        loadComponent: () => import('./portal/portal-tickets.component').then((m) => m.PortalTicketsComponent),
+      },
+      {
+        path: 'tickets/new',
+        loadComponent: () => import('./portal/portal-new-ticket.component').then((m) => m.PortalNewTicketComponent),
+      },
+      {
+        path: 'tickets/:id',
+        loadComponent: () => import('./portal/portal-ticket-detail.component').then((m) => m.PortalTicketDetailComponent),
+      },
+    ],
   },
   {
     path: '',

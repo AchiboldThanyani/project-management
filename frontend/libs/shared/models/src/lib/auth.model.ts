@@ -3,7 +3,10 @@ export interface RegisterRequest {
   lastName: string;
   email: string;
   password: string;
+  inviteToken?: string;
 }
+
+export type UserRole = 'Internal' | 'Customer';
 
 export interface LoginRequest {
   email: string;

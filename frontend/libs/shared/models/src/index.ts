@@ -10,3 +10,4 @@ export * from './lib/activity.model';
 export * from './lib/issue.model';
 export * from './lib/label.model';
 export * from './lib/project-member.model';
+export * from './lib/ticket.model';

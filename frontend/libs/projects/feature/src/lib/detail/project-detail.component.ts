@@ -6,7 +6,7 @@ import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { ProjectService, ProjectMemberService } from '@pm/projects/data-access';
-import { TaskService, CommentService, IssueService, LabelService, TaskDependencyService } from '@pm/tasks/data-access';
+import { TaskService, CommentService, IssueService, LabelService, TaskDependencyService, TicketService, InviteService } from '@pm/tasks/data-access';
 import { UserService } from '@pm/auth/data-access';
 import {
   Project, Task, TaskStatus, TaskPriority, Sprint, Comment, User,
@@ -16,6 +16,8 @@ import {
   Label, LABEL_COLORS,
   ProjectMember, ProjectMemberRole, PROJECT_MEMBER_ROLE_LABELS,
   TaskRef,
+  Ticket, TicketComment, TicketStatus, TicketType, TICKET_STATUS_LABELS, TICKET_TYPE_LABELS,
+  Invite,
 } from '@pm/shared/models';
 import { ConfirmDialogComponent } from '@pm/shared/util';
 
@@ -72,6 +74,13 @@ const COLUMNS = [
         <button class="tab" [class.active]="activeTab === 'members'" (click)="switchToMembers()">
           <span class="material-icons-round">group</span> Members
           <span class="tab-badge" *ngIf="members().length > 0">{{ members().length }}</span>
+        </button>
+        <button class="tab" [class.active]="activeTab === 'tickets'" (click)="switchToTickets()">
+          <span class="material-icons-round">confirmation_number</span> Tickets
+          <span class="tab-badge" *ngIf="tickets().length > 0">{{ tickets().length }}</span>
+        </button>
+        <button class="tab" [class.active]="activeTab === 'invites'" (click)="switchToInvites()">
+          <span class="material-icons-round">link</span> Invites
         </button>
       </div>
 
@@ -450,6 +459,76 @@ const COLUMNS = [
           </div>
         </div>
 
+      </div>
+
+      <!-- ── Tickets tab ──────────────────────────── -->
+      <div *ngIf="activeTab === 'tickets'" class="tickets-section">
+        <div class="tickets-header">
+          <div class="tickets-filters">
+            <select class="filter-select" [(ngModel)]="ticketFilterStatus">
+              <option value="">All statuses</option>
+              <option [value]="0">New</option>
+              <option [value]="1">Open</option>
+              <option [value]="2">In Progress</option>
+              <option [value]="3">Resolved</option>
+              <option [value]="4">Closed</option>
+            </select>
+          </div>
+        </div>
+        <div *ngIf="ticketsLoading()" class="loading-wrap">
+          <span class="material-icons-round spin">autorenew</span>
+        </div>
+        <div *ngIf="!ticketsLoading() && filteredTickets().length === 0" class="members-empty">
+          <span class="material-icons-round">confirmation_number</span>
+          <p>No tickets for this project yet.</p>
+        </div>
+        <div *ngIf="!ticketsLoading() && filteredTickets().length > 0" class="ticket-table">
+          <div class="ticket-table-header">
+            <span>#</span><span>Subject</span><span>Type</span><span>Priority</span><span>Submitted by</span><span>Status</span>
+          </div>
+          <div class="ticket-row" *ngFor="let t of filteredTickets()" (click)="openTicket(t)">
+            <span class="ticket-num">{{ t.number }}</span>
+            <span class="ticket-subject">{{ t.subject }}</span>
+            <span class="ticket-type-chip">{{ ticketTypeLabel(t.type) }}</span>
+            <span class="priority-dot p-{{ t.priority }}">{{ ['Low','Medium','High','Critical'][t.priority] }}</span>
+            <span class="ticket-submitter">{{ t.submittedByName }}</span>
+            <span class="status-chip s-{{ t.status }}">{{ ticketStatusLabel(t.status) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Invites tab ──────────────────────────── -->
+      <div *ngIf="activeTab === 'invites'" class="invites-section">
+        <div class="invites-header">
+          <p class="invites-subtitle">Share invite links with customers so they can register and access the portal for this project.</p>
+          <button class="btn-primary sm" (click)="generateInvite()">
+            <span class="material-icons-round">add_link</span> Generate Invite
+          </button>
+        </div>
+        <div *ngIf="invitesLoading()" class="loading-wrap">
+          <span class="material-icons-round spin">autorenew</span>
+        </div>
+        <div *ngIf="!invitesLoading() && invites().length === 0" class="members-empty">
+          <span class="material-icons-round">link_off</span>
+          <p>No invite links yet.</p>
+        </div>
+        <div *ngIf="!invitesLoading() && invites().length > 0" class="invite-list">
+          <div class="invite-row" *ngFor="let inv of invites()">
+            <span class="material-icons-round invite-icon">link</span>
+            <div class="invite-info">
+              <code class="invite-token">/join/{{ inv.token }}</code>
+              <span class="invite-expiry">Expires {{ inv.expiresAt | date:'mediumDate' }}</span>
+            </div>
+            <div class="invite-actions">
+              <button class="icon-btn" title="Copy link" (click)="copyInviteLink(inv)">
+                <span class="material-icons-round">content_copy</span>
+              </button>
+              <button class="icon-btn danger-icon" title="Revoke" (click)="revokeInvite(inv)">
+                <span class="material-icons-round">delete</span>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
     </div>
@@ -1045,6 +1124,74 @@ const COLUMNS = [
               </button>
             </div>
           </form>
+        </ng-container>
+      </div>
+    </div>
+
+    <!-- ── Ticket detail panel ──────────────────── -->
+    <div *ngIf="selectedTicket()" class="panel-overlay" (click)="closeTicket()">
+      <div class="task-panel" (click)="$event.stopPropagation()">
+        <ng-container *ngIf="selectedTicket() as ticket">
+          <div class="panel-header">
+            <div class="panel-title-row">
+              <span class="ticket-num">#{{ ticket.number }}</span>
+              <span class="status-chip s-{{ ticket.status }}">{{ ticketStatusLabel(ticket.status) }}</span>
+            </div>
+            <div class="panel-actions">
+              <button *ngIf="!ticket.convertedToTaskId" class="icon-btn" title="Convert to task" (click)="convertTicket(ticket)">
+                <span class="material-icons-round">task_alt</span>
+              </button>
+              <button class="icon-btn" title="Close panel" (click)="closeTicket()">
+                <span class="material-icons-round">close</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="panel-body">
+            <h2 style="margin:0 0 8px;font-size:16px;font-weight:600;color:var(--ink)">{{ ticket.subject }}</h2>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+              <span class="ticket-type-chip">{{ ticketTypeLabel(ticket.type) }}</span>
+              <span class="ticket-type-chip">{{ ['Low','Medium','High','Critical'][ticket.priority] }} priority</span>
+              <span class="ticket-type-chip">By {{ ticket.submittedByName }}</span>
+            </div>
+
+            <div *ngIf="ticket.description" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:13px;color:var(--ink);white-space:pre-wrap;margin-bottom:16px">{{ ticket.description }}</div>
+
+            <!-- Status change -->
+            <div class="panel-field">
+              <label class="field-label">Status</label>
+              <select class="field-input" [ngModel]="ticket.status" (ngModelChange)="updateTicketStatus(ticket, $event)">
+                <option [value]="0">New</option>
+                <option [value]="1">Open</option>
+                <option [value]="2">In Progress</option>
+                <option [value]="3">Resolved</option>
+                <option [value]="4">Closed</option>
+              </select>
+            </div>
+
+            <!-- Conversion notice -->
+            <div *ngIf="ticket.convertedToTaskId" style="background:var(--violet-c);color:var(--violet);padding:10px 14px;border-radius:8px;font-size:13px;font-weight:500;margin-top:12px">
+              <span class="material-icons-round" style="font-size:16px;vertical-align:middle;margin-right:4px">task_alt</span> Converted to a task
+            </div>
+
+            <!-- Comments -->
+            <div style="margin-top:20px">
+              <p style="font-size:13px;font-weight:600;color:var(--ink);margin:0 0 12px">Conversation</p>
+              <div *ngIf="ticketCommentsLoading()" class="loading-wrap"><span class="material-icons-round spin">autorenew</span></div>
+              <div *ngFor="let c of ticketComments()" style="margin-bottom:10px;padding:12px;border-radius:8px" [style.background]="c.isFromCustomer ? 'var(--violet-c)' : 'var(--surface)'">
+                <div style="font-size:12px;font-weight:600;color:var(--ink);margin-bottom:4px">{{ c.authorName }} <span style="font-size:11px;font-weight:400;color:var(--muted)">{{ c.isFromCustomer ? '(Customer)' : '(Team)' }}</span></div>
+                <div style="font-size:13px;color:var(--ink)">{{ c.content }}</div>
+                <div style="font-size:11px;color:var(--muted);margin-top:4px">{{ c.createdAt | date:'short' }}</div>
+              </div>
+              <div *ngIf="!ticketCommentsLoading() && ticketComments().length === 0" style="font-size:13px;color:var(--muted);padding:8px 0">No replies yet.</div>
+              <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
+                <textarea class="comment-input" [(ngModel)]="ticketReply" rows="3" placeholder="Reply to customer..."></textarea>
+                <button class="btn-primary sm" (click)="sendTicketReply()" [disabled]="!ticketReply.trim() || ticketReplySending()">
+                  {{ ticketReplySending() ? 'Sending...' : 'Send Reply' }}
+                </button>
+              </div>
+            </div>
+          </div>
         </ng-container>
       </div>
     </div>
@@ -1900,6 +2047,47 @@ const COLUMNS = [
     }
     .tl-empty .material-icons-round { font-size: 40px; }
     .tl-empty p { margin: 0; font-size: 13px; color: var(--soft); }
+
+    /* ── Tickets tab ── */
+    .tickets-section { display: flex; flex-direction: column; gap: 16px; }
+    .tickets-header { display: flex; align-items: center; justify-content: flex-end; padding: 4px 0; }
+    .ticket-table { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+    .ticket-table-header {
+      display: grid; grid-template-columns: 48px 1fr 120px 100px 140px 110px;
+      padding: 10px 16px; background: var(--surface);
+      font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em;
+    }
+    .ticket-row {
+      display: grid; grid-template-columns: 48px 1fr 120px 100px 140px 110px;
+      padding: 12px 16px; align-items: center; cursor: pointer; transition: background .12s;
+      border-top: 1px solid var(--border);
+    }
+    .ticket-row:hover { background: var(--surface); }
+    .ticket-num { font-size: 12px; color: var(--muted); }
+    .ticket-subject { font-size: 14px; font-weight: 500; color: var(--ink); }
+    .ticket-type-chip { font-size: 11px; color: var(--muted); background: var(--surface); border: 1px solid var(--border); padding: 2px 8px; border-radius: 10px; }
+    .ticket-submitter { font-size: 12px; color: var(--muted); }
+    .priority-dot { font-size: 12px; font-weight: 600; }
+    .p-0 { color: var(--soft); } .p-1 { color: var(--blue); } .p-2 { color: var(--amber); } .p-3 { color: var(--rose); }
+    .status-chip { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 12px; }
+    .s-0 { background: #f0f0f0; color: #555; } .s-1 { background: #e8f4fd; color: #1a73c7; }
+    .s-2 { background: #fff3e0; color: #e67d00; } .s-3 { background: var(--violet-c); color: var(--violet); }
+    .s-4 { background: #f5f5f5; color: #888; }
+
+    /* ── Invites tab ── */
+    .invites-section { display: flex; flex-direction: column; gap: 20px; }
+    .invites-header { display: flex; align-items: flex-start; justify-content: space-between; }
+    .invites-subtitle { font-size: 13px; color: var(--muted); max-width: 480px; margin: 0; }
+    .invite-list { display: flex; flex-direction: column; gap: 10px; }
+    .invite-row {
+      display: flex; align-items: center; gap: 14px; padding: 14px 16px;
+      background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    }
+    .invite-icon { color: var(--violet); font-size: 20px; }
+    .invite-info { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+    .invite-token { font-size: 13px; color: var(--ink); }
+    .invite-expiry { font-size: 11px; color: var(--muted); }
+    .invite-actions { display: flex; gap: 6px; }
   `],
 })
 export class ProjectDetailComponent implements OnInit {
@@ -1912,6 +2100,8 @@ export class ProjectDetailComponent implements OnInit {
   private dependencyService = inject(TaskDependencyService);
   private memberService = inject(ProjectMemberService);
   private userService = inject(UserService);
+  private ticketService = inject(TicketService);
+  private inviteService = inject(InviteService);
   private fb = inject(FormBuilder);
   private snackBar = inject(MatSnackBar);
   private dialog = inject(MatDialog);
@@ -1929,7 +2119,7 @@ export class ProjectDetailComponent implements OnInit {
   editMode = signal(false);
   editingSprint = signal<Sprint | null>(null);
 
-  activeTab: 'board' | 'sprints' | 'issues' | 'timeline' | 'members' = 'board';
+  activeTab: 'board' | 'sprints' | 'issues' | 'timeline' | 'members' | 'tickets' | 'invites' = 'board';
   openSprintMenuId: string | null = null;
 
   filterSprintId: string | null = null;
@@ -2109,6 +2299,118 @@ export class ProjectDetailComponent implements OnInit {
   switchToMembers() {
     this.activeTab = 'members';
     if (this.members().length === 0) this.loadMembers();
+  }
+
+  // ── Tickets ─────────────────────────────────────
+  tickets = signal<Ticket[]>([]);
+  ticketsLoading = signal(false);
+  selectedTicket = signal<Ticket | null>(null);
+  ticketComments = signal<TicketComment[]>([]);
+  ticketCommentsLoading = signal(false);
+  ticketReply = '';
+  ticketReplySending = signal(false);
+  ticketFilterStatus: TicketStatus | '' = '';
+
+  switchToTickets() {
+    this.activeTab = 'tickets';
+    if (this.tickets().length === 0) this.loadTickets();
+  }
+
+  loadTickets() {
+    const id = this.route.snapshot.paramMap.get('id')!;
+    this.ticketsLoading.set(true);
+    this.ticketService.getByProject(id).subscribe({
+      next: (t) => { this.tickets.set(t); this.ticketsLoading.set(false); },
+      error: () => this.ticketsLoading.set(false),
+    });
+  }
+
+  openTicket(t: Ticket) {
+    this.selectedTicket.set(t);
+    this.ticketComments.set([]);
+    this.ticketCommentsLoading.set(true);
+    const id = this.route.snapshot.paramMap.get('id')!;
+    this.ticketService.getComments(id, t.id).subscribe({
+      next: (c) => { this.ticketComments.set(c); this.ticketCommentsLoading.set(false); },
+      error: () => this.ticketCommentsLoading.set(false),
+    });
+  }
+
+  closeTicket() { this.selectedTicket.set(null); }
+
+  updateTicketStatus(t: Ticket, status: TicketStatus) {
+    const id = this.route.snapshot.paramMap.get('id')!;
+    this.ticketService.updateStatus(id, t.id, { status }).subscribe({
+      next: (updated) => {
+        this.tickets.update((all) => all.map(x => x.id === updated.id ? updated : x));
+        this.selectedTicket.set(updated);
+      },
+    });
+  }
+
+  sendTicketReply() {
+    if (!this.ticketReply.trim()) return;
+    const id = this.route.snapshot.paramMap.get('id')!;
+    this.ticketReplySending.set(true);
+    this.ticketService.addComment(id, this.selectedTicket()!.id, this.ticketReply).subscribe({
+      next: (c) => { this.ticketComments.update(cs => [...cs, c]); this.ticketReply = ''; this.ticketReplySending.set(false); },
+      error: () => this.ticketReplySending.set(false),
+    });
+  }
+
+  convertTicket(t: Ticket) {
+    const id = this.route.snapshot.paramMap.get('id')!;
+    this.ticketService.convertToTask(id, t.id).subscribe({
+      next: () => { this.toast('Ticket converted to task'); this.loadTickets(); this.closeTicket(); },
+      error: () => this.toast('Failed to convert ticket', true),
+    });
+  }
+
+  ticketStatusLabel(s: TicketStatus) { return TICKET_STATUS_LABELS[s] ?? String(s); }
+  ticketTypeLabel(t: TicketType) { return TICKET_TYPE_LABELS[t] ?? String(t); }
+
+  filteredTickets() {
+    if (this.ticketFilterStatus === '') return this.tickets();
+    return this.tickets().filter(t => t.status === this.ticketFilterStatus);
+  }
+
+  // ── Invites ─────────────────────────────────────
+  invites = signal<Invite[]>([]);
+  invitesLoading = signal(false);
+
+  switchToInvites() {
+    this.activeTab = 'invites';
+    if (this.invites().length === 0) this.loadInvites();
+  }
+
+  loadInvites() {
+    const id = this.route.snapshot.paramMap.get('id')!;
+    this.invitesLoading.set(true);
+    this.inviteService.getByProject(id).subscribe({
+      next: (inv) => { this.invites.set(inv); this.invitesLoading.set(false); },
+      error: () => this.invitesLoading.set(false),
+    });
+  }
+
+  generateInvite() {
+    const id = this.route.snapshot.paramMap.get('id')!;
+    this.inviteService.generate(id).subscribe({
+      next: (inv) => { this.invites.update(all => [inv, ...all]); this.toast('Invite link generated'); },
+      error: () => this.toast('Failed to generate invite', true),
+    });
+  }
+
+  revokeInvite(inv: Invite) {
+    const id = this.route.snapshot.paramMap.get('id')!;
+    this.inviteService.revoke(id, inv.id).subscribe({
+      next: () => this.invites.update(all => all.filter(i => i.id !== inv.id)),
+      error: () => this.toast('Failed to revoke invite', true),
+    });
+  }
+
+  copyInviteLink(inv: Invite) {
+    const url = `${window.location.origin}/join/${inv.token}`;
+    navigator.clipboard.writeText(url).then(() => this.toast('Invite link copied to clipboard'));
   }
 
   loadMembers() {

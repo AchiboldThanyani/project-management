@@ -5,6 +5,9 @@ using ProjectManagement.Application.Common;
 using ProjectManagement.Application.Features.Auth.Commands;
 using ProjectManagement.Application.Features.Auth.DTOs;
 using ProjectManagement.Application.Interfaces;
+using ProjectManagement.Domain.Entities;
+using ProjectManagement.Domain.Enums;
+using ProjectManagement.Domain.Interfaces;
 using ProjectManagement.Infrastructure.Identity;
 
 namespace ProjectManagement.Infrastructure.Auth;
@@ -12,6 +15,9 @@ namespace ProjectManagement.Infrastructure.Auth;
 internal sealed class RegisterCommandHandler(
     UserManager<ApplicationUser> userManager,
     IJwtTokenService jwtTokenService,
+    IProjectInviteRepository invites,
+    ICustomerProjectAccessRepository access,
+    IUnitOfWork unitOfWork,
     IConfiguration configuration)
     : IRequestHandler<RegisterCommand, Result<AuthResponseDto>>
 {
@@ -21,12 +27,23 @@ internal sealed class RegisterCommandHandler(
         if (existingUser is not null)
             return Error.Validation("Auth.EmailTaken", "Email is already taken.");
 
+        ProjectInvite? invite = null;
+        if (!string.IsNullOrWhiteSpace(request.InviteToken))
+        {
+            invite = await invites.GetByTokenAsync(request.InviteToken, cancellationToken);
+            if (invite is null || !invite.IsValid())
+                return Error.Validation("Auth.InvalidInvite", "Invite link is invalid or has expired.");
+        }
+
+        var role = invite is not null ? UserRole.Customer : UserRole.Internal;
+
         var user = new ApplicationUser
         {
             UserName = request.Email,
             Email = request.Email,
             FirstName = request.FirstName,
-            LastName = request.LastName
+            LastName = request.LastName,
+            Role = role,
         };
 
         var identityResult = await userManager.CreateAsync(user, request.Password);
@@ -36,7 +53,15 @@ internal sealed class RegisterCommandHandler(
             return Error.Validation("Auth.IdentityError", description);
         }
 
-        var accessToken = jwtTokenService.GenerateToken(user.Id, user.Email!, user.FirstName, user.LastName);
+        if (invite is not null)
+        {
+            var customerAccess = CustomerProjectAccess.Create(user.Id, invite.ProjectId);
+            await access.AddAsync(customerAccess, cancellationToken);
+            invite.Revoke();
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+
+        var accessToken = jwtTokenService.GenerateToken(user.Id, user.Email!, user.FirstName, user.LastName, role.ToString());
         var refreshToken = jwtTokenService.GenerateRefreshToken();
         var expiryDays = int.Parse(configuration["JwtSettings:RefreshTokenExpiryDays"] ?? "7");
 
