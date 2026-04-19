@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, inject } from '@angular/core';
+import { Component, OnInit, signal, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -26,6 +26,13 @@ import { Invite } from '@pm/shared/models';
             <p>This invite link is invalid or has expired.</p>
             <a href="/auth/login" class="btn-primary">Back to Login</a>
           </div>
+        } @else if (alreadyLoggedIn()) {
+          <div class="already-state">
+            <span class="material-icons-round" style="font-size:40px;color:var(--violet)">check_circle</span>
+            <h2>Already signed in</h2>
+            <p>You're signed in as <strong>{{ authSvc.user()?.firstName }}</strong>. Sign out first to register with a new customer account.</p>
+            <button class="btn-primary" (click)="signOutAndStay()">Sign Out &amp; Register</button>
+          </div>
         } @else if (invite()) {
           <h2>You've been invited</h2>
           <p class="invite-desc">Register to access the customer portal for <strong>{{ invite()!.projectName }}</strong>.</p>
@@ -48,6 +55,7 @@ import { Invite } from '@pm/shared/models';
             <div class="field">
               <label>Password</label>
               <input [(ngModel)]="password" name="password" type="password" required />
+              <span class="field-hint">Min 8 chars, 1 uppercase, 1 digit</span>
             </div>
             @if (error()) { <div class="error-msg">{{ error() }}</div> }
             <button type="submit" class="btn-primary" [disabled]="submitting()">
@@ -67,7 +75,7 @@ import { Invite } from '@pm/shared/models';
     h2 { font-size: 22px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
     .invite-desc { font-size: 14px; color: var(--text-muted); margin-bottom: 24px; }
     .spinner-center { display: flex; justify-content: center; padding: 32px; }
-    .invalid-state { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
+    .invalid-state, .already-state { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
     form { display: flex; flex-direction: column; gap: 16px; }
     .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     .field { display: flex; flex-direction: column; gap: 6px; }
@@ -77,6 +85,7 @@ import { Invite } from '@pm/shared/models';
     .btn-primary { width: 100%; background: var(--violet); color: #fff; border: none; padding: 12px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 4px; }
     .btn-primary:disabled { opacity: .6; cursor: not-allowed; }
     .error-msg { background: #fdecea; color: #c0392b; padding: 10px 14px; border-radius: 8px; font-size: 13px; }
+    .field-hint { font-size: 11px; color: var(--text-muted); }
     .login-link { text-align: center; font-size: 13px; color: var(--text-muted); margin-top: 20px; }
     .login-link a { color: var(--violet); text-decoration: none; font-weight: 500; }
   `],
@@ -85,13 +94,14 @@ export class JoinProjectComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private inviteSvc = inject(InviteService);
-  private authSvc = inject(AuthService);
+  authSvc = inject(AuthService);
 
   invite = signal<Invite | null>(null);
   loading = signal(true);
   invalid = signal(false);
   submitting = signal(false);
   error = signal('');
+  alreadyLoggedIn = computed(() => this.authSvc.isAuthenticated());
 
   firstName = '';
   lastName = '';
@@ -102,10 +112,15 @@ export class JoinProjectComponent implements OnInit {
 
   ngOnInit() {
     this.token = this.route.snapshot.paramMap.get('token') ?? '';
+    if (!this.token) { this.invalid.set(true); this.loading.set(false); return; }
     this.inviteSvc.getInfo(this.token).subscribe({
       next: (inv) => { this.invite.set(inv); this.loading.set(false); },
       error: () => { this.invalid.set(true); this.loading.set(false); },
     });
+  }
+
+  signOutAndStay() {
+    this.authSvc.signOut();
   }
 
   register() {
@@ -119,7 +134,8 @@ export class JoinProjectComponent implements OnInit {
     }).subscribe({
       next: () => this.router.navigate(['/portal/tickets']),
       error: (err) => {
-        this.error.set(err?.error?.description ?? 'Registration failed.');
+        const msg = err?.error?.description ?? err?.error?.errors?.Identity?.[0] ?? 'Registration failed.';
+        this.error.set(msg);
         this.submitting.set(false);
       },
     });

@@ -1,6 +1,8 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using ProjectManagement.Application.Features.Projects.DTOs;
+using ProjectManagement.Application.Features.Projects.GetPortalProjects;
 using ProjectManagement.Application.Features.Tickets.AddTicketComment;
 using ProjectManagement.Application.Features.Tickets.DTOs;
 using ProjectManagement.Application.Features.Tickets.GetMyTickets;
@@ -18,6 +20,10 @@ namespace ProjectManagement.WebApi.Controllers;
 [Authorize(Roles = "Customer")]
 public class CustomerPortalController(IMediator mediator) : ControllerBase
 {
+    [HttpGet("projects")]
+    public async Task<ActionResult<IReadOnlyList<ProjectDto>>> GetMyProjects(CancellationToken ct)
+        => (await mediator.Send(new GetPortalProjectsQuery(), ct)).ToActionResult(this);
+
     [HttpGet("tickets")]
     public async Task<ActionResult<IReadOnlyList<TicketDto>>> GetMyTickets(
         [FromQuery] Guid? projectId, CancellationToken ct)

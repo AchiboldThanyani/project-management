@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { environment } from '@pm/shared/util';
-import { Ticket, TicketComment, SubmitTicketRequest, UpdateTicketStatusRequest, TicketStatus } from '@pm/shared/models';
+import { Ticket, TicketComment, SubmitTicketRequest, UpdateTicketStatusRequest, TicketStatus, Project } from '@pm/shared/models';
 
 @Injectable({ providedIn: 'root' })
 export class TicketService {
@@ -37,6 +37,10 @@ export class TicketService {
   }
 
   // Customer portal endpoints
+  getMyProjects() {
+    return this.http.get<Project[]>(`${this.base}/portal/projects`);
+  }
+
   getMyTickets(projectId?: string) {
     let params = new HttpParams();
     if (projectId) params = params.set('projectId', projectId);

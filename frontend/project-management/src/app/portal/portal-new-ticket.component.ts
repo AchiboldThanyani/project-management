@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { TicketService } from '@pm/tasks/data-access';
-import { ProjectService } from '@pm/projects/data-access';
 import { TicketType, Project } from '@pm/shared/models';
 
 @Component({
@@ -95,7 +94,6 @@ import { TicketType, Project } from '@pm/shared/models';
 })
 export class PortalNewTicketComponent implements OnInit {
   private ticketSvc = inject(TicketService);
-  private projectSvc = inject(ProjectService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
 
@@ -109,7 +107,7 @@ export class PortalNewTicketComponent implements OnInit {
   error = signal('');
 
   ngOnInit() {
-    this.projectSvc.getAll().subscribe((p) => this.projects.set(p));
+    this.ticketSvc.getMyProjects().subscribe((p) => this.projects.set(p));
     const qp = this.route.snapshot.queryParamMap.get('projectId');
     if (qp) this.projectId = qp;
   }

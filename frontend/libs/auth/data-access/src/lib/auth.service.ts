@@ -48,6 +48,10 @@ export class AuthService {
     this.router.navigate(['/auth/login']);
   }
 
+  signOut() {
+    this.clearSession();
+  }
+
   private setSession(res: AuthResponse) {
     localStorage.setItem('access_token', res.accessToken);
     if (res.refreshToken) {
