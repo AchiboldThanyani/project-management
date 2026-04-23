@@ -1,40 +1,47 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using ProjectManagement.Application.Interfaces;
 
 namespace ProjectManagement.Infrastructure.Services;
 
-/// <summary>
-/// Calls the locally-installed Claude Code CLI in print mode.
-/// Requires `claude` to be on PATH and authenticated (claude auth login).
-/// The full context + question is piped via stdin to avoid shell escaping limits.
-/// </summary>
 public class ClaudeCliService(ILogger<ClaudeCliService> logger) : IClaudeService
 {
     public async Task<string> AskAsync(string prompt, CancellationToken ct = default)
     {
+        // --print        : non-interactive (headless) mode — reads prompt from stdin
+        // --output-format json : emits NDJSON instead of terminal-rendered text,
+        //                        so we get a clean "result" field without any PTY chrome
+        var isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
         var psi = new ProcessStartInfo
         {
-            FileName = "claude",
-            // -p / --print: non-interactive mode, reads from stdin when no message arg given
-            Arguments = "--print",
-            RedirectStandardInput = true,
+            FileName  = isWindows ? "cmd.exe" : "claude",
+            Arguments = isWindows
+                ? "/c claude --print --output-format json"
+                : "--print --output-format json",
+            RedirectStandardInput  = true,
             RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            StandardInputEncoding = Encoding.UTF8,
+            RedirectStandardError  = true,
+            UseShellExecute        = false,
+            CreateNoWindow         = true,
+            StandardInputEncoding  = Encoding.UTF8,
             StandardOutputEncoding = Encoding.UTF8,
         };
 
+        // If ANTHROPIC_API_KEY is set in the environment it takes priority over the stored
+        // OAuth session for --print mode, causing "Credit balance is too low" when the key
+        // has no credits. Remove it so Claude falls back to the OAuth subscription tokens.
+        psi.Environment.Remove("ANTHROPIC_API_KEY");
+        psi.Environment.Remove("CLAUDE_API_KEY");
+
         using var process = new Process { StartInfo = psi };
+        var stdoutSb = new StringBuilder();
+        var stderrSb = new StringBuilder();
 
-        var stdoutBuilder = new StringBuilder();
-        var stderrBuilder = new StringBuilder();
-
-        process.OutputDataReceived += (_, e) => { if (e.Data != null) stdoutBuilder.AppendLine(e.Data); };
-        process.ErrorDataReceived += (_, e) => { if (e.Data != null) stderrBuilder.AppendLine(e.Data); };
+        process.OutputDataReceived += (_, e) => { if (e.Data != null) stdoutSb.AppendLine(e.Data); };
+        process.ErrorDataReceived  += (_, e) => { if (e.Data != null) stderrSb.AppendLine(e.Data); };
 
         try
         {
@@ -45,25 +52,69 @@ public class ClaudeCliService(ILogger<ClaudeCliService> logger) : IClaudeService
             await process.StandardInput.WriteAsync(prompt);
             process.StandardInput.Close();
 
-            await process.WaitForExitAsync(ct);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(3));
+            using var linked  = CancellationTokenSource.CreateLinkedTokenSource(ct, timeout.Token);
+            await process.WaitForExitAsync(linked.Token);
 
-            var output = stdoutBuilder.ToString().Trim();
+            var stdout = stdoutSb.ToString();
+            var stderr = stderrSb.ToString().Trim();
 
-            if (process.ExitCode != 0 || string.IsNullOrWhiteSpace(output))
+            if (process.ExitCode != 0 && string.IsNullOrWhiteSpace(stdout))
             {
-                var err = stderrBuilder.ToString().Trim();
-                logger.LogError("Claude CLI exited with code {Code}. Stderr: {Error}", process.ExitCode, err);
-                return string.IsNullOrWhiteSpace(output)
-                    ? $"I couldn't get a response from Claude. Make sure the `claude` CLI is installed and authenticated (`claude auth login`). Error: {err}"
-                    : output;
+                logger.LogError("Claude exited {Code}. Stderr: {Err}", process.ExitCode, stderr);
+                return string.IsNullOrWhiteSpace(stderr)
+                    ? "Claude returned no response."
+                    : $"Claude error: {stderr}";
             }
 
-            return output;
+            return ParseNdjson(stdout, stderr);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to invoke Claude CLI");
-            return "The Claude CLI is not available. Please install Claude Code and run `claude auth login`, then restart the API.";
+            return "Could not reach Claude. Ensure `claude auth login` has been run.";
         }
+    }
+
+    // Claude --output-format json emits one JSON object per line (NDJSON).
+    // The "result" line at the end carries the final response text.
+    private string ParseNdjson(string stdout, string stderr)
+    {
+        string? result = null;
+
+        foreach (var line in stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            try
+            {
+                using var doc  = JsonDocument.Parse(line);
+                var root = doc.RootElement;
+
+                if (!root.TryGetProperty("type", out var typeProp)) continue;
+                var type = typeProp.GetString();
+
+                if (type == "result" && root.TryGetProperty("result", out var r))
+                {
+                    result = r.GetString();
+                }
+                else if (type == "assistant" &&
+                         root.TryGetProperty("message", out var msg) &&
+                         msg.TryGetProperty("content", out var content) &&
+                         content.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var block in content.EnumerateArray())
+                    {
+                        if (block.TryGetProperty("type", out var bt) && bt.GetString() == "text" &&
+                            block.TryGetProperty("text", out var txt))
+                            result = txt.GetString();
+                    }
+                }
+            }
+            catch { /* skip non-JSON lines */ }
+        }
+
+        if (!string.IsNullOrWhiteSpace(result)) return result!;
+
+        logger.LogWarning("Could not parse Claude NDJSON output. Stderr: {Err}", stderr);
+        return string.IsNullOrWhiteSpace(stderr) ? "No response from Claude." : $"Claude error: {stderr}";
     }
 }

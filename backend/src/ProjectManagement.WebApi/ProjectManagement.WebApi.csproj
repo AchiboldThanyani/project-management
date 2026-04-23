@@ -22,4 +22,15 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <!-- Copy claude-bridge scripts (not node_modules) to output so ClaudeCliService can find them -->
+  <Target Name="CopyClaudeBridge" AfterTargets="Build">
+    <ItemGroup>
+      <ClaudeBridgeFiles Include="$(MSBuildProjectDirectory)\..\..\..\claude-bridge\*.*"
+                         Exclude="$(MSBuildProjectDirectory)\..\..\..\claude-bridge\node_modules\**" />
+    </ItemGroup>
+    <Copy SourceFiles="@(ClaudeBridgeFiles)"
+          DestinationFolder="$(OutDir)claude-bridge"
+          SkipUnchangedFiles="true" />
+  </Target>
+
 </Project>

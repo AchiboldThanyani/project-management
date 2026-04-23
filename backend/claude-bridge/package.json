@@ -1,0 +1,9 @@
+{
+  "name": "claude-bridge",
+  "version": "1.0.0",
+  "description": "PTY bridge for invoking Claude CLI from .NET backend",
+  "main": "index.js",
+  "dependencies": {
+    "@homebridge/node-pty-prebuilt-multiarch": "^0.13.1"
+  }
+}
