@@ -227,8 +227,8 @@ export class AiAssistantComponent implements AfterViewChecked {
     }
   }
 
-  onEnter(event: KeyboardEvent) {
-    if (!event.shiftKey) { event.preventDefault(); this.send(); }
+  onEnter(event: Event) {
+    if (!(event as KeyboardEvent).shiftKey) { event.preventDefault(); this.send(); }
   }
 
   sendQuick(q: string) { this.input = q; this.send(); }
