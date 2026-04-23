@@ -9,13 +9,13 @@ interface Message {
   loading?: boolean;
 }
 
-const QUICK_PROMPTS = [
-  'How is the team performing this sprint?',
-  'Who has the most overdue tasks?',
-  "What's blocking the current sprint?",
-  'Which team member has the lightest workload?',
-  'Summarize open customer tickets by priority.',
-  'Who has been most productive recently?',
+const QUICK_PROMPTS: { icon: string; label: string }[] = [
+  { icon: 'speed',            label: 'How is the team performing this sprint?' },
+  { icon: 'warning_amber',    label: "What's blocking the current sprint?" },
+  { icon: 'schedule',         label: 'Who has the most overdue tasks?' },
+  { icon: 'balance',          label: 'Which team member has the lightest workload?' },
+  { icon: 'confirmation_number', label: 'Summarize open tickets by priority.' },
+  { icon: 'emoji_events',     label: 'Who has been most productive recently?' },
 ];
 
 @Component({
@@ -23,36 +23,59 @@ const QUICK_PROMPTS = [
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <!-- Trigger button -->
-    <button class="ai-trigger" (click)="toggle()" [class.active]="open()" title="AI Assistant">
-      <span class="material-icons-round">auto_awesome</span>
+    <!-- Floating trigger -->
+    <button class="ai-fab" (click)="toggle()" [class.open]="open()">
+      <span class="material-icons-round fab-icon">{{ open() ? 'close' : 'auto_awesome' }}</span>
+      @if (!open()) { <span class="fab-label">Ask AI</span> }
     </button>
 
-    <!-- Panel -->
     @if (open()) {
       <div class="ai-backdrop" (click)="close()"></div>
+
       <div class="ai-panel">
+
+        <!-- Header -->
         <div class="ai-header">
-          <div class="ai-header-left">
-            <span class="material-icons-round" style="color:var(--violet)">auto_awesome</span>
-            <span>AI Assistant</span>
+          <div class="header-glow"></div>
+          <div class="header-top">
+            <div class="header-brand">
+              <div class="header-icon">
+                <span class="material-icons-round">auto_awesome</span>
+              </div>
+              <div>
+                <div class="header-title">AI Assistant</div>
+                <div class="header-sub">Powered by Claude</div>
+              </div>
+            </div>
+            <div class="header-actions">
+              @if (messages().length > 0) {
+                <button class="icon-btn" (click)="clearChat()" title="New conversation">
+                  <span class="material-icons-round">add_comment</span>
+                </button>
+              }
+              <button class="icon-btn" (click)="close()" title="Close">
+                <span class="material-icons-round">close</span>
+              </button>
+            </div>
           </div>
-          <button class="close-btn" (click)="close()">
-            <span class="material-icons-round">close</span>
-          </button>
         </div>
 
-        <!-- Quick prompts (shown when no messages yet) -->
+        <!-- Welcome screen -->
         @if (messages().length === 0) {
           <div class="welcome">
-            <div class="welcome-icon">
-              <span class="material-icons-round">smart_toy</span>
+            <div class="welcome-hero">
+              <div class="welcome-orb">
+                <span class="material-icons-round">smart_toy</span>
+              </div>
+              <h2 class="welcome-title">What can I help with?</h2>
+              <p class="welcome-sub">Ask anything about your projects, team, or sprint.</p>
             </div>
-            <p class="welcome-title">What would you like to know?</p>
-            <p class="welcome-sub">Ask about project progress, team workload, blockers, or performance.</p>
-            <div class="quick-prompts">
-              @for (q of quickPrompts; track q) {
-                <button class="quick-btn" (click)="sendQuick(q)">{{ q }}</button>
+            <div class="quick-grid">
+              @for (q of quickPrompts; track q.label) {
+                <button class="quick-card" (click)="sendQuick(q.label)">
+                  <span class="material-icons-round quick-icon">{{ q.icon }}</span>
+                  <span class="quick-text">{{ q.label }}</span>
+                </button>
               }
             </div>
           </div>
@@ -62,11 +85,23 @@ const QUICK_PROMPTS = [
             @for (msg of messages(); track $index) {
               <div class="msg" [class.user]="msg.role === 'user'" [class.assistant]="msg.role === 'assistant'">
                 @if (msg.role === 'assistant') {
-                  <div class="msg-avatar"><span class="material-icons-round">smart_toy</span></div>
+                  <div class="msg-avatar" [class.pulsing]="msg.loading">
+                    <span class="material-icons-round">auto_awesome</span>
+                  </div>
                 }
-                <div class="msg-bubble">
+                <div class="msg-bubble" [class.thinking]="msg.loading">
                   @if (msg.loading) {
-                    <div class="typing"><span></span><span></span><span></span></div>
+                    <div class="thinking-body">
+                      <div class="thinking-label">
+                        <span class="thinking-dot"></span>
+                        Thinking
+                      </div>
+                      <div class="shimmer-lines">
+                        <div class="shimmer-line w80"></div>
+                        <div class="shimmer-line w60"></div>
+                        <div class="shimmer-line w90"></div>
+                      </div>
+                    </div>
                   } @else {
                     <pre class="msg-text">{{ msg.text }}</pre>
                   }
@@ -76,130 +111,294 @@ const QUICK_PROMPTS = [
           </div>
         }
 
-        <!-- Input -->
-        <div class="ai-input-row">
-          <textarea
-            [(ngModel)]="input"
-            (keydown.enter)="onEnter($event)"
-            [disabled]="loading()"
-            placeholder="Ask about your projects..."
-            rows="1"
-            class="ai-input"
-          ></textarea>
-          <button class="send-btn" (click)="send()" [disabled]="!input.trim() || loading()">
-            <span class="material-icons-round">{{ loading() ? 'hourglass_empty' : 'send' }}</span>
-          </button>
+        <!-- Input area -->
+        <div class="input-area">
+          <div class="input-shell" [class.focused]="focused" [class.disabled]="loading()">
+            <textarea
+              [(ngModel)]="input"
+              (keydown.enter)="onEnter($event)"
+              (focus)="focused = true"
+              (blur)="focused = false"
+              [disabled]="loading()"
+              placeholder="Ask about your projects…"
+              rows="1"
+              class="ai-input"
+            ></textarea>
+            <button class="send-btn" (click)="send()" [disabled]="!input.trim() || loading()">
+              <span class="material-icons-round">{{ loading() ? 'hourglass_top' : 'arrow_upward' }}</span>
+            </button>
+          </div>
+          <p class="input-hint">Enter to send · Shift+Enter for new line</p>
         </div>
-        <p class="ai-hint">Shift+Enter for new line · Enter to send · Powered by Claude</p>
+
       </div>
     }
   `,
   styles: [`
-    /* Trigger */
-    .ai-trigger {
-      display: flex; align-items: center; justify-content: center;
-      width: 40px; height: 40px; border-radius: 10px;
-      background: var(--violet-c); border: 1px solid var(--violet);
-      color: var(--violet); cursor: pointer; transition: all .15s;
-      margin: 0 auto;
+    /* ── FAB ─────────────────────────────────────────── */
+    .ai-fab {
+      display: flex; align-items: center; gap: 8px;
+      height: 48px; padding: 0 20px; border-radius: 24px;
+      background: var(--violet); border: none; color: #fff;
+      cursor: pointer; font-size: 14px; font-weight: 600;
+      font-family: 'DM Sans', sans-serif;
+      box-shadow: 0 4px 24px rgba(99,102,241,.45);
+      transition: transform .2s, box-shadow .2s, border-radius .2s, padding .2s;
+      white-space: nowrap;
     }
-    .ai-trigger:hover, .ai-trigger.active { background: var(--violet); color: #fff; }
-    .ai-trigger .material-icons-round { font-size: 20px; }
+    .ai-fab:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(99,102,241,.55); }
+    .ai-fab.open {
+      padding: 0 14px; border-radius: 14px;
+      background: var(--surface); color: var(--text);
+      border: 1px solid var(--border); box-shadow: none;
+    }
+    .ai-fab .fab-icon { font-size: 20px; }
+    .fab-label { letter-spacing: .1px; }
 
-    /* Backdrop */
+    /* ── Backdrop ─────────────────────────────────────── */
     .ai-backdrop {
-      position: fixed; inset: 0; z-index: 199;
-      background: rgba(0,0,0,0.2);
+      position: fixed; inset: 0; z-index: 299;
+      background: rgba(0,0,0,.25);
+      backdrop-filter: blur(2px);
+      animation: fadeIn .2s ease;
     }
 
-    /* Panel */
+    /* ── Panel ────────────────────────────────────────── */
     .ai-panel {
       position: fixed; right: 0; top: 0; bottom: 0;
-      width: 440px; max-width: 100vw;
-      background: var(--card); border-left: 1px solid var(--border);
+      width: 460px; max-width: 100vw;
+      background: rgba(255,255,255,.78);
+      backdrop-filter: blur(32px) saturate(160%);
+      -webkit-backdrop-filter: blur(32px) saturate(160%);
+      border-left: 1px solid rgba(255,255,255,.65);
       display: flex; flex-direction: column;
-      z-index: 200; box-shadow: -8px 0 32px rgba(0,0,0,0.12);
+      z-index: 300;
+      box-shadow: -6px 0 40px rgba(99,102,241,.1), -1px 0 0 rgba(255,255,255,.6);
+      animation: slideIn .25s cubic-bezier(.32,1,.32,1);
+      overflow: hidden;
+    }
+    /* Pastel ambient blobs visible through the frosted glass */
+    .ai-panel::before {
+      content: '';
+      position: absolute; inset: 0; pointer-events: none; z-index: 0;
+      background:
+        radial-gradient(ellipse 65% 38% at 100%  0%,  rgba(199,210,254,.6) 0%, transparent 100%),
+        radial-gradient(ellipse 55% 42% at   0% 100%, rgba(221,214,254,.5) 0%, transparent 100%),
+        radial-gradient(ellipse 40% 28% at  50%  50%, rgba(238,242,255,.4) 0%, transparent 100%);
+    }
+    .ai-header, .welcome, .messages, .input-area { position: relative; z-index: 1; }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to   { transform: translateX(0);    opacity: 1; }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; } to { opacity: 1; }
     }
 
+    /* ── Header ───────────────────────────────────────── */
     .ai-header {
+      position: relative; overflow: hidden; flex-shrink: 0;
+      padding: 20px 20px 16px;
+      border-bottom: 1px solid rgba(99,102,241,.1);
+      background: linear-gradient(135deg,
+        rgba(238,242,255,.95) 0%,
+        rgba(255,255,255,.75) 100%);
+    }
+    .header-glow {
+      position: absolute; top: -50px; right: -50px;
+      width: 200px; height: 200px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(199,210,254,.7) 0%, transparent 65%);
+      pointer-events: none;
+    }
+    .ai-header::after {
+      content: '';
+      position: absolute; bottom: -24px; left: -16px;
+      width: 100px; height: 100px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(221,214,254,.5) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .header-top {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 16px 20px; border-bottom: 1px solid var(--border);
-      flex-shrink: 0;
+      position: relative; z-index: 1;
     }
-    .ai-header-left { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; color: var(--text); }
-    .close-btn { background: none; border: none; cursor: pointer; color: var(--text-muted); display: flex; align-items: center; padding: 4px; border-radius: 6px; }
-    .close-btn:hover { background: var(--surface); }
+    .header-brand { display: flex; align-items: center; gap: 12px; }
+    .header-icon {
+      width: 40px; height: 40px; border-radius: 12px;
+      background: var(--violet); display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 12px rgba(99,102,241,.4);
+    }
+    .header-icon .material-icons-round { font-size: 20px; color: #fff; }
+    .header-title { font-size: 15px; font-weight: 700; color: var(--text); line-height: 1.2; }
+    .header-sub { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+    .header-actions { display: flex; align-items: center; gap: 4px; }
+    .icon-btn {
+      width: 32px; height: 32px; border-radius: 8px;
+      background: none; border: none; cursor: pointer;
+      color: var(--text-muted); display: flex; align-items: center; justify-content: center;
+      transition: background .15s, color .15s;
+    }
+    .icon-btn:hover { background: var(--surface); color: var(--text); }
+    .icon-btn .material-icons-round { font-size: 18px; }
 
-    /* Welcome */
+    /* ── Welcome ──────────────────────────────────────── */
     .welcome {
-      flex: 1; display: flex; flex-direction: column; align-items: center;
-      justify-content: center; padding: 32px 24px; gap: 12px; text-align: center;
+      flex: 1; display: flex; flex-direction: column;
+      padding: 24px 20px 16px; gap: 24px; overflow-y: auto;
+      background: linear-gradient(180deg, rgba(238,242,255,.5) 0%, transparent 50%);
     }
-    .welcome-icon {
-      width: 56px; height: 56px; border-radius: 16px;
-      background: var(--violet-c); display: flex; align-items: center; justify-content: center;
+    .welcome-hero { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+    .welcome-orb {
+      width: 64px; height: 64px; border-radius: 20px;
+      background: linear-gradient(135deg, var(--violet), #818cf8);
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 8px 24px rgba(99,102,241,.35);
     }
-    .welcome-icon .material-icons-round { font-size: 28px; color: var(--violet); }
-    .welcome-title { font-size: 16px; font-weight: 600; color: var(--text); margin: 0; }
-    .welcome-sub { font-size: 13px; color: var(--text-muted); margin: 0; max-width: 300px; }
-    .quick-prompts { display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 340px; margin-top: 8px; }
-    .quick-btn {
-      background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
-      padding: 10px 14px; font-size: 13px; color: var(--text); cursor: pointer;
-      text-align: left; transition: all .15s;
-    }
-    .quick-btn:hover { border-color: var(--violet); color: var(--violet); background: var(--violet-c); }
+    .welcome-orb .material-icons-round { font-size: 30px; color: #fff; }
+    .welcome-title { font-size: 18px; font-weight: 700; color: var(--text); margin: 0; }
+    .welcome-sub { font-size: 13px; color: var(--text-muted); margin: 0; max-width: 280px; line-height: 1.5; }
 
-    /* Messages */
+    .quick-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    }
+    .quick-card {
+      display: flex; flex-direction: column; gap: 8px; align-items: flex-start;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      padding: 12px; cursor: pointer; text-align: left;
+      transition: border-color .15s, background .15s, transform .15s;
+    }
+    .quick-card:hover {
+      border-color: var(--violet); background: var(--violet-c);
+      transform: translateY(-1px);
+    }
+    .quick-icon { font-size: 18px; color: var(--violet); }
+    .quick-text { font-size: 12px; color: var(--text); line-height: 1.4; font-weight: 500; }
+
+    /* ── Messages ─────────────────────────────────────── */
     .messages {
-      flex: 1; overflow-y: auto; padding: 16px 16px; display: flex; flex-direction: column; gap: 16px;
+      flex: 1; overflow-y: auto; padding: 20px 16px;
+      display: flex; flex-direction: column; gap: 20px;
+      scrollbar-width: thin; scrollbar-color: var(--border) transparent;
     }
-    .msg { display: flex; gap: 10px; align-items: flex-start; }
+    .msg { display: flex; gap: 10px; align-items: flex-end; }
     .msg.user { flex-direction: row-reverse; }
+
     .msg-avatar {
-      width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
-      background: var(--violet-c); display: flex; align-items: center; justify-content: center;
+      width: 30px; height: 30px; border-radius: 10px; flex-shrink: 0;
+      background: linear-gradient(135deg, var(--violet), #818cf8);
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 2px 8px rgba(99,102,241,.3);
+      margin-bottom: 2px;
     }
-    .msg-avatar .material-icons-round { font-size: 16px; color: var(--violet); }
+    .msg-avatar .material-icons-round { font-size: 15px; color: #fff; }
+
     .msg-bubble {
-      max-width: 85%; padding: 10px 14px; border-radius: 12px;
-      font-size: 13px; line-height: 1.55;
+      max-width: 82%; padding: 11px 14px; border-radius: 16px;
+      font-size: 13.5px; line-height: 1.6;
     }
-    .msg.user .msg-bubble { background: var(--violet); color: #fff; border-bottom-right-radius: 4px; }
-    .msg.assistant .msg-bubble { background: var(--surface); color: var(--text); border-bottom-left-radius: 4px; border: 1px solid var(--border); }
-    .msg-text { margin: 0; white-space: pre-wrap; word-break: break-word; font-family: 'DM Sans', sans-serif; font-size: 13px; }
+    .msg.user .msg-bubble {
+      background: var(--violet); color: #fff;
+      border-bottom-right-radius: 4px;
+      box-shadow: 0 2px 12px rgba(99,102,241,.3);
+    }
+    .msg.assistant .msg-bubble {
+      background: rgba(255,255,255,.7); color: var(--text);
+      border: 1px solid rgba(99,102,241,.12); border-bottom-left-radius: 4px;
+      backdrop-filter: blur(8px);
+    }
+    .msg-text {
+      margin: 0; white-space: pre-wrap; word-break: break-word;
+      font-family: 'DM Sans', sans-serif; font-size: 13.5px;
+    }
 
-    /* Typing indicator */
-    .typing { display: flex; gap: 4px; align-items: center; padding: 2px 0; }
-    .typing span {
-      width: 6px; height: 6px; border-radius: 50%; background: var(--text-muted);
-      animation: bounce 1.2s infinite;
+    /* ── Thinking animation ───────────────────────────── */
+    .msg-avatar.pulsing {
+      animation: avatarPulse 1.8s ease-in-out infinite;
     }
-    .typing span:nth-child(2) { animation-delay: .2s; }
-    .typing span:nth-child(3) { animation-delay: .4s; }
-    @keyframes bounce { 0%, 80%, 100% { transform: scale(0.7); opacity: .5; } 40% { transform: scale(1); opacity: 1; } }
+    @keyframes avatarPulse {
+      0%, 100% { box-shadow: 0 2px 8px rgba(99,102,241,.3); }
+      50%       { box-shadow: 0 0 0 6px rgba(99,102,241,.15), 0 2px 16px rgba(99,102,241,.5); }
+    }
 
-    /* Input */
-    .ai-input-row {
-      display: flex; align-items: flex-end; gap: 8px;
-      padding: 12px 16px; border-top: 1px solid var(--border); flex-shrink: 0;
+    .msg-bubble.thinking {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      min-width: 200px;
     }
+
+    .thinking-body { display: flex; flex-direction: column; gap: 10px; }
+
+    .thinking-label {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 12px; font-weight: 600; color: var(--violet);
+      letter-spacing: .3px;
+    }
+    .thinking-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--violet);
+      animation: dotPulse 1.2s ease-in-out infinite;
+    }
+    @keyframes dotPulse {
+      0%, 100% { opacity: .4; transform: scale(.85); }
+      50%       { opacity: 1;  transform: scale(1.15); }
+    }
+
+    .shimmer-lines { display: flex; flex-direction: column; gap: 7px; }
+    .shimmer-line {
+      height: 9px; border-radius: 6px;
+      background: linear-gradient(90deg,
+        rgba(199,210,254,.5) 0%, rgba(238,242,255,.9) 40%, rgba(199,210,254,.5) 100%);
+      background-size: 300% 100%;
+      animation: shimmer 1.6s ease-in-out infinite;
+    }
+    .shimmer-line.w80 { width: 80%; }
+    .shimmer-line.w60 { width: 60%; }
+    .shimmer-line.w90 { width: 90%; }
+    @keyframes shimmer {
+      0%   { background-position: 100% 0; }
+      100% { background-position: -100% 0; }
+    }
+
+    /* ── Input ────────────────────────────────────────── */
+    .input-area {
+      padding: 12px 16px 10px; flex-shrink: 0;
+      border-top: 1px solid rgba(99,102,241,.1);
+      background: linear-gradient(0deg, rgba(238,242,255,.6) 0%, transparent 100%);
+      backdrop-filter: blur(12px);
+    }
+    .input-shell {
+      display: flex; align-items: flex-end; gap: 0;
+      background: rgba(255,255,255,.65);
+      border: 1.5px solid rgba(99,102,241,.18);
+      border-radius: 16px; padding: 6px 6px 6px 14px;
+      transition: border-color .15s, box-shadow .15s, background .15s;
+    }
+    .input-shell.focused {
+      border-color: var(--violet);
+      background: rgba(255,255,255,.85);
+      box-shadow: 0 0 0 3px rgba(199,210,254,.4);
+    }
+    .input-shell.disabled { opacity: .55; }
     .ai-input {
-      flex: 1; background: var(--surface); border: 1px solid var(--border);
-      border-radius: 10px; padding: 10px 12px; font-size: 13px; color: var(--text);
-      font-family: 'DM Sans', sans-serif; resize: none; outline: none;
-      max-height: 120px; overflow-y: auto; transition: border-color .15s;
+      flex: 1; background: none; border: none; outline: none;
+      font-size: 13.5px; color: var(--text); font-family: 'DM Sans', sans-serif;
+      resize: none; max-height: 110px; overflow-y: auto; line-height: 1.5;
+      padding: 4px 0;
     }
-    .ai-input:focus { border-color: var(--violet); }
-    .ai-input:disabled { opacity: .5; }
+    .ai-input::placeholder { color: var(--text-muted); }
     .send-btn {
-      width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+      width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
       background: var(--violet); border: none; color: #fff; cursor: pointer;
-      display: flex; align-items: center; justify-content: center; transition: opacity .15s;
+      display: flex; align-items: center; justify-content: center;
+      transition: opacity .15s, transform .15s;
     }
-    .send-btn:disabled { opacity: .5; cursor: not-allowed; }
-    .send-btn .material-icons-round { font-size: 18px; }
-    .ai-hint { margin: 0; padding: 0 16px 10px; font-size: 11px; color: var(--text-muted); text-align: center; flex-shrink: 0; }
+    .send-btn:hover:not(:disabled) { transform: scale(1.07); }
+    .send-btn:disabled { opacity: .4; cursor: not-allowed; }
+    .send-btn .material-icons-round { font-size: 17px; }
+    .input-hint {
+      margin: 6px 0 0; font-size: 11px; color: var(--text-muted);
+      text-align: center; letter-spacing: .1px;
+    }
   `],
 })
 export class AiAssistantComponent implements AfterViewChecked {
@@ -208,16 +407,18 @@ export class AiAssistantComponent implements AfterViewChecked {
 
   private aiSvc = inject(AiService);
 
-  open = signal(false);
+  open    = signal(false);
   loading = signal(false);
   messages = signal<Message[]>([]);
-  input = '';
+  input   = '';
+  focused = false;
   quickPrompts = QUICK_PROMPTS;
 
   private shouldScroll = false;
 
   toggle() { this.open.update(v => !v); }
-  close() { this.open.set(false); }
+  close()  { this.open.set(false); }
+  clearChat() { this.messages.set([]); }
 
   ngAfterViewChecked() {
     if (this.shouldScroll && this.messageList) {
@@ -231,7 +432,7 @@ export class AiAssistantComponent implements AfterViewChecked {
     if (!(event as KeyboardEvent).shiftKey) { event.preventDefault(); this.send(); }
   }
 
-  sendQuick(q: string) { this.input = q; this.send(); }
+  sendQuick(label: string) { this.input = label; this.send(); }
 
   send() {
     const text = this.input.trim();
@@ -258,7 +459,7 @@ export class AiAssistantComponent implements AfterViewChecked {
       error: () => {
         this.messages.update(msgs => [
           ...msgs.slice(0, -1),
-          { role: 'assistant', text: 'Something went wrong. Make sure the backend is running and `claude` CLI is authenticated.' },
+          { role: 'assistant', text: 'Something went wrong. Make sure the backend is running and Claude CLI is authenticated.' },
         ]);
         this.loading.set(false);
         this.shouldScroll = true;

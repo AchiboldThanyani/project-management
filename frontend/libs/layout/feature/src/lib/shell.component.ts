@@ -50,9 +50,6 @@ import { AiAssistantComponent } from './ai-assistant.component';
         </nav>
 
         <div class="sb-footer">
-          <div class="ai-section">
-            <app-ai-assistant />
-          </div>
           <a class="nav-item" routerLink="/profile" routerLinkActive="active">
             <span class="material-icons-round">manage_accounts</span> Profile
           </a>
@@ -66,6 +63,9 @@ import { AiAssistantComponent } from './ai-assistant.component';
       <div class="main">
         <router-outlet></router-outlet>
       </div>
+
+      <!-- ─── AI ASSISTANT (floating) ───────────────── -->
+      <app-ai-assistant class="ai-fab" />
 
     </div>
   `,
@@ -173,10 +173,12 @@ import { AiAssistantComponent } from './ai-assistant.component';
       border-top: 1px solid rgba(255,255,255,0.06);
       position: relative; z-index: 1;
     }
-    .ai-section {
-      padding: 8px 4px 4px;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
-      margin-bottom: 6px;
+
+    .ai-fab {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      z-index: 300;
     }
 
     /* ─── Main ─── */
