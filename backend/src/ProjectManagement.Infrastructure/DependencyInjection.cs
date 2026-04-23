@@ -22,6 +22,7 @@ public static class DependencyInjection
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<ApplicationDbContext>());
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
         services.AddScoped<IJwtTokenService, JwtTokenService>();
+        services.AddScoped<IClaudeService, ClaudeCliService>();
         services.AddScoped<IUserRepository, UserRepository>();
 
         // Per-entity repositories

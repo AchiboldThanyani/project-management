@@ -2,11 +2,12 @@ import { Component, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { AuthService } from '@pm/auth/data-access';
+import { AiAssistantComponent } from './ai-assistant.component';
 
 @Component({
   selector: 'pm-shell',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, AiAssistantComponent],
   template: `
     <div class="app-layout">
 
@@ -49,6 +50,9 @@ import { AuthService } from '@pm/auth/data-access';
         </nav>
 
         <div class="sb-footer">
+          <div class="ai-section">
+            <app-ai-assistant />
+          </div>
           <a class="nav-item" routerLink="/profile" routerLinkActive="active">
             <span class="material-icons-round">manage_accounts</span> Profile
           </a>
@@ -168,6 +172,11 @@ import { AuthService } from '@pm/auth/data-access';
       padding: 10px 8px;
       border-top: 1px solid rgba(255,255,255,0.06);
       position: relative; z-index: 1;
+    }
+    .ai-section {
+      padding: 8px 4px 4px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      margin-bottom: 6px;
     }
 
     /* ─── Main ─── */

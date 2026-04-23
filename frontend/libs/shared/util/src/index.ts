@@ -4,3 +4,4 @@ export * from './lib/error.interceptor';
 export * from './lib/environment';
 export * from './lib/confirm-dialog.component';
 export * from './lib/activity.service';
+export * from './lib/ai.service';
