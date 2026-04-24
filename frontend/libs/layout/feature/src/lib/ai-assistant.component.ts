@@ -1,11 +1,16 @@
-import { Component, signal, inject, Input, ElementRef, ViewChild, AfterViewChecked } from '@angular/core';
+import { Component, signal, inject, Input, OnInit, ElementRef, ViewChild, AfterViewChecked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { marked } from 'marked';
 import { AiService } from '@pm/shared/util';
+import { ProjectService } from '@pm/projects/data-access';
+import { Project } from '@pm/shared/models';
 
 interface Message {
   role: 'user' | 'assistant';
   text: string;
+  html?: SafeHtml;
   loading?: boolean;
 }
 
@@ -58,6 +63,16 @@ const QUICK_PROMPTS: { icon: string; label: string }[] = [
               </button>
             </div>
           </div>
+          <!-- Project scope selector -->
+          <div class="scope-row">
+            <span class="material-icons-round scope-ico">folder</span>
+            <select class="scope-select" [(ngModel)]="selectedProjectId">
+              <option [value]="null">All Projects</option>
+              @for (p of projects(); track p.id) {
+                <option [value]="p.id">{{ p.name }}</option>
+              }
+            </select>
+          </div>
         </div>
 
         <!-- Welcome screen -->
@@ -68,7 +83,13 @@ const QUICK_PROMPTS: { icon: string; label: string }[] = [
                 <span class="material-icons-round">smart_toy</span>
               </div>
               <h2 class="welcome-title">What can I help with?</h2>
-              <p class="welcome-sub">Ask anything about your projects, team, or sprint.</p>
+              <p class="welcome-sub">
+                @if (selectedProjectId) {
+                  Scoped to <strong>{{ projectName() }}</strong>. Ask anything about this project.
+                } @else {
+                  Ask anything about your projects, team, or sprint.
+                }
+              </p>
             </div>
             <div class="quick-grid">
               @for (q of quickPrompts; track q.label) {
@@ -102,6 +123,8 @@ const QUICK_PROMPTS: { icon: string; label: string }[] = [
                         <div class="shimmer-line w90"></div>
                       </div>
                     </div>
+                  } @else if (msg.role === 'assistant') {
+                    <div class="msg-text md-body" [innerHTML]="msg.html"></div>
                   } @else {
                     <pre class="msg-text">{{ msg.text }}</pre>
                   }
@@ -120,7 +143,7 @@ const QUICK_PROMPTS: { icon: string; label: string }[] = [
               (focus)="focused = true"
               (blur)="focused = false"
               [disabled]="loading()"
-              placeholder="Ask about your projects…"
+              [placeholder]="selectedProjectId ? 'Ask about ' + projectName() + '…' : 'Ask about your projects…'"
               rows="1"
               class="ai-input"
             ></textarea>
@@ -241,6 +264,24 @@ const QUICK_PROMPTS: { icon: string; label: string }[] = [
     .icon-btn:hover { background: var(--surface); color: var(--text); }
     .icon-btn .material-icons-round { font-size: 18px; }
 
+    /* ── Project scope selector ──────────────────────── */
+    .scope-row {
+      display: flex; align-items: center; gap: 7px;
+      margin-top: 12px; position: relative; z-index: 1;
+    }
+    .scope-ico { font-size: 15px; color: var(--violet); flex-shrink: 0; }
+    .scope-select {
+      flex: 1; appearance: none;
+      background: rgba(255,255,255,.7); border: 1.5px solid rgba(99,102,241,.2);
+      border-radius: 10px; padding: 7px 30px 7px 11px;
+      font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--text);
+      outline: none; cursor: pointer;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236366f1' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 8px center;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .scope-select:focus { border-color: var(--violet); box-shadow: 0 0 0 3px rgba(199,210,254,.4); }
+
     /* ── Welcome ──────────────────────────────────────── */
     .welcome {
       flex: 1; display: flex; flex-direction: column;
@@ -310,6 +351,21 @@ const QUICK_PROMPTS: { icon: string; label: string }[] = [
       margin: 0; white-space: pre-wrap; word-break: break-word;
       font-family: 'DM Sans', sans-serif; font-size: 13.5px;
     }
+    .md-body { white-space: normal; word-break: break-word; font-family: 'DM Sans', sans-serif; font-size: 13.5px; line-height: 1.65; }
+    .md-body p  { margin: 0 0 8px; }
+    .md-body p:last-child { margin-bottom: 0; }
+    .md-body ul, .md-body ol { margin: 4px 0 8px; padding-left: 20px; }
+    .md-body li { margin-bottom: 4px; }
+    .md-body strong { font-weight: 700; color: var(--text); }
+    .md-body em { font-style: italic; }
+    .md-body h1, .md-body h2, .md-body h3 { margin: 10px 0 4px; font-weight: 700; color: var(--text); }
+    .md-body h1 { font-size: 15px; }
+    .md-body h2 { font-size: 14px; }
+    .md-body h3 { font-size: 13.5px; }
+    .md-body code { background: rgba(99,102,241,.1); border-radius: 4px; padding: 1px 5px; font-size: 12.5px; font-family: monospace; }
+    .md-body pre { background: rgba(99,102,241,.08); border-radius: 8px; padding: 10px 12px; overflow-x: auto; margin: 6px 0; }
+    .md-body pre code { background: none; padding: 0; }
+    .md-body hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
 
     /* ── Thinking animation ───────────────────────────── */
     .msg-avatar.pulsing {
@@ -401,20 +457,39 @@ const QUICK_PROMPTS: { icon: string; label: string }[] = [
     }
   `],
 })
-export class AiAssistantComponent implements AfterViewChecked {
-  @Input() projectId?: string;
+export class AiAssistantComponent implements OnInit, AfterViewChecked {
+  @Input() set projectId(id: string | undefined) {
+    if (id) this.selectedProjectId = id;
+  }
   @ViewChild('messageList') private messageList?: ElementRef<HTMLDivElement>;
 
   private aiSvc = inject(AiService);
+  private projectSvc = inject(ProjectService);
+  private sanitizer = inject(DomSanitizer);
 
-  open    = signal(false);
-  loading = signal(false);
+  open     = signal(false);
+  loading  = signal(false);
   messages = signal<Message[]>([]);
-  input   = '';
-  focused = false;
+  projects = signal<Project[]>([]);
+  input    = '';
+  focused  = false;
+  selectedProjectId: string | null = null;
   quickPrompts = QUICK_PROMPTS;
 
   private shouldScroll = false;
+
+  ngOnInit() {
+    this.projectSvc.getAll().subscribe(list => this.projects.set(list));
+  }
+
+  private toHtml(text: string): SafeHtml {
+    const html = marked.parse(text) as string;
+    return this.sanitizer.bypassSecurityTrustHtml(html);
+  }
+
+  projectName(): string {
+    return this.projects().find(p => p.id === this.selectedProjectId)?.name ?? '';
+  }
 
   toggle() { this.open.update(v => !v); }
   close()  { this.open.set(false); }
@@ -447,11 +522,11 @@ export class AiAssistantComponent implements AfterViewChecked {
     ]);
     this.shouldScroll = true;
 
-    this.aiSvc.ask(text, this.projectId).subscribe({
+    this.aiSvc.ask(text, this.selectedProjectId ?? undefined).subscribe({
       next: (reply) => {
         this.messages.update(msgs => [
           ...msgs.slice(0, -1),
-          { role: 'assistant', text: reply },
+          { role: 'assistant', text: reply, html: this.toHtml(reply) },
         ]);
         this.loading.set(false);
         this.shouldScroll = true;
@@ -459,7 +534,7 @@ export class AiAssistantComponent implements AfterViewChecked {
       error: () => {
         this.messages.update(msgs => [
           ...msgs.slice(0, -1),
-          { role: 'assistant', text: 'Something went wrong. Make sure the backend is running and Claude CLI is authenticated.' },
+          { role: 'assistant', text: 'Something went wrong.', html: this.toHtml('Something went wrong. Make sure the backend is running and Claude CLI is authenticated.') },
         ]);
         this.loading.set(false);
         this.shouldScroll = true;
