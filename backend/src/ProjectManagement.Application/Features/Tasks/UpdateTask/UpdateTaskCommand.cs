@@ -12,4 +12,5 @@ public sealed record UpdateTaskCommand(
     DateTime? DueDate,
     Guid? SprintId,
     string? AssigneeId,
-    int? StoryPoints) : ICommand<TaskDto>;
+    int? StoryPoints,
+    decimal? EstimatedHours = null) : ICommand<TaskDto>;

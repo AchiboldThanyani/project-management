@@ -1,13 +1,15 @@
-import { Component, inject, computed } from '@angular/core';
+import { Component, inject, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { AuthService } from '@pm/auth/data-access';
+import { SignalRService, NotificationService } from '@pm/shared/util';
 import { AiAssistantComponent } from './ai-assistant.component';
+import { NotificationBellComponent } from './notification-bell.component';
 
 @Component({
   selector: 'pm-shell',
   standalone: true,
-  imports: [CommonModule, RouterModule, AiAssistantComponent],
+  imports: [CommonModule, RouterModule, AiAssistantComponent, NotificationBellComponent],
   template: `
     <div class="app-layout">
 
@@ -18,6 +20,7 @@ import { AiAssistantComponent } from './ai-assistant.component';
             <span class="material-icons-round">hub</span>
           </div>
           <span class="brand-name">ProjectHub</span>
+          <pm-notification-bell class="sb-bell" />
         </div>
 
         <div class="sb-user" *ngIf="auth.user() as user">
@@ -125,7 +128,8 @@ import { AiAssistantComponent } from './ai-assistant.component';
       flex-shrink: 0;
     }
     .brand-ico .material-icons-round { font-size: 16px; color: #fff; }
-    .brand-name { font-size: 14px; font-weight: 700; color: #fff; letter-spacing: -0.2px; }
+    .brand-name { font-size: 14px; font-weight: 700; color: #fff; letter-spacing: -0.2px; flex: 1; }
+    .sb-bell { margin-left: auto; }
 
     .sb-user {
       display: flex; align-items: center; gap: 9px;
@@ -191,8 +195,14 @@ import { AiAssistantComponent } from './ai-assistant.component';
     }
   `],
 })
-export class ShellComponent {
+export class ShellComponent implements OnInit {
   readonly auth = inject(AuthService);
+  private readonly signalr = inject(SignalRService);
+  private readonly notifSvc = inject(NotificationService);
+
+  ngOnInit(): void {
+    this.signalr.connect().then(() => this.notifSvc.init());
+  }
 
   initials(first: string, last: string): string {
     return `${first[0] ?? ''}${last[0] ?? ''}`.toUpperCase();

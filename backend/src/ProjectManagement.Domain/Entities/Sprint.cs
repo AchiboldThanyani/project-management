@@ -9,6 +9,8 @@ public class Sprint : BaseEntity
     public DateTime StartDate { get; private set; }
     public DateTime EndDate { get; private set; }
     public bool IsActive { get; private set; }
+    public bool IsCompleted { get; private set; }
+    public string? RetroNotes { get; private set; }
     public Guid ProjectId { get; private set; }
 
     public Project Project { get; set; } = null!;
@@ -43,9 +45,11 @@ public class Sprint : BaseEntity
         SetUpdated();
     }
 
-    public void Complete()
+    public void Complete(string? retroNotes = null)
     {
         IsActive = false;
+        IsCompleted = true;
+        RetroNotes = retroNotes;
         SetUpdated();
     }
 }

@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, inject } from '@angular/core';
+import { Component, OnInit, signal, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -191,13 +191,20 @@ const COLUMNS = [
               <div class="sprint-name-row">
                 <span class="sprint-name">{{ s.name }}</span>
                 <span class="ph-badge active" *ngIf="s.isActive">Active</span>
-                <span class="ph-badge planning" *ngIf="!s.isActive">Planned</span>
+                <span class="ph-badge completed" *ngIf="s.isCompleted">Completed</span>
+                <span class="ph-badge planning" *ngIf="!s.isActive && !s.isCompleted">Planned</span>
               </div>
               <div class="sprint-dates">
                 <span class="material-icons-round date-ico">calendar_today</span>
                 {{ s.startDate | date:'MMM d' }} – {{ s.endDate | date:'MMM d, y' }}
               </div>
               <p *ngIf="s.goal" class="sprint-goal">{{ s.goal }}</p>
+              <div *ngIf="s.isCompleted" class="sprint-retro-row">
+                <span class="material-icons-round retro-ico">history_edu</span>
+                <span *ngIf="s.retroNotes" class="retro-notes-text">{{ s.retroNotes }}</span>
+                <span *ngIf="!s.retroNotes" class="retro-notes-empty">No retro notes</span>
+                <span *ngIf="s.carryOverCount > 0" class="carry-over-badge">{{ s.carryOverCount }} carried over</span>
+              </div>
             </div>
             <div class="sprint-right">
               <div class="sprint-stats">
@@ -218,7 +225,7 @@ const COLUMNS = [
                   <button class="dd-item" *ngIf="!s.isActive" (click)="activateSprint(s); openSprintMenuId = null">
                     <span class="material-icons-round">play_arrow</span> Activate
                   </button>
-                  <button class="dd-item" *ngIf="s.isActive" (click)="completeSprint(s); openSprintMenuId = null">
+                  <button class="dd-item" *ngIf="s.isActive" (click)="openCompleteSprint(s); openSprintMenuId = null">
                     <span class="material-icons-round">check_circle</span> Complete
                   </button>
                   <button class="dd-item" (click)="openEditSprint(s); openSprintMenuId = null">
@@ -800,6 +807,92 @@ const COLUMNS = [
 
           <div class="panel-divider"></div>
 
+          <!-- Sub-tasks -->
+          <div class="subtasks-section">
+            <div class="section-header">
+              <span class="section-title">Sub-tasks</span>
+              <span class="section-count" *ngIf="selectedTask()!.subTasks?.length">
+                {{ completedSubTasks() }}/{{ selectedTask()!.subTasks.length }}
+              </span>
+            </div>
+            <div class="subtask-progress" *ngIf="selectedTask()!.subTasks?.length">
+              <div class="subtask-bar">
+                <div class="subtask-bar-fill" [style.width.%]="subTaskProgress()"></div>
+              </div>
+            </div>
+            <div class="subtask-list">
+              <div *ngFor="let st of selectedTask()!.subTasks ?? []" class="subtask-item">
+                <button class="subtask-check" [class.checked]="st.isCompleted" (click)="toggleSubTask(st.id)">
+                  <span class="material-icons-round">{{ st.isCompleted ? 'check_circle' : 'radio_button_unchecked' }}</span>
+                </button>
+                <span class="subtask-title" [class.completed]="st.isCompleted">{{ st.title }}</span>
+                <button class="subtask-del" (click)="deleteSubTask(st.id)">
+                  <span class="material-icons-round">close</span>
+                </button>
+              </div>
+            </div>
+            <form class="subtask-add-form" (ngSubmit)="addSubTask()" *ngIf="showSubTaskInput()">
+              <input class="subtask-input" [(ngModel)]="newSubTaskTitle" name="stTitle"
+                     placeholder="Sub-task title…" autofocus />
+              <button type="submit" class="btn-primary sm" [disabled]="!newSubTaskTitle.trim()">Add</button>
+              <button type="button" class="icon-btn" (click)="showSubTaskInput.set(false)">
+                <span class="material-icons-round">close</span>
+              </button>
+            </form>
+            <button class="add-subtask-btn" *ngIf="!showSubTaskInput()" (click)="showSubTaskInput.set(true)">
+              <span class="material-icons-round">add</span> Add sub-task
+            </button>
+          </div>
+
+          <div class="panel-divider"></div>
+
+          <!-- Time tracking -->
+          <div class="timelog-section">
+            <div class="section-header">
+              <span class="section-title">Time Tracking</span>
+              <div class="time-summary">
+                <span class="time-logged">{{ selectedTask()!.totalLoggedHours ?? 0 }}h logged</span>
+                <span class="time-sep" *ngIf="selectedTask()!.estimatedHours"> / </span>
+                <span class="time-est" *ngIf="selectedTask()!.estimatedHours">{{ selectedTask()!.estimatedHours }}h est.</span>
+              </div>
+            </div>
+            <div class="timelog-bar-wrap" *ngIf="selectedTask()!.estimatedHours">
+              <div class="subtask-bar">
+                <div class="subtask-bar-fill" [class.over-budget]="timeProgress() > 100"
+                     [style.width.%]="timeProgress() > 100 ? 100 : timeProgress()"></div>
+              </div>
+              <span class="time-pct">{{ timeProgress() | number:'1.0-0' }}%</span>
+            </div>
+            <div class="timelog-list">
+              <div *ngFor="let tl of selectedTask()!.timeLogs ?? []" class="timelog-item">
+                <span class="material-icons-round timelog-icon">schedule</span>
+                <div class="timelog-body">
+                  <span class="timelog-hours">{{ tl.hours }}h</span>
+                  <span class="timelog-date">{{ tl.loggedDate | date:'MMM d' }}</span>
+                  <span class="timelog-desc" *ngIf="tl.description">{{ tl.description }}</span>
+                </div>
+                <button class="subtask-del" (click)="deleteTimeLog(tl.id)">
+                  <span class="material-icons-round">close</span>
+                </button>
+              </div>
+            </div>
+            <form class="timelog-form" (ngSubmit)="logTime()" *ngIf="showTimeLogInput()">
+              <input class="timelog-hrs" type="number" [(ngModel)]="newTimeHours" name="hrs"
+                     placeholder="Hours" min="0.25" step="0.25" style="width:80px" />
+              <input class="timelog-date-input" type="date" [(ngModel)]="newTimeDate" name="dt" />
+              <input class="timelog-desc-input" [(ngModel)]="newTimeDesc" name="desc" placeholder="Description (optional)" />
+              <button type="submit" class="btn-primary sm" [disabled]="!newTimeHours || newTimeHours <= 0">Log</button>
+              <button type="button" class="icon-btn" (click)="showTimeLogInput.set(false)">
+                <span class="material-icons-round">close</span>
+              </button>
+            </form>
+            <button class="add-subtask-btn" *ngIf="!showTimeLogInput()" (click)="showTimeLogInput.set(true)">
+              <span class="material-icons-round">add</span> Log time
+            </button>
+          </div>
+
+          <div class="panel-divider"></div>
+
           <!-- Comments -->
           <div class="comments-section">
             <div class="comments-header">
@@ -1279,6 +1372,32 @@ const COLUMNS = [
 
     <!-- Backdrop to close sprint menu -->
     <div *ngIf="openSprintMenuId" class="menu-backdrop" (click)="openSprintMenuId = null"></div>
+
+    <!-- Complete Sprint Dialog -->
+    <div class="overlay" *ngIf="completingSprintId()" (click)="cancelCompleteSprint()">
+      <div class="dialog-card" (click)="$event.stopPropagation()" style="max-width:460px">
+        <div class="dialog-header">
+          <h3 class="dialog-title">Complete Sprint</h3>
+          <button class="icon-btn" (click)="cancelCompleteSprint()">
+            <span class="material-icons-round">close</span>
+          </button>
+        </div>
+        <ng-container *ngIf="completingSprintCarryOver() > 0">
+          <div class="retro-carry-warn">
+            <span class="material-icons-round">warning</span>
+            <span><strong>{{ completingSprintCarryOver() }} incomplete task(s)</strong> will be carried over to the backlog.</span>
+          </div>
+        </ng-container>
+        <div class="field-group">
+          <label class="field-label">Retrospective Notes <span style="font-weight:400;text-transform:none">(optional)</span></label>
+          <textarea class="field-input" rows="5" placeholder="What went well? What could be improved?" [(ngModel)]="completingSprintRetroNotes"></textarea>
+        </div>
+        <div class="form-actions">
+          <button class="btn-ghost" (click)="cancelCompleteSprint()">Cancel</button>
+          <button class="btn-primary" (click)="confirmCompleteSprint()">Complete Sprint</button>
+        </div>
+      </div>
+    </div>
   `,
   styles: [`
     /* ── Loading ── */
@@ -1490,6 +1609,20 @@ const COLUMNS = [
     .date-ico { font-size: 13px; color: var(--soft); }
     .sprint-goal { margin: 0; font-size: 12px; color: var(--muted); font-style: italic; }
 
+    .sprint-retro-row {
+      display: flex; align-items: flex-start; gap: 6px;
+      margin-top: 6px; font-size: 12px; color: var(--muted);
+    }
+    .retro-ico { font-size: 14px; color: var(--soft); flex-shrink: 0; margin-top: 1px; }
+    .retro-notes-text { flex: 1; white-space: pre-wrap; line-height: 1.4; }
+    .retro-notes-empty { flex: 1; color: var(--soft); font-style: italic; }
+    .carry-over-badge {
+      display: inline-flex; align-items: center;
+      background: var(--amber-c, #fef9ec); border: 1px solid var(--amber, #f59e0b);
+      color: var(--amber, #f59e0b); border-radius: var(--r-full);
+      padding: 2px 8px; font-size: 11px; font-weight: 600; white-space: nowrap; flex-shrink: 0;
+    }
+
     .sprint-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
     .sprint-stats { display: flex; gap: 10px; }
     .stat { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
@@ -1520,6 +1653,14 @@ const COLUMNS = [
     .menu-backdrop { position: fixed; inset: 0; z-index: 99; }
 
     .empty-text { margin: 0; font-size: 13px; color: var(--soft); text-align: center; padding: 32px; }
+
+    .retro-carry-warn {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--amber-c, #fef9ec); border: 1px solid var(--amber, #f59e0b);
+      border-radius: var(--r-md); padding: 12px 14px;
+      font-size: 13px; color: var(--ink);
+    }
+    .retro-carry-warn .material-icons-round { color: var(--amber, #f59e0b); font-size: 18px; flex-shrink: 0; }
 
     /* ── Task panel ── */
     .panel-overlay {
@@ -1799,6 +1940,78 @@ const COLUMNS = [
       cursor: pointer; transition: background 0.12s;
     }
     .dep-inline-item:hover { background: var(--surface); }
+
+    /* ── Sub-tasks ── */
+    .subtasks-section, .timelog-section { display: flex; flex-direction: column; gap: 8px; }
+
+    .section-header {
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .section-title { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+    .section-count { font-size: 11px; font-weight: 600; color: var(--violet); background: rgba(99,102,241,.1); padding: 1px 7px; border-radius: 10px; }
+    .time-summary { display: flex; align-items: center; gap: 4px; font-size: 12px; }
+    .time-logged { font-weight: 600; color: var(--ink); }
+    .time-sep, .time-est { color: var(--soft); }
+
+    .subtask-bar { height: 5px; border-radius: 3px; background: var(--border); overflow: hidden; }
+    .subtask-bar-fill { height: 100%; border-radius: 3px; background: var(--violet); transition: width .3s; }
+    .subtask-bar-fill.over-budget { background: var(--rose); }
+    .timelog-bar-wrap { display: flex; align-items: center; gap: 8px; }
+    .time-pct { font-size: 11px; color: var(--soft); white-space: nowrap; }
+
+    .subtask-item, .timelog-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 5px 6px; border-radius: var(--r-sm);
+      transition: background .12s;
+    }
+    .subtask-item:hover, .timelog-item:hover { background: var(--surface); }
+
+    .subtask-check {
+      background: none; border: none; cursor: pointer; padding: 0;
+      color: var(--soft); display: flex; align-items: center;
+    }
+    .subtask-check.checked { color: var(--violet); }
+    .subtask-check .material-icons-round { font-size: 18px; }
+
+    .subtask-title { flex: 1; font-size: 13px; color: var(--ink); }
+    .subtask-title.completed { text-decoration: line-through; color: var(--soft); }
+
+    .subtask-del {
+      width: 18px; height: 18px; background: transparent; border: none; cursor: pointer;
+      color: var(--soft); display: flex; align-items: center; justify-content: center;
+      border-radius: var(--r-sm); transition: color .12s, background .12s; padding: 0;
+    }
+    .subtask-del:hover { color: var(--rose); background: var(--rose-c); }
+    .subtask-del .material-icons-round { font-size: 12px; }
+
+    .subtask-add-form, .timelog-form {
+      display: flex; align-items: center; gap: 6px; margin-top: 2px;
+    }
+    .subtask-input, .timelog-hrs, .timelog-date-input, .timelog-desc-input {
+      border: 1px solid var(--border); border-radius: var(--r-sm);
+      padding: 5px 8px; font-size: 12px; color: var(--ink); background: var(--white);
+      outline: none;
+    }
+    .subtask-input { flex: 1; }
+    .timelog-desc-input { flex: 1; }
+    .subtask-input:focus, .timelog-hrs:focus, .timelog-date-input:focus, .timelog-desc-input:focus {
+      border-color: var(--violet);
+    }
+
+    .add-subtask-btn {
+      display: flex; align-items: center; gap: 4px;
+      background: none; border: none; cursor: pointer;
+      font-size: 12px; color: var(--soft); padding: 4px 0;
+      transition: color .12s;
+    }
+    .add-subtask-btn:hover { color: var(--violet); }
+    .add-subtask-btn .material-icons-round { font-size: 15px; }
+
+    .timelog-icon { font-size: 16px; color: var(--soft); flex-shrink: 0; }
+    .timelog-body { flex: 1; display: flex; align-items: center; gap: 8px; font-size: 12px; }
+    .timelog-hours { font-weight: 600; color: var(--ink); }
+    .timelog-date { color: var(--soft); }
+    .timelog-desc { color: var(--muted); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
     /* ── Members tab ── */
     .members-section { display: flex; flex-direction: column; gap: 20px; }
@@ -2122,6 +2335,18 @@ export class ProjectDetailComponent implements OnInit {
   activeTab: 'board' | 'sprints' | 'issues' | 'timeline' | 'members' | 'tickets' | 'invites' = 'board';
   openSprintMenuId: string | null = null;
 
+  completingSprintId = signal<string | null>(null);
+  completingSprintRetroNotes = '';
+  completingSprintCarryOver = computed(() => {
+    const id = this.completingSprintId();
+    if (!id) return 0;
+    return this.tasks().filter(
+      t => t.sprintId === id
+        && t.status !== TaskStatus.Done
+        && t.status !== TaskStatus.Cancelled
+    ).length;
+  });
+
   filterSprintId: string | null = null;
   filterPriority: number | null = null;
   filterAssigneeId: string | null = null;
@@ -2256,6 +2481,96 @@ export class ProjectDetailComponent implements OnInit {
   });
 
   commentForm = this.fb.group({ content: ['', Validators.required] });
+
+  // ── Sub-tasks ────────────────────────────────────
+  showSubTaskInput = signal(false);
+  newSubTaskTitle = '';
+
+  completedSubTasks = computed(() => (this.selectedTask()?.subTasks ?? []).filter(s => s.isCompleted).length);
+  subTaskProgress = computed(() => {
+    const all = this.selectedTask()?.subTasks ?? [];
+    return all.length ? (all.filter(s => s.isCompleted).length / all.length) * 100 : 0;
+  });
+
+  addSubTask() {
+    const task = this.selectedTask();
+    if (!task || !this.newSubTaskTitle.trim()) return;
+    this.taskService.createSubTask(task.id, this.newSubTaskTitle.trim()).subscribe({
+      next: (st) => {
+        this.selectedTask.update(t => t ? { ...t, subTasks: [...(t.subTasks ?? []), st] } : t);
+        this.newSubTaskTitle = '';
+        this.showSubTaskInput.set(false);
+      },
+      error: () => this.toast('Failed to add sub-task', true),
+    });
+  }
+
+  toggleSubTask(subTaskId: string) {
+    this.taskService.toggleSubTask(subTaskId).subscribe({
+      next: (updated) => {
+        this.selectedTask.update(t => t ? {
+          ...t, subTasks: (t.subTasks ?? []).map(s => s.id === subTaskId ? updated : s)
+        } : t);
+      },
+      error: () => this.toast('Failed to toggle sub-task', true),
+    });
+  }
+
+  deleteSubTask(subTaskId: string) {
+    this.taskService.deleteSubTask(subTaskId).subscribe({
+      next: () => {
+        this.selectedTask.update(t => t ? {
+          ...t, subTasks: (t.subTasks ?? []).filter(s => s.id !== subTaskId)
+        } : t);
+      },
+      error: () => this.toast('Failed to delete sub-task', true),
+    });
+  }
+
+  // ── Time logs ────────────────────────────────────
+  showTimeLogInput = signal(false);
+  newTimeHours: number | null = null;
+  newTimeDate = new Date().toISOString().split('T')[0];
+  newTimeDesc = '';
+
+  timeProgress = computed(() => {
+    const est = this.selectedTask()?.estimatedHours;
+    const logged = this.selectedTask()?.totalLoggedHours ?? 0;
+    return est ? (logged / est) * 100 : 0;
+  });
+
+  logTime() {
+    const task = this.selectedTask();
+    const hours = Number(this.newTimeHours);
+    if (!task || !hours || hours <= 0) return;
+    this.taskService.logTime(task.id, hours, this.newTimeDate, this.newTimeDesc || undefined).subscribe({
+      next: (tl) => {
+        this.selectedTask.update(t => t ? {
+          ...t,
+          timeLogs: [tl, ...(t.timeLogs ?? [])],
+          totalLoggedHours: (t.totalLoggedHours ?? 0) + Number(tl.hours),
+        } : t);
+        this.newTimeHours = null;
+        this.newTimeDesc = '';
+        this.showTimeLogInput.set(false);
+      },
+      error: () => this.toast('Failed to log time', true),
+    });
+  }
+
+  deleteTimeLog(timeLogId: string) {
+    const tl = this.selectedTask()?.timeLogs?.find(t => t.id === timeLogId);
+    this.taskService.deleteTimeLog(timeLogId).subscribe({
+      next: () => {
+        this.selectedTask.update(t => t ? {
+          ...t,
+          timeLogs: (t.timeLogs ?? []).filter(l => l.id !== timeLogId),
+          totalLoggedHours: (t.totalLoggedHours ?? 0) - (tl?.hours ?? 0),
+        } : t);
+      },
+      error: () => this.toast('Failed to delete time log', true),
+    });
+  }
 
   issueForm = this.fb.group({
     title: ['', Validators.required],
@@ -2650,8 +2965,22 @@ export class ProjectDetailComponent implements OnInit {
     });
   }
 
-  completeSprint(s: Sprint) {
-    this.projectService.completeSprint(s.id).subscribe({
+  openCompleteSprint(s: Sprint) {
+    this.completingSprintId.set(s.id);
+    this.completingSprintRetroNotes = '';
+  }
+
+  cancelCompleteSprint() {
+    this.completingSprintId.set(null);
+    this.completingSprintRetroNotes = '';
+  }
+
+  confirmCompleteSprint() {
+    const id = this.completingSprintId();
+    if (!id) return;
+    const notes = this.completingSprintRetroNotes.trim() || undefined;
+    this.cancelCompleteSprint();
+    this.projectService.completeSprint(id, notes).subscribe({
       next: updated => { this.sprints.update(all => all.map(x => x.id === updated.id ? updated : x)); this.toast('Sprint completed'); },
       error: () => this.toast('Failed to complete sprint', true),
     });

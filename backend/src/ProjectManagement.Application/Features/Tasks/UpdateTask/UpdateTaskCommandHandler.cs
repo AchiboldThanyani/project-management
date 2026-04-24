@@ -20,7 +20,8 @@ internal sealed class UpdateTaskCommandHandler(
             return TaskErrors.NotFound(request.Id);
 
         task.Update(request.Title, request.Description, request.Priority,
-            request.DueDate, request.SprintId, request.AssigneeId, request.StoryPoints);
+            request.DueDate, request.SprintId, request.AssigneeId, request.StoryPoints,
+            estimatedHours: request.EstimatedHours);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return mapper.Map<TaskDto>(task);

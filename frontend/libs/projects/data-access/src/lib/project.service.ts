@@ -54,7 +54,7 @@ export class ProjectService {
     return this.http.post<Sprint>(`${this.sprintsBase}/${sprintId}/activate`, {});
   }
 
-  completeSprint(sprintId: string) {
-    return this.http.post<Sprint>(`${this.sprintsBase}/${sprintId}/complete`, {});
+  completeSprint(sprintId: string, retroNotes?: string) {
+    return this.http.post<Sprint>(`${this.sprintsBase}/${sprintId}/complete`, { retroNotes: retroNotes ?? null });
   }
 }

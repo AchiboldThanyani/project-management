@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { map } from 'rxjs/operators';
-import { CreateTaskRequest, Task, UpdateTaskRequest, UpdateTaskStatusRequest } from '@pm/shared/models';
+import { CreateTaskRequest, SubTask, Task, TimeLog, UpdateTaskRequest, UpdateTaskStatusRequest } from '@pm/shared/models';
 import { environment } from '@pm/shared/util';
 
 interface PagedResult<T> { items: T[]; totalCount: number; page: number; pageSize: number; }
@@ -34,5 +34,25 @@ export class TaskService {
 
   delete(id: string) {
     return this.http.delete<void>(`${this.base}/${id}`);
+  }
+
+  createSubTask(taskId: string, title: string) {
+    return this.http.post<SubTask>(`${this.base}/${taskId}/subtasks`, { title });
+  }
+
+  toggleSubTask(subTaskId: string) {
+    return this.http.patch<SubTask>(`${this.base}/subtasks/${subTaskId}/toggle`, {});
+  }
+
+  deleteSubTask(subTaskId: string) {
+    return this.http.delete<void>(`${this.base}/subtasks/${subTaskId}`);
+  }
+
+  logTime(taskId: string, hours: number, loggedDate: string, description?: string) {
+    return this.http.post<TimeLog>(`${this.base}/${taskId}/timelogs`, { hours, loggedDate, description });
+  }
+
+  deleteTimeLog(timeLogId: string) {
+    return this.http.delete<void>(`${this.base}/timelogs/${timeLogId}`);
   }
 }

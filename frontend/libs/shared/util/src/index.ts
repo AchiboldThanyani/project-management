@@ -5,3 +5,5 @@ export * from './lib/environment';
 export * from './lib/confirm-dialog.component';
 export * from './lib/activity.service';
 export * from './lib/ai.service';
+export * from './lib/signalr.service';
+export * from './lib/notification.service';

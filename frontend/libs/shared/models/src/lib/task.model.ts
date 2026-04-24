@@ -14,6 +14,26 @@ export enum TaskPriority {
   Critical = 3,
 }
 
+export interface SubTask {
+  id: string;
+  taskId: string;
+  title: string;
+  isCompleted: boolean;
+  order: number;
+  createdAt: string;
+}
+
+export interface TimeLog {
+  id: string;
+  taskId: string;
+  userId: string;
+  userName?: string;
+  hours: number;
+  description?: string;
+  loggedDate: string;
+  createdAt: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -22,6 +42,8 @@ export interface Task {
   priority: TaskPriority;
   dueDate?: string;
   storyPoints?: number;
+  estimatedHours?: number;
+  totalLoggedHours: number;
   projectId: string;
   sprintId?: string;
   assigneeId?: string;
@@ -30,6 +52,8 @@ export interface Task {
   createdAt: string;
   updatedAt?: string;
   labels: { id: string; name: string; color: string }[];
+  subTasks: SubTask[];
+  timeLogs: TimeLog[];
   blockedBy: TaskRef[];
   blocking: TaskRef[];
   isBlocked: boolean;
@@ -66,6 +90,7 @@ export interface UpdateTaskRequest {
   sprintId?: string;
   assigneeId?: string;
   storyPoints?: number;
+  estimatedHours?: number;
 }
 
 export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {

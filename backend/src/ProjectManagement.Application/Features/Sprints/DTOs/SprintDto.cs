@@ -8,6 +8,9 @@ public record SprintDto
     public DateTime StartDate { get; init; }
     public DateTime EndDate { get; init; }
     public bool IsActive { get; init; }
+    public bool IsCompleted { get; init; }
+    public string? RetroNotes { get; init; }
+    public int CarryOverCount { get; init; }
     public Guid ProjectId { get; init; }
     public DateTime CreatedAt { get; init; }
 }

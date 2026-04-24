@@ -4,6 +4,8 @@ using ProjectManagement.Application.Features.Projects.DTOs;
 using ProjectManagement.Application.Features.Sprints.DTOs;
 using ProjectManagement.Application.Features.Tasks.Dependencies.DTOs;
 using ProjectManagement.Application.Features.Tasks.DTOs;
+using ProjectManagement.Application.Features.Tasks.SubTasks;
+using ProjectManagement.Application.Features.Tasks.TimeLogs;
 using ProjectManagement.Application.Features.Teams.DTOs;
 using ProjectManagement.Domain.Entities;
 
@@ -33,18 +35,26 @@ public class MappingProfile : Profile
             .ForMember(d => d.Status,       o => o.MapFrom(s => s.BlockedTask.Status))
             .ForMember(d => d.ProjectId,    o => o.MapFrom(s => s.BlockedTask.ProjectId));
 
+        CreateMap<SubTask, SubTaskDto>();
+
+        CreateMap<TimeLog, TimeLogDto>()
+            .ForMember(d => d.UserName, o => o.Ignore());
+
         CreateMap<ProjectTask, TaskDto>()
-            .ForMember(d => d.AssigneeName, o => o.Ignore())
-            .ForMember(d => d.Labels,    o => o.MapFrom(s => s.Labels))
-            .ForMember(d => d.BlockedBy, o => o.MapFrom(s => s.BlockedByDependencies.Select(dep =>
+            .ForMember(d => d.AssigneeName,      o => o.Ignore())
+            .ForMember(d => d.Labels,            o => o.MapFrom(s => s.Labels))
+            .ForMember(d => d.SubTasks,          o => o.MapFrom(s => s.SubTasks.OrderBy(st => st.Order)))
+            .ForMember(d => d.TimeLogs,          o => o.MapFrom(s => s.TimeLogs.OrderByDescending(tl => tl.LoggedDate)))
+            .ForMember(d => d.TotalLoggedHours,  o => o.MapFrom(s => s.TimeLogs.Sum(tl => tl.Hours)))
+            .ForMember(d => d.BlockedBy,         o => o.MapFrom(s => s.BlockedByDependencies.Select(dep =>
                 new DependencyTaskRef { DependencyId = dep.Id, Id = dep.BlockingTask.Id,
                     Title = dep.BlockingTask.Title, Status = dep.BlockingTask.Status,
                     ProjectId = dep.BlockingTask.ProjectId })))
-            .ForMember(d => d.Blocking,  o => o.MapFrom(s => s.BlockingDependencies.Select(dep =>
+            .ForMember(d => d.Blocking,          o => o.MapFrom(s => s.BlockingDependencies.Select(dep =>
                 new DependencyTaskRef { DependencyId = dep.Id, Id = dep.BlockedTask.Id,
                     Title = dep.BlockedTask.Title, Status = dep.BlockedTask.Status,
                     ProjectId = dep.BlockedTask.ProjectId })))
-            .ForMember(d => d.IsBlocked, o => o.Ignore()); // computed property
+            .ForMember(d => d.IsBlocked,         o => o.Ignore());
 
         CreateMap<Sprint, SprintDto>();
 

@@ -1,5 +1,7 @@
 using ProjectManagement.Application.Features.Labels.DTOs;
 using ProjectManagement.Application.Features.Tasks.Dependencies.DTOs;
+using ProjectManagement.Application.Features.Tasks.SubTasks;
+using ProjectManagement.Application.Features.Tasks.TimeLogs;
 using ProjectManagement.Domain.Enums;
 using TaskStatus = ProjectManagement.Domain.Enums.TaskStatus;
 
@@ -14,6 +16,8 @@ public record TaskDto
     public TaskPriority Priority { get; init; }
     public DateTime? DueDate { get; init; }
     public int? StoryPoints { get; init; }
+    public decimal? EstimatedHours { get; init; }
+    public decimal TotalLoggedHours { get; init; }
     public Guid ProjectId { get; init; }
     public Guid? SprintId { get; init; }
     public string? AssigneeId { get; init; }
@@ -22,14 +26,12 @@ public record TaskDto
     public DateTime CreatedAt { get; init; }
     public DateTime? UpdatedAt { get; init; }
     public IReadOnlyList<LabelDto> Labels { get; init; } = [];
+    public IReadOnlyList<SubTaskDto> SubTasks { get; init; } = [];
+    public IReadOnlyList<TimeLogDto> TimeLogs { get; init; } = [];
 
-    /// <summary>Tasks that must finish before this one can start.</summary>
     public IReadOnlyList<DependencyTaskRef> BlockedBy { get; init; } = [];
-
-    /// <summary>Tasks that are waiting on this one.</summary>
     public IReadOnlyList<DependencyTaskRef> Blocking { get; init; } = [];
 
-    /// <summary>True when at least one blocker is still open.</summary>
     public bool IsBlocked => BlockedBy.Any(t =>
         t.Status != Domain.Enums.TaskStatus.Done &&
         t.Status != Domain.Enums.TaskStatus.Cancelled);

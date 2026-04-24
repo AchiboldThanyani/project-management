@@ -24,8 +24,8 @@ public class SprintsController(IMediator mediator) : ControllerBase
         => (await mediator.Send(new ActivateSprintCommand(id), ct)).ToActionResult(this);
 
     [HttpPost("{id:guid}/complete")]
-    public async Task<ActionResult<SprintDto>> Complete(Guid id, CancellationToken ct)
-        => (await mediator.Send(new CompleteSprintCommand(id), ct)).ToActionResult(this);
+    public async Task<ActionResult<SprintDto>> Complete(Guid id, [FromBody] CompleteSprintRequest req, CancellationToken ct)
+        => (await mediator.Send(new CompleteSprintCommand(id, req.RetroNotes), ct)).ToActionResult(this);
 
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
@@ -33,3 +33,4 @@ public class SprintsController(IMediator mediator) : ControllerBase
 }
 
 public record UpdateSprintRequest(string Name, string? Goal, DateTime StartDate, DateTime EndDate);
+public record CompleteSprintRequest(string? RetroNotes = null);

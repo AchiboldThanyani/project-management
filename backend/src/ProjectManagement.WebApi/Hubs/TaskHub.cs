@@ -6,7 +6,14 @@ namespace ProjectManagement.WebApi.Hubs;
 [Authorize]
 public class TaskHub : Hub
 {
-    /// <summary>Clients join a project-specific group to receive targeted updates.</summary>
+    public override async Task OnConnectedAsync()
+    {
+        var userId = Context.UserIdentifier;
+        if (userId is not null)
+            await Groups.AddToGroupAsync(Context.ConnectionId, $"user-{userId}");
+        await base.OnConnectedAsync();
+    }
+
     public async Task JoinProject(string projectId)
         => await Groups.AddToGroupAsync(Context.ConnectionId, $"project-{projectId}");
 

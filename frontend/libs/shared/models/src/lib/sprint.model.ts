@@ -5,6 +5,9 @@ export interface Sprint {
   startDate: string;
   endDate: string;
   isActive: boolean;
+  isCompleted: boolean;
+  retroNotes?: string;
+  carryOverCount: number;
   projectId: string;
   createdAt: string;
 }

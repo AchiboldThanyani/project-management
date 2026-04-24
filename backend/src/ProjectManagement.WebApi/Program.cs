@@ -24,8 +24,8 @@ builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddMemoryCache();
 builder.Services.AddSignalR();
-builder.Services.AddScoped<ProjectManagement.Application.Interfaces.ITaskNotificationService,
-    ProjectManagement.WebApi.Hubs.TaskNotificationService>();
+builder.Services.AddScoped<ProjectManagement.Application.Interfaces.INotificationService,
+    ProjectManagement.WebApi.Hubs.NotificationService>();
 builder.Services.AddHealthChecks()
     .AddNpgSql(builder.Configuration.GetConnectionString("DefaultConnection")!);
 
