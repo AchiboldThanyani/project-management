@@ -2,7 +2,7 @@ import { Component, inject, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { AuthService } from '@pm/auth/data-access';
-import { SignalRService, NotificationService } from '@pm/shared/util';
+import { SignalRService, NotificationService, ThemeService } from '@pm/shared/util';
 import { AiAssistantComponent } from './ai-assistant.component';
 import { NotificationBellComponent } from './notification-bell.component';
 
@@ -56,6 +56,10 @@ import { NotificationBellComponent } from './notification-bell.component';
           <a class="nav-item" routerLink="/profile" routerLinkActive="active">
             <span class="material-icons-round">manage_accounts</span> Profile
           </a>
+          <div class="nav-item theme-toggle" (click)="theme.toggle()">
+            <span class="material-icons-round">{{ theme.isDark() ? 'light_mode' : 'dark_mode' }}</span>
+            {{ theme.isDark() ? 'Light mode' : 'Dark mode' }}
+          </div>
           <div class="nav-item signout" (click)="auth.logout()">
             <span class="material-icons-round">logout</span> Sign out
           </div>
@@ -84,7 +88,7 @@ import { NotificationBellComponent } from './notification-bell.component';
     .sidebar {
       width: 220px;
       min-width: 220px;
-      background: var(--ink);
+      background: var(--sidebar-bg, #0f0f14);
       display: flex;
       flex-direction: column;
       position: relative;
@@ -171,6 +175,8 @@ import { NotificationBellComponent } from './notification-bell.component';
     .nav-item .material-icons-round { font-size: 17px; }
     .nav-item.signout { color: rgba(255,255,255,0.3); }
     .nav-item.signout:hover { background: rgba(244,63,94,0.12); color: var(--rose); }
+    .nav-item.theme-toggle { color: rgba(255,255,255,0.45); }
+    .nav-item.theme-toggle:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.75); }
 
     .sb-footer {
       padding: 10px 8px;
@@ -197,10 +203,12 @@ import { NotificationBellComponent } from './notification-bell.component';
 })
 export class ShellComponent implements OnInit {
   readonly auth = inject(AuthService);
+  readonly theme = inject(ThemeService);
   private readonly signalr = inject(SignalRService);
   private readonly notifSvc = inject(NotificationService);
 
   ngOnInit(): void {
+    this.theme.init();
     this.signalr.connect().then(() => this.notifSvc.init());
   }
 

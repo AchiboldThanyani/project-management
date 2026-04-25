@@ -68,17 +68,17 @@ import { NotificationService } from '@pm/shared/util';
       font-size: 10px; font-weight: 700;
       display: flex; align-items: center; justify-content: center;
       padding: 0 3px;
-      border: 2px solid var(--ink);
+      border: 2px solid var(--sidebar-bg);
     }
 
     .panel {
       position: fixed; top: 58px; left: 228px;
       width: 340px;
-      background: rgba(255,255,255,.95);
+      background: var(--white);
       backdrop-filter: blur(24px) saturate(160%);
-      border: 1px solid rgba(0,0,0,0.08);
+      border: 1px solid var(--border);
       border-radius: 14px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+      box-shadow: var(--shadow-lg);
       z-index: 500;
       overflow: hidden;
     }
@@ -86,12 +86,12 @@ import { NotificationService } from '@pm/shared/util';
     .panel-header {
       display: flex; align-items: center; justify-content: space-between;
       padding: 14px 16px 10px;
-      font-size: 13px; font-weight: 700; color: #1e1b4b;
-      border-bottom: 1px solid rgba(0,0,0,0.06);
+      font-size: 13px; font-weight: 700; color: var(--ink);
+      border-bottom: 1px solid var(--border);
     }
 
     .mark-all {
-      font-size: 11px; font-weight: 600; color: #6366f1;
+      font-size: 11px; font-weight: 600; color: var(--violet);
       background: none; border: none; cursor: pointer;
     }
     .mark-all:hover { text-decoration: underline; }
@@ -100,33 +100,33 @@ import { NotificationService } from '@pm/shared/util';
 
     .empty {
       padding: 32px 16px; text-align: center;
-      font-size: 13px; color: #94a3b8;
+      font-size: 13px; color: var(--muted);
     }
 
     .item {
       display: flex; align-items: flex-start; gap: 10px;
       padding: 12px 16px;
       cursor: pointer;
-      border-bottom: 1px solid rgba(0,0,0,0.04);
+      border-bottom: 1px solid var(--border);
       transition: background 0.12s;
       position: relative;
     }
-    .item:hover { background: rgba(99,102,241,0.05); }
-    .item.unread { background: rgba(99,102,241,0.04); }
+    .item:hover { background: var(--violet-c); }
+    .item.unread { background: var(--violet-mid); }
 
     .item-icon {
-      font-size: 18px; color: #6366f1;
+      font-size: 18px; color: var(--violet);
       margin-top: 2px; flex-shrink: 0;
     }
 
     .item-text { flex: 1; min-width: 0; }
-    .item-title { font-size: 12px; font-weight: 600; color: #1e1b4b; margin-bottom: 2px; }
-    .item-body { font-size: 12px; color: #475569; line-height: 1.4; }
-    .item-time { font-size: 10px; color: #94a3b8; margin-top: 4px; }
+    .item-title { font-size: 12px; font-weight: 600; color: var(--ink); margin-bottom: 2px; }
+    .item-body { font-size: 12px; color: var(--muted); line-height: 1.4; }
+    .item-time { font-size: 10px; color: var(--soft); margin-top: 4px; }
 
     .dot {
       width: 7px; height: 7px; border-radius: 50%;
-      background: #6366f1; flex-shrink: 0; margin-top: 6px;
+      background: var(--violet); flex-shrink: 0; margin-top: 6px;
     }
 
     .backdrop {

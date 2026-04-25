@@ -7,3 +7,4 @@ export * from './lib/activity.service';
 export * from './lib/ai.service';
 export * from './lib/signalr.service';
 export * from './lib/notification.service';
+export * from './lib/theme.service';

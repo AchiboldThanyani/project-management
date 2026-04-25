@@ -56,6 +56,8 @@ html, body {
   --emerald: #10b981;
   --emerald-c: #d1fae5;
 
+  --sidebar-bg: #0f0f14;
+
   --r-sm:   6px;
   --r-md:   10px;
   --r-lg:   14px;
@@ -65,6 +67,58 @@ html, body {
   --shadow-sm: 0 1px 3px rgba(15,15,20,0.06), 0 1px 2px rgba(15,15,20,0.04);
   --shadow-md: 0 4px 12px rgba(15,15,20,0.08), 0 2px 4px rgba(15,15,20,0.04);
   --shadow-lg: 0 12px 32px rgba(15,15,20,0.1), 0 4px 8px rgba(15,15,20,0.06);
+}
+
+/* ─── Dark Mode Tokens ───────────────────────────────── */
+[data-theme="dark"] {
+  --ink:    #e8e8f0;
+  --ink-2:  #d0d0de;
+  --ink-3:  #b8b8cc;
+  --ink-4:  #9090a8;
+  --muted:  #7878a0;
+  --soft:   #505070;
+  --border: #2a2a3a;
+  --surface:#16161f;
+  --page:   #0e0e16;
+  --white:  #1c1c28;
+
+  --violet:     #4aa356;
+  --violet-2:   #5bc468;
+  --violet-c:   rgba(74,163,86,0.15);
+  --violet-mid: rgba(74,163,86,0.18);
+
+  --teal-c:    rgba(0,184,160,0.15);
+  --amber-c:   rgba(245,158,11,0.15);
+  --rose-c:    rgba(244,63,94,0.15);
+  --blue-c:    rgba(59,130,246,0.15);
+  --emerald-c: rgba(16,185,129,0.15);
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.4), 0 2px 4px rgba(0,0,0,0.2);
+  --shadow-lg: 0 12px 32px rgba(0,0,0,0.5), 0 4px 8px rgba(0,0,0,0.3);
+
+  --sidebar-bg: #0a0a12;
+}
+
+/* Dark mode Material overrides */
+[data-theme="dark"] {
+  mat-card.ph-card, .ph-card {
+    background: var(--white) !important;
+    border-color: var(--border) !important;
+  }
+  .mat-mdc-dialog-surface {
+    background: var(--white) !important;
+    color: var(--ink) !important;
+  }
+  .mdc-text-field--outlined .mdc-notched-outline__leading,
+  .mdc-text-field--outlined .mdc-notched-outline__notch,
+  .mdc-text-field--outlined .mdc-notched-outline__trailing {
+    border-color: var(--border) !important;
+  }
+  input, textarea, select {
+    color: var(--ink) !important;
+    background: var(--surface) !important;
+  }
 }
 
 /* ─── Scrollbars ─────────────────────────────────────── */
