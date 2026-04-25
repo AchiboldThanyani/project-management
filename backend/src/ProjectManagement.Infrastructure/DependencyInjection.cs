@@ -47,6 +47,7 @@ public static class DependencyInjection
         services.AddScoped<ITimeLogRepository, TimeLogRepository>();
 
         services.AddHostedService<ProjectManagement.Infrastructure.BackgroundServices.OverdueTaskScannerService>();
+        services.AddHostedService<ProjectManagement.Infrastructure.BackgroundServices.TicketSlaBreachScannerService>();
 
         // HTTP context / current user
         services.AddHttpContextAccessor();

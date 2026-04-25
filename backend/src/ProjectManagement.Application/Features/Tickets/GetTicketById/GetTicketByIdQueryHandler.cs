@@ -1,6 +1,7 @@
 using MediatR;
 using ProjectManagement.Application.Common;
 using ProjectManagement.Application.Features.Tickets.DTOs;
+using ProjectManagement.Application.Features.Tickets.Sla;
 using ProjectManagement.Application.Interfaces;
 
 namespace ProjectManagement.Application.Features.Tickets.GetTicketById;
@@ -27,6 +28,9 @@ internal sealed class GetTicketByIdQueryHandler(
             .Where(id => id is not null).Distinct().Cast<string>().ToList();
         var names = await users.GetNamesByIdsAsync(userIds, ct);
 
+        var (slaStatus, responseDeadline, resolutionDeadline, hoursRemaining) =
+            SlaPolicy.Compute(ticket.Priority, ticket.CreatedAt);
+
         return new TicketDto
         {
             Id = ticket.Id, Number = ticket.Number, ProjectId = ticket.ProjectId,
@@ -38,6 +42,10 @@ internal sealed class GetTicketByIdQueryHandler(
             AssignedToName = ticket.AssignedToId is not null ? names.GetValueOrDefault(ticket.AssignedToId) : null,
             ConvertedToTaskId = ticket.ConvertedToTaskId,
             CreatedAt = ticket.CreatedAt, UpdatedAt = ticket.UpdatedAt,
+            SlaStatus = slaStatus,
+            ResponseDeadlineUtc = responseDeadline,
+            ResolutionDeadlineUtc = resolutionDeadline,
+            SlaHoursRemaining = hoursRemaining,
         };
     }
 }

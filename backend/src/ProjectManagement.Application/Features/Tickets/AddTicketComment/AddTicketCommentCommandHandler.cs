@@ -13,6 +13,8 @@ internal sealed class AddTicketCommentCommandHandler(
     ITicketCommentRepository comments,
     ICurrentUserService      currentUser,
     IUserRepository          users,
+    INotificationRepository  notifications,
+    INotificationService     notificationService,
     IUnitOfWork              unitOfWork)
     : IRequestHandler<AddTicketCommentCommand, Result<TicketCommentDto>>
 {
@@ -27,7 +29,24 @@ internal sealed class AddTicketCommentCommandHandler(
 
         var comment = TicketComment.Create(req.TicketId, currentUser.UserId, req.Content, isFromCustomer);
         await comments.AddAsync(comment, ct);
-        await unitOfWork.SaveChangesAsync(ct);
+
+        // Notify the assigned agent when a customer replies
+        if (isFromCustomer && ticket.AssignedToId is not null)
+        {
+            var notification = Notification.Create(
+                ticket.AssignedToId,
+                "Customer Reply",
+                $"{currentUser.FullName} replied on ticket #{ticket.Number}: \"{ticket.Subject}\"",
+                NotificationType.General,
+                ticket.Id);
+            await notifications.AddAsync(notification, ct);
+            await unitOfWork.SaveChangesAsync(ct);
+            await notificationService.PushAsync(ticket.AssignedToId, notification, ct);
+        }
+        else
+        {
+            await unitOfWork.SaveChangesAsync(ct);
+        }
 
         return new TicketCommentDto
         {

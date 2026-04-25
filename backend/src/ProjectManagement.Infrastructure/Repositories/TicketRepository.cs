@@ -31,4 +31,9 @@ public class TicketRepository(ApplicationDbContext context)
         if (projectId.HasValue) q = q.Where(t => t.ProjectId == projectId.Value);
         return await q.OrderByDescending(t => t.Number).ToListAsync(ct);
     }
+
+    public async Task<IReadOnlyList<Ticket>> GetOpenTicketsAsync(CancellationToken ct = default) =>
+        await context.Tickets
+            .Where(t => t.Status != TicketStatus.Resolved && t.Status != TicketStatus.Closed)
+            .ToListAsync(ct);
 }

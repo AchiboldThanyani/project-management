@@ -16,7 +16,7 @@ import {
   Label, LABEL_COLORS,
   ProjectMember, ProjectMemberRole, PROJECT_MEMBER_ROLE_LABELS,
   TaskRef,
-  Ticket, TicketComment, TicketStatus, TicketType, TICKET_STATUS_LABELS, TICKET_TYPE_LABELS,
+  Ticket, TicketComment, TicketStatus, TicketType, TICKET_STATUS_LABELS, TICKET_TYPE_LABELS, SlaStatus,
   Invite,
 } from '@pm/shared/models';
 import { ConfirmDialogComponent } from '@pm/shared/util';
@@ -500,6 +500,7 @@ const COLUMNS = [
             <span class="priority-dot p-{{ t.priority }}">{{ ['Low','Medium','High','Critical'][t.priority] }}</span>
             <span class="ticket-submitter">{{ t.submittedByName }}</span>
             <span class="status-chip s-{{ t.status }}">{{ ticketStatusLabel(t.status) }}</span>
+            <span class="sla-badge sla-{{ t.slaStatus }}" [title]="slaTooltip(t)">{{ slaLabel(t.slaStatus) }}</span>
           </div>
         </div>
       </div>
@@ -1242,10 +1243,19 @@ const COLUMNS = [
 
           <div class="panel-body">
             <h2 style="margin:0 0 8px;font-size:16px;font-weight:600;color:var(--ink)">{{ ticket.subject }}</h2>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
               <span class="ticket-type-chip">{{ ticketTypeLabel(ticket.type) }}</span>
               <span class="ticket-type-chip">{{ ['Low','Medium','High','Critical'][ticket.priority] }} priority</span>
               <span class="ticket-type-chip">By {{ ticket.submittedByName }}</span>
+              <span class="sla-badge sla-{{ ticket.slaStatus }}" [title]="slaTooltip(ticket)">{{ slaLabel(ticket.slaStatus) }}</span>
+            </div>
+            <div class="sla-detail-row" *ngIf="ticket.slaStatus !== undefined">
+              <span class="material-icons-round sla-detail-ico sla-ico-{{ ticket.slaStatus }}">timer</span>
+              <span class="sla-detail-text">
+                <ng-container *ngIf="ticket.slaStatus === 2">SLA breached — resolution was due {{ ticket.resolutionDeadlineUtc | date:'MMM d, HH:mm' }}</ng-container>
+                <ng-container *ngIf="ticket.slaStatus === 1">At risk — {{ ticket.slaHoursRemaining | number:'1.1-1' }}h until breach ({{ ticket.resolutionDeadlineUtc | date:'MMM d, HH:mm' }})</ng-container>
+                <ng-container *ngIf="ticket.slaStatus === 0">On time — {{ ticket.slaHoursRemaining | number:'1.1-1' }}h remaining (due {{ ticket.resolutionDeadlineUtc | date:'MMM d, HH:mm' }})</ng-container>
+              </span>
             </div>
 
             <div *ngIf="ticket.description" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:13px;color:var(--ink);white-space:pre-wrap;margin-bottom:16px">{{ ticket.description }}</div>
@@ -2287,6 +2297,18 @@ const COLUMNS = [
     .s-2 { background: #fff3e0; color: #e67d00; } .s-3 { background: var(--violet-c); color: var(--violet); }
     .s-4 { background: #f5f5f5; color: #888; }
 
+    /* SLA badges */
+    .sla-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: var(--r-full); white-space: nowrap; }
+    .sla-0 { background: var(--emerald-c, #d1fae5); color: var(--emerald, #10b981); }
+    .sla-1 { background: var(--amber-c, #fef3c7);   color: var(--amber, #f59e0b); }
+    .sla-2 { background: var(--rose-c, #ffe4e6);     color: var(--rose, #f43f5e); }
+
+    .sla-detail-row { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+    .sla-detail-ico { font-size: 15px; }
+    .sla-ico-0 { color: var(--emerald, #10b981); }
+    .sla-ico-1 { color: var(--amber, #f59e0b); }
+    .sla-ico-2 { color: var(--rose, #f43f5e); }
+
     /* ── Invites tab ── */
     .invites-section { display: flex; flex-direction: column; gap: 20px; }
     .invites-header { display: flex; align-items: flex-start; justify-content: space-between; }
@@ -2683,6 +2705,17 @@ export class ProjectDetailComponent implements OnInit {
 
   ticketStatusLabel(s: TicketStatus) { return TICKET_STATUS_LABELS[s] ?? String(s); }
   ticketTypeLabel(t: TicketType) { return TICKET_TYPE_LABELS[t] ?? String(t); }
+
+  slaLabel(s: SlaStatus): string {
+    return s === SlaStatus.Breached ? 'Breached' : s === SlaStatus.AtRisk ? 'At Risk' : 'On Time';
+  }
+
+  slaTooltip(t: Ticket): string {
+    const due = new Date(t.resolutionDeadlineUtc).toLocaleString();
+    if (t.slaStatus === SlaStatus.Breached) return `SLA breached — was due ${due}`;
+    if (t.slaStatus === SlaStatus.AtRisk)   return `At risk — ${t.slaHoursRemaining.toFixed(1)}h left, due ${due}`;
+    return `On time — ${t.slaHoursRemaining.toFixed(1)}h remaining, due ${due}`;
+  }
 
   filteredTickets() {
     if (this.ticketFilterStatus === '') return this.tickets();

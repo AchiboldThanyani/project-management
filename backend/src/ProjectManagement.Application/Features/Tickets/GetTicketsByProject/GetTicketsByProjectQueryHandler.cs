@@ -1,6 +1,7 @@
 using MediatR;
 using ProjectManagement.Application.Common;
 using ProjectManagement.Application.Features.Tickets.DTOs;
+using ProjectManagement.Application.Features.Tickets.Sla;
 using ProjectManagement.Application.Interfaces;
 
 namespace ProjectManagement.Application.Features.Tickets.GetTicketsByProject;
@@ -21,16 +22,25 @@ internal sealed class GetTicketsByProjectQueryHandler(
         return list.Select(t => MapDto(t, names)).ToList();
     }
 
-    private static TicketDto MapDto(Domain.Entities.Ticket t, Dictionary<string, string> names) => new()
+    private static TicketDto MapDto(Domain.Entities.Ticket t, Dictionary<string, string> names)
     {
-        Id = t.Id, Number = t.Number, ProjectId = t.ProjectId,
-        SubmittedById = t.SubmittedById,
-        SubmittedByName = names.GetValueOrDefault(t.SubmittedById, "Unknown"),
-        Subject = t.Subject, Description = t.Description,
-        Type = t.Type, Priority = t.Priority, Status = t.Status,
-        AssignedToId = t.AssignedToId,
-        AssignedToName = t.AssignedToId is not null ? names.GetValueOrDefault(t.AssignedToId, "") : null,
-        ConvertedToTaskId = t.ConvertedToTaskId,
-        CreatedAt = t.CreatedAt, UpdatedAt = t.UpdatedAt,
-    };
+        var (slaStatus, responseDeadline, resolutionDeadline, hoursRemaining) =
+            SlaPolicy.Compute(t.Priority, t.CreatedAt);
+        return new()
+        {
+            Id = t.Id, Number = t.Number, ProjectId = t.ProjectId,
+            SubmittedById = t.SubmittedById,
+            SubmittedByName = names.GetValueOrDefault(t.SubmittedById, "Unknown"),
+            Subject = t.Subject, Description = t.Description,
+            Type = t.Type, Priority = t.Priority, Status = t.Status,
+            AssignedToId = t.AssignedToId,
+            AssignedToName = t.AssignedToId is not null ? names.GetValueOrDefault(t.AssignedToId, "") : null,
+            ConvertedToTaskId = t.ConvertedToTaskId,
+            CreatedAt = t.CreatedAt, UpdatedAt = t.UpdatedAt,
+            SlaStatus = slaStatus,
+            ResponseDeadlineUtc = responseDeadline,
+            ResolutionDeadlineUtc = resolutionDeadline,
+            SlaHoursRemaining = hoursRemaining,
+        };
+    }
 }

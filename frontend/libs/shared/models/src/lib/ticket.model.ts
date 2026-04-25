@@ -13,6 +13,8 @@ export enum TicketType {
   Other = 3,
 }
 
+export enum SlaStatus { OnTime = 0, AtRisk = 1, Breached = 2 }
+
 export interface Ticket {
   id: string;
   number: number;
@@ -29,6 +31,10 @@ export interface Ticket {
   convertedToTaskId?: string;
   createdAt: string;
   updatedAt?: string;
+  slaStatus: SlaStatus;
+  responseDeadlineUtc: string;
+  resolutionDeadlineUtc: string;
+  slaHoursRemaining: number;
 }
 
 export interface TicketComment {
