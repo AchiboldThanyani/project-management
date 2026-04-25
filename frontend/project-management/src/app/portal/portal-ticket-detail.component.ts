@@ -70,31 +70,31 @@ import { Ticket, TicketComment, TICKET_STATUS_LABELS, TICKET_TYPE_LABELS, Ticket
     .loading { display: flex; justify-content: center; padding: 60px; }
     .page-wrap { padding: 0; }
     .topbar { display: flex; align-items: center; gap: 12px; padding: 20px 28px; border-bottom: 1px solid var(--border); }
-    .back-btn { background: none; border: none; cursor: pointer; color: var(--text-muted); display: flex; align-items: center; }
-    .topbar-title { font-size: 18px; font-weight: 600; color: var(--text); flex: 1; }
+    .back-btn { background: none; border: none; cursor: pointer; color: var(--muted); display: flex; align-items: center; }
+    .topbar-title { font-size: 18px; font-weight: 600; color: var(--ink); flex: 1; }
     .status-badge { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
-    .status-0 { background: #f0f0f0; color: #555; }
-    .status-1 { background: #e8f4fd; color: #1a73c7; }
-    .status-2 { background: #fff3e0; color: #e67d00; }
+    .status-0 { background: var(--surface); color: var(--muted); }
+    .status-1 { background: var(--blue-c); color: var(--blue); }
+    .status-2 { background: var(--amber-c); color: var(--amber); }
     .status-3 { background: var(--violet-c); color: var(--violet); }
-    .status-4 { background: #f5f5f5; color: #888; }
+    .status-4 { background: var(--surface); color: var(--soft); }
     .content { padding: 28px; max-width: 700px; }
     .ticket-body { display: flex; flex-direction: column; gap: 24px; }
-    .ticket-header h2 { font-size: 20px; font-weight: 600; color: var(--text); margin: 0 0 8px; }
-    .ticket-meta { display: flex; gap: 8px; font-size: 13px; color: var(--text-muted); }
+    .ticket-header h2 { font-size: 20px; font-weight: 600; color: var(--ink); margin: 0 0 8px; }
+    .ticket-meta { display: flex; gap: 8px; font-size: 13px; color: var(--muted); }
     .converted-badge { background: var(--violet-c); color: var(--violet); padding: 2px 8px; border-radius: 10px; font-size: 11px; }
-    .ticket-description { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; font-size: 14px; color: var(--text); white-space: pre-wrap; }
-    .comments-section h3 { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 16px; }
+    .ticket-description { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; font-size: 14px; color: var(--ink); white-space: pre-wrap; }
+    .comments-section h3 { font-size: 15px; font-weight: 600; color: var(--ink); margin-bottom: 16px; }
     .comment { padding: 14px 16px; border-radius: 10px; margin-bottom: 10px; }
     .from-customer { background: var(--violet-c); border: 1px solid rgba(58,138,69,.2); }
-    .from-team { background: var(--card); border: 1px solid var(--border); }
-    .comment-author { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
-    .author-tag { font-size: 11px; font-weight: 400; background: var(--surface); border: 1px solid var(--border); padding: 1px 6px; border-radius: 8px; margin-left: 6px; color: var(--text-muted); }
-    .comment-content { font-size: 14px; color: var(--text); margin-bottom: 4px; }
-    .comment-time { font-size: 11px; color: var(--text-muted); }
-    .no-comments { color: var(--text-muted); font-size: 14px; padding: 16px 0; }
+    .from-team { background: var(--white); border: 1px solid var(--border); }
+    .comment-author { font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 4px; }
+    .author-tag { font-size: 11px; font-weight: 400; background: var(--surface); border: 1px solid var(--border); padding: 1px 6px; border-radius: 8px; margin-left: 6px; color: var(--muted); }
+    .comment-content { font-size: 14px; color: var(--ink); margin-bottom: 4px; }
+    .comment-time { font-size: 11px; color: var(--muted); }
+    .no-comments { color: var(--muted); font-size: 14px; padding: 16px 0; }
     .reply-box { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
-    .reply-box textarea { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 14px; color: var(--text); background: var(--card); resize: vertical; outline: none; }
+    .reply-box textarea { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 14px; color: var(--ink); background: var(--white); resize: vertical; outline: none; }
     .reply-box textarea:focus { border-color: var(--violet); }
     .reply-box button { align-self: flex-end; background: var(--violet); color: #fff; border: none; padding: 9px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; }
     .reply-box button:disabled { opacity: .6; cursor: not-allowed; }

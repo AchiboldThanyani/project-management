@@ -72,16 +72,16 @@ import { TicketType, Project } from '@pm/shared/models';
   styles: [`
     .page-wrap { padding: 0; }
     .topbar { display: flex; align-items: center; gap: 12px; padding: 20px 28px; border-bottom: 1px solid var(--border); }
-    .back-btn { background: none; border: none; cursor: pointer; color: var(--text-muted); display: flex; align-items: center; }
-    .topbar-title { font-size: 18px; font-weight: 600; color: var(--text); }
+    .back-btn { background: none; border: none; cursor: pointer; color: var(--muted); display: flex; align-items: center; }
+    .topbar-title { font-size: 18px; font-weight: 600; color: var(--ink); }
     .content { padding: 32px 28px; max-width: 600px; }
     .ticket-form { display: flex; flex-direction: column; gap: 20px; }
     .field { display: flex; flex-direction: column; gap: 6px; }
     .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    label { font-size: 13px; font-weight: 600; color: var(--text-muted); }
+    label { font-size: 13px; font-weight: 600; color: var(--muted); }
     input, select, textarea {
       border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;
-      font-size: 14px; color: var(--text); background: var(--card); outline: none;
+      font-size: 14px; color: var(--ink); background: var(--white); outline: none;
       transition: border-color .15s; resize: vertical;
     }
     input:focus, select:focus, textarea:focus { border-color: var(--violet); }
@@ -89,7 +89,7 @@ import { TicketType, Project } from '@pm/shared/models';
     .form-actions { display: flex; gap: 12px; justify-content: flex-end; }
     .btn-primary { background: var(--violet); color: #fff; border: none; padding: 10px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; }
     .btn-primary:disabled { opacity: .6; cursor: not-allowed; }
-    .btn-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); padding: 10px 20px; border-radius: 8px; font-weight: 500; cursor: pointer; }
+    .btn-secondary { background: var(--surface); color: var(--ink); border: 1px solid var(--border); padding: 10px 20px; border-radius: 8px; font-weight: 500; cursor: pointer; }
   `],
 })
 export class PortalNewTicketComponent implements OnInit {
