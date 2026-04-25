@@ -1,6 +1,7 @@
 import { Component, OnInit, signal, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import { forkJoin, map } from 'rxjs';
 import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
@@ -37,7 +38,7 @@ const PRIORITY_CLASS: Record<number, string> = {
 @Component({
   selector: 'app-sprint-board',
   standalone: true,
-  imports: [CommonModule, RouterModule, DragDropModule, MatSnackBarModule],
+  imports: [CommonModule, RouterModule, FormsModule, DragDropModule, MatSnackBarModule],
   template: `
     <div class="mywork-page">
 
@@ -45,7 +46,17 @@ const PRIORITY_CLASS: Record<number, string> = {
       <div class="topbar">
         <div>
           <h1 class="page-title">My Work</h1>
-          <p class="page-sub">Tasks assigned to you across all active sprints</p>
+          <p class="page-sub">{{ showAll() ? 'All tasks in active sprints' : 'Tasks assigned to you across all active sprints' }}</p>
+        </div>
+        <div class="topbar-actions">
+          <div class="toggle-group">
+            <button class="toggle-btn" [class.active]="!showAll()" (click)="showAll.set(false)">
+              <span class="material-icons-round">person</span> Mine
+            </button>
+            <button class="toggle-btn" [class.active]="showAll()" (click)="showAll.set(true)">
+              <span class="material-icons-round">group</span> All
+            </button>
+          </div>
         </div>
       </div>
 
@@ -139,6 +150,10 @@ const PRIORITY_CLASS: Record<number, string> = {
                 <div class="task-title">{{ task.title }}</div>
                 <p *ngIf="task.description" class="task-desc">{{ task.description }}</p>
 
+                <div class="task-labels" *ngIf="task.labels?.length">
+                  <span *ngFor="let l of task.labels" class="label-chip" [style.background]="l.color + '22'" [style.color]="l.color" [style.borderColor]="l.color + '55'">{{ l.name }}</span>
+                </div>
+
                 <div class="task-footer">
                   <div class="task-tags">
                     <span *ngIf="task.storyPoints" class="tag">
@@ -146,6 +161,9 @@ const PRIORITY_CLASS: Record<number, string> = {
                     </span>
                     <span *ngIf="task.dueDate" class="tag" [class.tag-overdue]="isOverdue(task.dueDate)">
                       <span class="material-icons-round tag-ico">event</span>{{ task.dueDate | date:'MMM d' }}
+                    </span>
+                    <span *ngIf="task.subTasks?.length" class="tag" [class.tag-done]="subtasksDone(task) === task.subTasks.length">
+                      <span class="material-icons-round tag-ico">check_box</span>{{ subtasksDone(task) }}/{{ task.subTasks.length }}
                     </span>
                   </div>
                   <div *ngIf="task.assigneeName" class="assignee-ava" [title]="task.assigneeName">
@@ -194,7 +212,14 @@ const PRIORITY_CLASS: Record<number, string> = {
               <div class="detail-grid">
                 <div class="detail-item">
                   <span class="detail-label">Status</span>
-                  <span class="ph-badge {{ statusClass(task.status) }}">{{ statusLabel(task.status) }}</span>
+                  <select class="status-select" [ngModel]="task.status" (ngModelChange)="changeStatus(task, board, $event)">
+                    <option [value]="0">To Do</option>
+                    <option [value]="1">In Progress</option>
+                    <option [value]="2">In Review</option>
+                    <option [value]="3">Done</option>
+                    <option [value]="4">Blocked</option>
+                    <option [value]="5">Cancelled</option>
+                  </select>
                 </div>
                 <div class="detail-item">
                   <span class="detail-label">Priority</span>
@@ -248,6 +273,17 @@ const PRIORITY_CLASS: Record<number, string> = {
     }
     .page-title { margin: 0 0 2px; font-size: 20px; font-weight: 700; color: var(--ink); }
     .page-sub   { margin: 0; font-size: 13px; color: var(--muted); }
+    .topbar-actions { display: flex; align-items: center; gap: 10px; }
+    .toggle-group { display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-full); padding: 3px; gap: 2px; }
+    .toggle-btn {
+      display: flex; align-items: center; gap: 5px;
+      padding: 5px 14px; border-radius: var(--r-full); border: none;
+      background: none; cursor: pointer; font-family: 'DM Sans', sans-serif;
+      font-size: 12px; font-weight: 600; color: var(--muted);
+      transition: background .15s, color .15s;
+    }
+    .toggle-btn .material-icons-round { font-size: 14px; }
+    .toggle-btn.active { background: var(--white); color: var(--ink); box-shadow: var(--shadow-sm); }
 
     /* ── Loading ── */
     .loading-wrap { display: flex; justify-content: center; padding: 64px; }
@@ -403,6 +439,22 @@ const PRIORITY_CLASS: Record<number, string> = {
     }
     .tag-ico { font-size: 11px; }
     .tag-overdue { color: var(--rose); border-color: var(--rose-c); background: var(--rose-c); }
+    .tag-done { color: var(--emerald); border-color: var(--emerald-c); background: var(--emerald-c); }
+
+    .task-labels { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; }
+    .label-chip {
+      font-size: 10px; font-weight: 600; padding: 1px 7px;
+      border-radius: var(--r-full); border: 1px solid transparent;
+    }
+
+    .status-select {
+      appearance: none; background: var(--surface);
+      border: 1px solid var(--border); border-radius: var(--r-md);
+      padding: 5px 10px; font-family: 'DM Sans', sans-serif;
+      font-size: 12px; color: var(--ink); cursor: pointer; outline: none;
+      transition: border-color .15s;
+    }
+    .status-select:focus { border-color: var(--violet); }
 
     .assignee-ava {
       width: 22px; height: 22px; border-radius: 50%;
@@ -489,10 +541,10 @@ export class SprintBoardComponent implements OnInit {
   boards = signal<ProjectBoard[]>([]);
   selectedTask = signal<Task | null>(null);
   selectedBoard = signal<ProjectBoard | null>(null);
+  showAll = signal(false);
 
   currentUserId = computed(() => this.authService.user()?.userId ?? '');
 
-  // Only show boards that have tasks assigned to the current user
   visibleBoards = computed(() =>
     this.boards().filter(b => this.filteredTasks(b).length > 0)
   );
@@ -533,9 +585,36 @@ export class SprintBoardComponent implements OnInit {
     });
   }
 
-  // Only tasks assigned to the current user
   filteredTasks(board: ProjectBoard): Task[] {
+    if (this.showAll()) return board.allTasks;
     return board.allTasks.filter(t => t.assigneeId === this.currentUserId());
+  }
+
+  subtasksDone(task: Task): number {
+    return (task.subTasks ?? []).filter(s => s.isCompleted).length;
+  }
+
+  changeStatus(task: Task, board: ProjectBoard, newStatus: TaskStatus) {
+    const originalStatus = task.status;
+    const apply = (tasks: Task[]) =>
+      tasks.map(t => t.id === task.id ? { ...t, status: newStatus } : t);
+
+    this.boards.update(all =>
+      all.map(b => b.project.id === board.project.id ? { ...b, allTasks: apply(b.allTasks) } : b)
+    );
+    this.selectedTask.update(t => t?.id === task.id ? { ...t, status: newStatus } : t);
+
+    this.taskService.updateStatus(task.id, { status: newStatus }).subscribe({
+      error: () => {
+        const revert = (tasks: Task[]) =>
+          tasks.map(t => t.id === task.id ? { ...t, status: originalStatus } : t);
+        this.boards.update(all =>
+          all.map(b => b.project.id === board.project.id ? { ...b, allTasks: revert(b.allTasks) } : b)
+        );
+        this.selectedTask.update(t => t?.id === task.id ? { ...t, status: originalStatus } : t);
+        this.snackBar.open('Failed to update status', 'Dismiss', { duration: 3000, panelClass: 'snack-error' });
+      },
+    });
   }
 
   tasksByStatus(board: ProjectBoard, status: TaskStatus): Task[] {

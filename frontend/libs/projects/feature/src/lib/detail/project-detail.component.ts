@@ -160,6 +160,9 @@ const COLUMNS = [
                     <span *ngIf="task.dueDate" class="tag" [class.tag-overdue]="isOverdue(task.dueDate)">
                       <span class="material-icons-round tag-ico">event</span>{{ task.dueDate | date:'MMM d' }}
                     </span>
+                    <span *ngIf="task.subTasks?.length" class="tag" [class.tag-done]="doneSubtasks(task) === task.subTasks.length">
+                      <span class="material-icons-round tag-ico">check_box</span>{{ doneSubtasks(task) }}/{{ task.subTasks.length }}
+                    </span>
                   </div>
                   <div *ngIf="task.assigneeName" class="assignee-ava" [title]="task.assigneeName">
                     {{ nameInitials(task.assigneeName) }}
@@ -1646,6 +1649,7 @@ const COLUMNS = [
     }
     .tag-ico { font-size: 11px; }
     .tag-overdue { color: var(--rose); border-color: var(--rose-c); background: var(--rose-c); }
+    .tag-done { color: var(--emerald); border-color: var(--emerald-c); background: var(--emerald-c); }
 
     .assignee-ava {
       width: 20px; height: 20px; border-radius: 50%;
@@ -3237,6 +3241,7 @@ export class ProjectDetailComponent implements OnInit {
   }
 
   taskId(task: Task): string { return task.id.slice(0, 8).toUpperCase(); }
+  doneSubtasks(task: Task): number { return (task.subTasks ?? []).filter(s => s.isCompleted).length; }
   priorityIcon(p: number): string { return ['↓', '→', '↑', '⬆'][p] ?? '→'; }
   priorityClass(p: number): string { return ['low', 'medium', 'high', 'critical'][p] ?? 'low'; }
   priorityLabel(p: number): string { return ['Low', 'Medium', 'High', 'Critical'][p] ?? ''; }
