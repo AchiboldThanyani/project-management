@@ -5,6 +5,7 @@ using ProjectManagement.Application.Features.Tickets.Sla;
 using ProjectManagement.Application.Interfaces;
 using ProjectManagement.Domain.Entities;
 using ProjectManagement.Domain.Enums;
+using ProjectManagement.Domain.Interfaces;
 
 namespace ProjectManagement.Infrastructure.BackgroundServices;
 
@@ -47,17 +48,16 @@ public class TicketSlaBreachScannerService(IServiceScopeFactory scopeFactory, IL
 
             if (status == SlaStatus.Breached)
             {
-                // Only notify once — check if we already sent a breach notification for this ticket recently
                 var title = $"SLA Breached: Ticket #{ticket.Number}";
                 var body  = $"Ticket \"{ticket.Subject}\" has breached its SLA. Resolution was due {resolutionDeadline:MMM d, HH:mm}.";
 
                 var notification = Notification.Create(
                     ticket.AssignedToId, title, body,
-                    NotificationType.General, ticket.Id);
+                    NotificationType.SlaBreached, ticket.Id);
 
                 await notificationRepo.AddAsync(notification, ct);
                 await uow.SaveChangesAsync(ct);
-                await notificationSvc.PushAsync(ticket.AssignedToId, notification, ct);
+                await notificationSvc.NotifyUser(ticket.AssignedToId, title, body, NotificationType.SlaBreached, ticket.Id, ct);
 
                 logger.LogInformation("SLA breach notification sent for ticket {Id}", ticket.Id);
             }
@@ -68,11 +68,11 @@ public class TicketSlaBreachScannerService(IServiceScopeFactory scopeFactory, IL
 
                 var notification = Notification.Create(
                     ticket.AssignedToId, title, body,
-                    NotificationType.General, ticket.Id);
+                    NotificationType.SlaBreached, ticket.Id);
 
                 await notificationRepo.AddAsync(notification, ct);
                 await uow.SaveChangesAsync(ct);
-                await notificationSvc.PushAsync(ticket.AssignedToId, notification, ct);
+                await notificationSvc.NotifyUser(ticket.AssignedToId, title, body, NotificationType.SlaBreached, ticket.Id, ct);
             }
         }
     }

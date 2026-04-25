@@ -33,15 +33,14 @@ internal sealed class AddTicketCommentCommandHandler(
         // Notify the assigned agent when a customer replies
         if (isFromCustomer && ticket.AssignedToId is not null)
         {
+            var title = "Customer Reply";
+            var body  = $"{currentUser.FullName} replied on ticket #{ticket.Number}: \"{ticket.Subject}\"";
             var notification = Notification.Create(
-                ticket.AssignedToId,
-                "Customer Reply",
-                $"{currentUser.FullName} replied on ticket #{ticket.Number}: \"{ticket.Subject}\"",
-                NotificationType.General,
-                ticket.Id);
+                ticket.AssignedToId, title, body,
+                NotificationType.TicketReplied, ticket.Id);
             await notifications.AddAsync(notification, ct);
             await unitOfWork.SaveChangesAsync(ct);
-            await notificationService.PushAsync(ticket.AssignedToId, notification, ct);
+            await notificationService.NotifyUser(ticket.AssignedToId, title, body, NotificationType.TicketReplied, ticket.Id, ct);
         }
         else
         {
