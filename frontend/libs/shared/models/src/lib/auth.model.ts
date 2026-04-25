@@ -6,7 +6,7 @@ export interface RegisterRequest {
   inviteToken?: string;
 }
 
-export type UserRole = 'Internal' | 'Customer';
+export type UserRole = 'Internal' | 'Customer' | 'Admin';
 
 export interface LoginRequest {
   email: string;

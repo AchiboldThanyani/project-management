@@ -50,6 +50,9 @@ import { NotificationBellComponent } from './notification-bell.component';
           <a class="nav-item" routerLink="/activity" routerLinkActive="active">
             <span class="material-icons-round">history</span> Activity
           </a>
+          <a class="nav-item admin-link" routerLink="/admin" routerLinkActive="active" *ngIf="auth.isAdmin()">
+            <span class="material-icons-round">admin_panel_settings</span> Admin
+          </a>
         </nav>
 
         <div class="sb-footer">
@@ -175,6 +178,9 @@ import { NotificationBellComponent } from './notification-bell.component';
     .nav-item .material-icons-round { font-size: 17px; }
     .nav-item.signout { color: rgba(255,255,255,0.3); }
     .nav-item.signout:hover { background: rgba(244,63,94,0.12); color: var(--rose); }
+    .nav-item.admin-link { color: var(--amber); }
+    .nav-item.admin-link:hover { background: rgba(245,158,11,0.12); color: var(--amber); }
+    .nav-item.admin-link.active { background: rgba(245,158,11,0.18); color: var(--amber); }
     .nav-item.theme-toggle { color: rgba(255,255,255,0.45); }
     .nav-item.theme-toggle:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.75); }
 

@@ -1,2 +1,2 @@
 namespace ProjectManagement.Domain.Enums;
-public enum UserRole { Internal = 0, Customer = 1 }
+public enum UserRole { Internal = 0, Customer = 1, Admin = 2 }

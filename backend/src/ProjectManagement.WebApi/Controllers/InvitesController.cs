@@ -12,7 +12,7 @@ namespace ProjectManagement.WebApi.Controllers;
 
 [ApiController]
 [Route("api/projects/{projectId:guid}/invites")]
-[Authorize(Roles = "Internal")]
+[Authorize(Roles = "Internal,Admin")]
 public class InvitesController(IMediator mediator) : ControllerBase
 {
     [HttpPost]

@@ -23,6 +23,7 @@ export class AuthService {
   readonly isAuthenticated = computed(() => !!this._token());
   readonly role = computed(() => this._user()?.role ?? 'Internal');
   readonly isCustomer = computed(() => this.role() === 'Customer');
+  readonly isAdmin = computed(() => this.role() === 'Admin');
 
   constructor(private http: HttpClient, private router: Router) {
     // If token was cleared due to expiry, clean up storage and state
@@ -68,7 +69,9 @@ export class AuthService {
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
       const role = payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] ?? payload['role'];
-      return role === 'Customer' ? 'Customer' : 'Internal';
+      if (role === 'Customer') return 'Customer';
+      if (role === 'Admin') return 'Admin';
+      return 'Internal';
     } catch {
       return 'Internal';
     }

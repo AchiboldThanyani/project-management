@@ -12,12 +12,14 @@ public class UserRepository(UserManager<ApplicationUser> userManager) : IUserRep
     public Task<IReadOnlyList<UserDto>> GetAllUsersAsync(CancellationToken cancellationToken = default)
     {
         var users = userManager.Users
+            .OrderBy(u => u.LastName).ThenBy(u => u.FirstName)
             .Select(u => new UserDto
             {
-                Id = u.Id,
-                Email = u.Email!,
+                Id        = u.Id,
+                Email     = u.Email!,
                 FirstName = u.FirstName,
-                LastName = u.LastName
+                LastName  = u.LastName,
+                Role      = u.Role,
             })
             .ToList();
 
@@ -28,7 +30,7 @@ public class UserRepository(UserManager<ApplicationUser> userManager) : IUserRep
     {
         var u = await userManager.FindByIdAsync(userId);
         if (u is null) return null;
-        return new UserDto { Id = u.Id, Email = u.Email!, FirstName = u.FirstName, LastName = u.LastName };
+        return new UserDto { Id = u.Id, Email = u.Email!, FirstName = u.FirstName, LastName = u.LastName, Role = u.Role };
     }
 
     public async Task<Dictionary<string, string>> GetNamesByIdsAsync(IEnumerable<string> userIds, CancellationToken ct = default)
@@ -43,5 +45,14 @@ public class UserRepository(UserManager<ApplicationUser> userManager) : IUserRep
     {
         var user = await userManager.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
         return user?.Role ?? UserRole.Internal;
+    }
+
+    public async Task<bool> ChangeUserRoleAsync(string userId, UserRole newRole, CancellationToken ct = default)
+    {
+        var user = await userManager.FindByIdAsync(userId);
+        if (user is null) return false;
+        user.Role = newRole;
+        var result = await userManager.UpdateAsync(user);
+        return result.Succeeded;
     }
 }

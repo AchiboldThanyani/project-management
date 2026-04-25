@@ -1,5 +1,5 @@
 import { Route } from '@angular/router';
-import { authGuard, customerGuard, guestGuard } from '@pm/shared/util';
+import { adminGuard, authGuard, customerGuard, guestGuard } from '@pm/shared/util';
 
 export const appRoutes: Route[] = [
   { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
@@ -11,6 +11,11 @@ export const appRoutes: Route[] = [
   {
     path: 'join/:token',
     loadComponent: () => import('./join-project.component').then((m) => m.JoinProjectComponent),
+  },
+  {
+    path: 'admin',
+    canActivate: [adminGuard],
+    loadComponent: () => import('./admin/admin-panel.component').then(m => m.AdminPanelComponent),
   },
   {
     path: 'portal',

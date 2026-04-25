@@ -22,4 +22,7 @@ public class CurrentUserService(IHttpContextAccessor httpContextAccessor) : ICur
             return string.IsNullOrEmpty(full) ? "Unknown" : full;
         }
     }
+
+    public bool IsAdmin =>
+        httpContextAccessor.HttpContext?.User.IsInRole("Admin") ?? false;
 }
