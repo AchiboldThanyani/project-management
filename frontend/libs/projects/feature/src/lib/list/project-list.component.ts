@@ -39,7 +39,7 @@ import { ConfirmDialogComponent } from '@pm/shared/util';
         <div class="projects-grid" *ngIf="!loading()">
 
           <div class="pj-card" *ngFor="let p of projects()">
-            <div class="pj-top" [class]="accentClass(p.id)"></div>
+
             <div class="pj-body">
               <div class="pj-head">
                 <div class="pj-name" [routerLink]="['/projects', p.id]">{{ p.name }}</div>
@@ -154,13 +154,6 @@ import { ConfirmDialogComponent } from '@pm/shared/util';
     }
     .pj-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
 
-    .pj-top { height: 5px; }
-    .pj-top.accent-0 { background: linear-gradient(90deg, var(--violet), var(--violet-2)); }
-    .pj-top.accent-1 { background: linear-gradient(90deg, #00b8a0, #00d4b8); }
-    .pj-top.accent-2 { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
-    .pj-top.accent-3 { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
-    .pj-top.accent-4 { background: linear-gradient(90deg, #10b981, #34d399); }
-    .pj-top.accent-5 { background: linear-gradient(90deg, #f43f5e, #fb7185); }
 
     .pj-body { padding: 16px; }
     .pj-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 6px; position: relative; }

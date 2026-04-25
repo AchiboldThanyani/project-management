@@ -7,7 +7,12 @@ import { TeamService } from '@pm/teams/data-access';
 import { TaskService } from '@pm/tasks/data-access';
 import { AuthService } from '@pm/auth/data-access';
 import { ActivityService } from '@pm/shared/util';
-import { Project, Activity, TaskStatus } from '@pm/shared/models';
+import { Project, Activity, Task, Sprint, TaskStatus } from '@pm/shared/models';
+
+interface EnrichedTask extends Task { projectName: string; }
+interface EnrichedSprint extends Sprint { projectName: string; }
+interface SprintProgress { id: string; name: string; projectName: string; done: number; total: number; endDate: string; }
+interface VelocityBar { name: string; done: number; pct: number; }
 
 @Component({
   selector: 'app-dashboard',
@@ -83,6 +88,92 @@ import { Project, Activity, TaskStatus } from '@pm/shared/models';
             <div class="sc-lbl">Completed</div>
             <div class="sc-link emerald">See history <span class="material-icons-round">arrow_forward</span></div>
           </div>
+        </div>
+
+        <!-- ── Widgets row ── -->
+        <div class="widgets-row">
+
+          <!-- At-Risk Tasks -->
+          <div class="widget-card">
+            <div class="widget-hdr">
+              <div class="widget-title-row">
+                <span class="material-icons-round widget-ico rose">warning_amber</span>
+                <span class="widget-title">At-Risk Tasks</span>
+                <span class="widget-count rose" *ngIf="atRiskTasks().length > 0">{{ atRiskTasks().length }}</span>
+              </div>
+            </div>
+            <div *ngIf="atRiskTasks().length === 0" class="widget-empty">No at-risk tasks right now</div>
+            <div class="risk-list" *ngIf="atRiskTasks().length > 0">
+              <div class="risk-row" *ngFor="let t of atRiskTasks()">
+                <div class="risk-left">
+                  <span class="risk-status-dot" [class.blocked]="t.status === TaskStatus.Blocked" [class.overdue]="isOverdue(t) && t.status !== TaskStatus.Blocked"></span>
+                  <div>
+                    <div class="risk-title">{{ t.title }}</div>
+                    <div class="risk-meta">{{ t.projectName }}</div>
+                  </div>
+                </div>
+                <div class="risk-right">
+                  <span class="risk-chip blocked" *ngIf="t.status === TaskStatus.Blocked">Blocked</span>
+                  <span class="risk-chip overdue" *ngIf="isOverdue(t) && t.status !== 4">{{ daysOverdue(t.dueDate!) }}d overdue</span>
+                  <span class="risk-assignee" *ngIf="t.assigneeName">{{ initials(t.assigneeName) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sprint Progress -->
+          <div class="widget-card">
+            <div class="widget-hdr">
+              <div class="widget-title-row">
+                <span class="material-icons-round widget-ico teal">sprint</span>
+                <span class="widget-title">Active Sprints</span>
+              </div>
+            </div>
+            <div *ngIf="sprintProgress().length === 0" class="widget-empty">No active sprints</div>
+            <div class="sprint-prog-list" *ngIf="sprintProgress().length > 0">
+              <div class="sprint-prog-row" *ngFor="let s of sprintProgress()">
+                <div class="sp-header">
+                  <div>
+                    <div class="sp-name">{{ s.name }}</div>
+                    <div class="sp-project">{{ s.projectName }}</div>
+                  </div>
+                  <div class="sp-stats">
+                    <span class="sp-fraction">{{ s.done }}/{{ s.total }}</span>
+                    <span class="sp-days" [class.urgent]="sprintDaysLeft(s.endDate) <= 2">{{ sprintDaysLeft(s.endDate) }}d left</span>
+                  </div>
+                </div>
+                <div class="sp-bar-track">
+                  <div class="sp-bar-fill" [style.width.%]="s.total > 0 ? (s.done / s.total * 100) : 0"></div>
+                </div>
+                <div class="sp-pct">{{ s.total > 0 ? (s.done / s.total * 100 | number:'1.0-0') : 0 }}% complete</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Velocity -->
+          <div class="widget-card">
+            <div class="widget-hdr">
+              <div class="widget-title-row">
+                <span class="material-icons-round widget-ico violet">trending_up</span>
+                <span class="widget-title">Sprint Velocity</span>
+                <span class="widget-sub">Last {{ velocityBars().length }} sprints</span>
+              </div>
+            </div>
+            <div *ngIf="velocityBars().length === 0" class="widget-empty">No completed sprints yet</div>
+            <div class="velocity-chart" *ngIf="velocityBars().length > 0">
+              <div class="vel-bars">
+                <div class="vel-bar-col" *ngFor="let b of velocityBars()">
+                  <div class="vel-bar-wrap">
+                    <span class="vel-count">{{ b.done }}</span>
+                    <div class="vel-bar" [style.height.%]="b.pct"></div>
+                  </div>
+                  <div class="vel-label" [title]="b.name">{{ b.name | slice:0:8 }}</div>
+                </div>
+              </div>
+              <div class="vel-axis-label">tasks completed per sprint</div>
+            </div>
+          </div>
+
         </div>
 
         <!-- Lower two-col -->
@@ -188,18 +279,8 @@ import { Project, Activity, TaskStatus } from '@pm/shared/models';
       background: var(--white); border: 1px solid var(--border);
       border-radius: var(--r-lg); padding: 16px;
       cursor: pointer; transition: box-shadow 0.15s, transform 0.15s;
-      position: relative; overflow: hidden;
-    }
-    .stat-card::before {
-      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
-      border-radius: var(--r-lg) var(--r-lg) 0 0;
     }
     .stat-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
-    .stat-card.violet::before { background: var(--violet); }
-    .stat-card.teal::before   { background: var(--teal); }
-    .stat-card.amber::before  { background: var(--amber); }
-    .stat-card.rose::before   { background: var(--rose); }
-    .stat-card.emerald::before{ background: var(--emerald); }
 
     .sc-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
     .sc-ico { width: 32px; height: 32px; border-radius: 9px; display: flex; align-items: center; justify-content: center; }
@@ -264,6 +345,68 @@ import { Project, Activity, TaskStatus } from '@pm/shared/models';
     .act-text strong { color: var(--ink); font-weight: 600; }
     .act-chip { display: inline-flex; padding: 1px 7px; border-radius: var(--r-full); font-size: 10px; font-weight: 600; background: var(--violet-c); color: var(--violet); margin-left: 3px; }
     .act-time { font-size: 10px; color: var(--soft); white-space: nowrap; flex-shrink: 0; margin-top: 2px; }
+
+    /* ── Widgets row ────────────────────────────── */
+    .widgets-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 22px; }
+    @media (max-width: 1100px) { .widgets-row { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 700px)  { .widgets-row { grid-template-columns: 1fr; } }
+
+    .widget-card {
+      background: var(--white); border: 1px solid var(--border);
+      border-radius: var(--r-lg); padding: 16px;
+      display: flex; flex-direction: column; gap: 12px;
+      min-height: 180px;
+    }
+    .widget-hdr { flex-shrink: 0; }
+    .widget-title-row { display: flex; align-items: center; gap: 8px; }
+    .widget-ico { font-size: 18px; }
+    .widget-ico.rose   { color: var(--rose); }
+    .widget-ico.teal   { color: var(--teal); }
+    .widget-ico.violet { color: var(--violet); }
+    .widget-title { font-size: 13px; font-weight: 700; color: var(--ink); flex: 1; }
+    .widget-sub   { font-size: 11px; color: var(--soft); }
+    .widget-count { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: var(--r-full); }
+    .widget-count.rose { background: var(--rose-c); color: var(--rose); }
+    .widget-empty { font-size: 12px; color: var(--soft); text-align: center; padding: 20px 0; flex: 1; display: flex; align-items: center; justify-content: center; }
+
+    /* At-risk */
+    .risk-list { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; max-height: 220px; }
+    .risk-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 10px; border-radius: var(--r-md); background: var(--surface); }
+    .risk-left { display: flex; align-items: center; gap: 9px; min-width: 0; }
+    .risk-status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: var(--soft); }
+    .risk-status-dot.blocked { background: var(--rose); }
+    .risk-status-dot.overdue { background: var(--amber); }
+    .risk-title { font-size: 12px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
+    .risk-meta  { font-size: 10px; color: var(--soft); }
+    .risk-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .risk-chip { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: var(--r-full); }
+    .risk-chip.blocked { background: var(--rose-c); color: var(--rose); }
+    .risk-chip.overdue { background: var(--amber-c); color: var(--amber); }
+    .risk-assignee { width: 22px; height: 22px; border-radius: 50%; background: var(--violet-c); color: var(--violet); font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+
+    /* Sprint progress */
+    .sprint-prog-list { display: flex; flex-direction: column; gap: 12px; overflow-y: auto; max-height: 220px; }
+    .sprint-prog-row { display: flex; flex-direction: column; gap: 5px; }
+    .sp-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+    .sp-name { font-size: 12px; font-weight: 600; color: var(--ink); }
+    .sp-project { font-size: 10px; color: var(--soft); }
+    .sp-stats { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .sp-fraction { font-size: 11px; font-weight: 700; color: var(--ink); }
+    .sp-days { font-size: 10px; color: var(--teal); font-weight: 600; }
+    .sp-days.urgent { color: var(--rose); }
+    .sp-bar-track { height: 6px; background: var(--surface); border-radius: var(--r-full); overflow: hidden; }
+    .sp-bar-fill  { height: 100%; background: var(--teal); border-radius: var(--r-full); transition: width 0.4s ease; }
+    .sp-pct { font-size: 10px; color: var(--soft); }
+
+    /* Velocity chart */
+    .velocity-chart { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+    .vel-bars { display: flex; align-items: flex-end; gap: 8px; height: 130px; padding: 4px 0 0; }
+    .vel-bar-col { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; height: 100%; }
+    .vel-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 3px; width: 100%; }
+    .vel-count { font-size: 10px; font-weight: 700; color: var(--violet); }
+    .vel-bar { width: 100%; max-width: 32px; background: linear-gradient(180deg, var(--violet) 0%, #818cf8 100%); border-radius: 4px 4px 0 0; min-height: 4px; transition: height 0.4s ease; }
+    .vel-label { font-size: 9px; color: var(--soft); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
+    .vel-axis-label { font-size: 10px; color: var(--soft); text-align: center; }
   `],
 })
 export class DashboardComponent implements OnInit {
@@ -273,55 +416,98 @@ export class DashboardComponent implements OnInit {
   private taskService = inject(TaskService);
   private activityService = inject(ActivityService);
 
-  projectCount    = signal(0);
-  teamCount       = signal(0);
-  openTaskCount   = signal(0);
-  doneTaskCount   = signal(0);
+  projectCount      = signal(0);
+  teamCount         = signal(0);
+  openTaskCount     = signal(0);
+  doneTaskCount     = signal(0);
   activeSprintCount = signal(0);
-  recentProjects  = signal<Project[]>([]);
-  recentActivity  = signal<Activity[]>([]);
-  activityLoading = signal(true);
+  recentProjects    = signal<Project[]>([]);
+  recentActivity    = signal<Activity[]>([]);
+  activityLoading   = signal(true);
+  allTasks          = signal<EnrichedTask[]>([]);
+  allSprints        = signal<EnrichedSprint[]>([]);
 
   readonly today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  readonly TaskStatus = TaskStatus;
 
   private readonly COLORS = ['#ede9ff','#e0faf7','#fef3c7','#dbeafe','#d1fae5','#ffe4e6'];
-  private readonly TEXT   = ['#6644dd','#00b8a0','#f59e0b','#3b82f6','#10b981','#f43f5e'];
-
   private readonly STATUS_CLASSES = ['planning','active','on-hold','completed','archived'];
   private readonly STATUS_LABELS  = ['Planning','Active','On Hold','Completed','Archived'];
+
+  // ── Widget computed signals ────────────────────────
+  atRiskTasks = computed<EnrichedTask[]>(() => {
+    const now = new Date();
+    return this.allTasks().filter(t =>
+      t.status === TaskStatus.Blocked ||
+      (t.dueDate && new Date(t.dueDate) < now && t.status !== TaskStatus.Done && t.status !== TaskStatus.Cancelled)
+    ).slice(0, 8);
+  });
+
+  sprintProgress = computed<SprintProgress[]>(() => {
+    const taskMap = new Map<string, EnrichedTask[]>();
+    for (const t of this.allTasks()) {
+      if (t.sprintId) {
+        if (!taskMap.has(t.sprintId)) taskMap.set(t.sprintId, []);
+        taskMap.get(t.sprintId)!.push(t);
+      }
+    }
+    return this.allSprints()
+      .filter(s => s.isActive)
+      .map(s => {
+        const tasks = taskMap.get(s.id) ?? [];
+        return { id: s.id, name: s.name, projectName: s.projectName, endDate: s.endDate, done: tasks.filter(t => t.status === TaskStatus.Done).length, total: tasks.length };
+      });
+  });
+
+  velocityBars = computed<VelocityBar[]>(() => {
+    const taskMap = new Map<string, EnrichedTask[]>();
+    for (const t of this.allTasks()) {
+      if (t.sprintId) {
+        if (!taskMap.has(t.sprintId)) taskMap.set(t.sprintId, []);
+        taskMap.get(t.sprintId)!.push(t);
+      }
+    }
+    const bars = this.allSprints()
+      .filter(s => s.isCompleted)
+      .sort((a, b) => new Date(a.endDate).getTime() - new Date(b.endDate).getTime())
+      .slice(-6)
+      .map(s => ({ name: s.name, done: (taskMap.get(s.id) ?? []).filter(t => t.status === TaskStatus.Done).length }));
+    const max = Math.max(...bars.map(b => b.done), 1);
+    return bars.map(b => ({ ...b, pct: Math.round((b.done / max) * 100) }));
+  });
 
   ngOnInit() {
     this.projectService.getAll().subscribe(projects => {
       this.projectCount.set(projects.length);
       this.recentProjects.set(projects.slice(0, 5));
+      if (projects.length === 0) return;
 
-      projects.forEach(p => {
-        this.taskService.getByProject(p.id).subscribe(tasks => {
-          this.openTaskCount.update(n => n + tasks.filter(t => t.status !== TaskStatus.Done && t.status !== TaskStatus.Cancelled).length);
-          this.doneTaskCount.update(n => n + tasks.filter(t => t.status === TaskStatus.Done).length);
-        });
+      forkJoin(projects.map(p =>
+        this.taskService.getByProject(p.id).pipe(map(tasks => tasks.map(t => ({ ...t, projectName: p.name }))))
+      )).subscribe(byProject => {
+        const all = byProject.flat();
+        this.allTasks.set(all);
+        this.openTaskCount.set(all.filter(t => t.status !== TaskStatus.Done && t.status !== TaskStatus.Cancelled).length);
+        this.doneTaskCount.set(all.filter(t => t.status === TaskStatus.Done).length);
       });
 
-      if (projects.length > 0) {
-        forkJoin(projects.map(p =>
-          this.projectService.getSprints(p.id).pipe(map(s => s.filter(x => x.isActive).length))
-        )).subscribe(counts => this.activeSprintCount.set(counts.reduce((a, b) => a + b, 0)));
-      }
+      forkJoin(projects.map(p =>
+        this.projectService.getSprints(p.id).pipe(map(sprints => sprints.map(s => ({ ...s, projectName: p.name }))))
+      )).subscribe(byProject => {
+        const all = byProject.flat();
+        this.allSprints.set(all);
+        this.activeSprintCount.set(all.filter(s => s.isActive).length);
+      });
     });
 
     this.teamService.getMyTeams().subscribe(t => this.teamCount.set(t.length));
-
     this.activityService.getRecent(8).subscribe({
       next: items => { this.recentActivity.set(items); this.activityLoading.set(false); },
       error: () => this.activityLoading.set(false),
     });
   }
 
-  projectColor(id: string): string {
-    const i = id.charCodeAt(0) % this.COLORS.length;
-    return this.COLORS[i];
-  }
-
+  projectColor(id: string): string { return this.COLORS[id.charCodeAt(0) % this.COLORS.length]; }
   statusClass(status: number): string { return this.STATUS_CLASSES[status] ?? 'planning'; }
   statusLabel(status: number): string { return this.STATUS_LABELS[status] ?? 'Planning'; }
 
@@ -342,5 +528,17 @@ export class DashboardComponent implements OnInit {
     if (s < 3600) return `${Math.floor(s / 60)}m ago`;
     if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
     return `${Math.floor(s / 86400)}d ago`;
+  }
+
+  isOverdue(t: EnrichedTask): boolean {
+    return !!(t.dueDate && new Date(t.dueDate) < new Date() && t.status !== TaskStatus.Done && t.status !== TaskStatus.Cancelled);
+  }
+
+  daysOverdue(dueDate: string): number {
+    return Math.floor((Date.now() - new Date(dueDate).getTime()) / 86400000);
+  }
+
+  sprintDaysLeft(endDate: string): number {
+    return Math.max(0, Math.ceil((new Date(endDate).getTime() - Date.now()) / 86400000));
   }
 }
