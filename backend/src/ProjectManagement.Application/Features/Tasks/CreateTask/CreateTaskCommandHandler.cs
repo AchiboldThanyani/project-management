@@ -4,6 +4,7 @@ using ProjectManagement.Application.Common;
 using ProjectManagement.Application.Features.Tasks.DTOs;
 using ProjectManagement.Application.Interfaces;
 using ProjectManagement.Domain.Entities;
+using ProjectManagement.Domain.Enums;
 using ProjectManagement.Domain.Interfaces;
 
 namespace ProjectManagement.Application.Features.Tasks.CreateTask;
@@ -12,12 +13,16 @@ internal sealed class CreateTaskCommandHandler(
     ITaskRepository repository,
     IActivityRepository activityRepository,
     ICurrentUserService currentUser,
+    IProjectPermissionService permissions,
     IUnitOfWork unitOfWork,
     IMapper mapper)
     : IRequestHandler<CreateTaskCommand, Result<TaskDto>>
 {
     public async Task<Result<TaskDto>> Handle(CreateTaskCommand request, CancellationToken cancellationToken)
     {
+        if (!await permissions.HasProjectRoleAsync(request.ProjectId, currentUser.UserId, ProjectMemberRole.Member, cancellationToken))
+            return Error.Forbidden("Task.Forbidden", "You must be a project member to create tasks.");
+
         var task = ProjectTask.Create(
             request.Title,
             request.ProjectId,

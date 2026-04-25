@@ -35,7 +35,7 @@ public class ProjectMemberRepository(ApplicationDbContext db)
                     t.Status != DomainTaskStatus.Cancelled),
                 JoinedAt    = x.m.CreatedAt,
             })
-            .OrderBy(x => x.Role == ProjectMemberRole.Lead ? 0 : x.Role == ProjectMemberRole.Member ? 1 : 2)
+            .OrderBy(x => x.Role == ProjectMemberRole.Manager ? 0 : x.Role == ProjectMemberRole.Lead ? 1 : x.Role == ProjectMemberRole.Member ? 2 : 3)
             .ThenBy(x => x.FullName)
             .ToListAsync(ct);
     }

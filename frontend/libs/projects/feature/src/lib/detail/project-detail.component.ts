@@ -463,6 +463,7 @@ const COLUMNS = [
                 <option [value]="0">Viewer</option>
                 <option [value]="1">Member</option>
                 <option [value]="2">Lead</option>
+                <option [value]="3">Manager</option>
               </select>
               <button class="icon-btn danger-icon" title="Remove from project" (click)="removeMember(m)">
                 <span class="material-icons-round">person_remove</span>
@@ -1365,6 +1366,7 @@ const COLUMNS = [
               <option [value]="0">Viewer</option>
               <option [value]="1">Member</option>
               <option [value]="2">Lead</option>
+              <option [value]="3">Manager</option>
             </select>
           </div>
           <div class="form-actions">
@@ -2186,6 +2188,7 @@ const COLUMNS = [
     .role-0 { background: var(--surface); color: var(--soft); border-color: var(--border); }
     .role-1 { background: var(--blue-c); color: var(--blue); border-color: var(--blue); }
     .role-2 { background: var(--violet-mid); color: var(--violet); border-color: var(--violet-2); }
+    .role-3 { background: var(--amber-c); color: var(--amber); border-color: var(--amber); }
 
     .member-tasks {
       display: flex; align-items: center; gap: 3px;

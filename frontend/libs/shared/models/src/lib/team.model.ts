@@ -1,8 +1,8 @@
 export enum TeamRole {
-  Viewer = 0,
-  Member = 1,
-  Admin = 2,
-  Owner = 3,
+  Viewer  = 0,
+  Member  = 1,
+  Manager = 2,
+  Owner   = 3,
 }
 
 export interface TeamMember {
@@ -27,8 +27,8 @@ export interface CreateTeamRequest {
 }
 
 export const TEAM_ROLE_LABELS: Record<TeamRole, string> = {
-  [TeamRole.Viewer]: 'Viewer',
-  [TeamRole.Member]: 'Member',
-  [TeamRole.Admin]: 'Admin',
-  [TeamRole.Owner]: 'Owner',
+  [TeamRole.Viewer]:  'Viewer',
+  [TeamRole.Member]:  'Member',
+  [TeamRole.Manager]: 'Manager',
+  [TeamRole.Owner]:   'Owner',
 };

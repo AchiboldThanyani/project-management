@@ -2,18 +2,23 @@ using MediatR;
 using ProjectManagement.Application.Common;
 using ProjectManagement.Application.Features.ProjectMembers.DTOs;
 using ProjectManagement.Application.Interfaces;
+using ProjectManagement.Domain.Enums;
 using ProjectManagement.Domain.Interfaces;
 
 namespace ProjectManagement.Application.Features.ProjectMembers.UpdateProjectMemberRole;
 
 internal sealed class UpdateProjectMemberRoleCommandHandler(
     IProjectMemberRepository repo,
+    ICurrentUserService currentUser,
+    IProjectPermissionService permissions,
     IUnitOfWork unitOfWork)
     : IRequestHandler<UpdateProjectMemberRoleCommand, Result<ProjectMemberDto>>
 {
     public async Task<Result<ProjectMemberDto>> Handle(
         UpdateProjectMemberRoleCommand request, CancellationToken cancellationToken)
     {
+        if (!await permissions.HasProjectRoleAsync(request.ProjectId, currentUser.UserId, ProjectMemberRole.Manager, cancellationToken))
+            return Error.Forbidden("ProjectMember.Forbidden", "You must be a Manager to change member roles.");
         var members = await repo.FindAsync(
             m => m.ProjectId == request.ProjectId && m.UserId == request.UserId, cancellationToken);
 

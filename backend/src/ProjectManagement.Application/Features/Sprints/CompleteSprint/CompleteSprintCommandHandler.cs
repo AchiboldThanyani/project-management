@@ -7,6 +7,7 @@ using ProjectManagement.Domain.Entities;
 using ProjectManagement.Domain.Enums;
 using ProjectManagement.Domain.Interfaces;
 using TaskStatus = ProjectManagement.Domain.Enums.TaskStatus;
+using ProjectMemberRole = ProjectManagement.Domain.Enums.ProjectMemberRole;
 
 namespace ProjectManagement.Application.Features.Sprints.CompleteSprint;
 
@@ -15,6 +16,7 @@ internal sealed class CompleteSprintCommandHandler(
     ITaskRepository taskRepository,
     IActivityRepository activityRepository,
     ICurrentUserService currentUser,
+    IProjectPermissionService permissions,
     IUnitOfWork unitOfWork,
     IMapper mapper)
     : IRequestHandler<CompleteSprintCommand, Result<SprintDto>>
@@ -24,6 +26,9 @@ internal sealed class CompleteSprintCommandHandler(
         var sprint = await repository.GetByIdAsync(request.Id, cancellationToken);
         if (sprint is null)
             return SprintErrors.NotFound(request.Id);
+
+        if (!await permissions.HasProjectRoleAsync(sprint.ProjectId, currentUser.UserId, ProjectMemberRole.Lead, cancellationToken))
+            return Error.Forbidden("Sprint.Forbidden", "You must be a Lead or Manager to complete sprints.");
 
         // Count incomplete tasks still in this sprint
         var (allTasks, _) = await taskRepository.FindPagedAsync(

@@ -15,7 +15,8 @@ public static class ResultExtensions
             ErrorType.NotFound     => controller.NotFound(new { result.Error.Code, result.Error.Description }),
             ErrorType.Validation   => controller.BadRequest(new { result.Error.Code, result.Error.Description }),
             ErrorType.Conflict     => controller.Conflict(new { result.Error.Code, result.Error.Description }),
-            ErrorType.Unauthorized => controller.Forbid(),
+            ErrorType.Unauthorized => controller.Unauthorized(new { result.Error.Code, result.Error.Description }),
+            ErrorType.Forbidden    => controller.StatusCode(403, new { result.Error.Code, result.Error.Description }),
             _                      => controller.StatusCode(500, new { result.Error.Code, result.Error.Description }),
         };
     }
@@ -30,7 +31,8 @@ public static class ResultExtensions
             ErrorType.NotFound     => controller.NotFound(new { result.Error.Code, result.Error.Description }),
             ErrorType.Validation   => controller.BadRequest(new { result.Error.Code, result.Error.Description }),
             ErrorType.Conflict     => controller.Conflict(new { result.Error.Code, result.Error.Description }),
-            ErrorType.Unauthorized => controller.Forbid(),
+            ErrorType.Unauthorized => controller.Unauthorized(new { result.Error.Code, result.Error.Description }),
+            ErrorType.Forbidden    => controller.StatusCode(403, new { result.Error.Code, result.Error.Description }),
             _                      => controller.StatusCode(500, new { result.Error.Code, result.Error.Description }),
         };
     }

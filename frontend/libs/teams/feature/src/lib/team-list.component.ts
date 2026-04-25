@@ -344,7 +344,7 @@ export class TeamListComponent implements OnInit {
   readonly roleOptions = [
     { value: TeamRole.Viewer,  label: TEAM_ROLE_LABELS[TeamRole.Viewer] },
     { value: TeamRole.Member,  label: TEAM_ROLE_LABELS[TeamRole.Member] },
-    { value: TeamRole.Admin,   label: TEAM_ROLE_LABELS[TeamRole.Admin] },
+    { value: TeamRole.Manager, label: TEAM_ROLE_LABELS[TeamRole.Manager] },
     { value: TeamRole.Owner,   label: TEAM_ROLE_LABELS[TeamRole.Owner] },
   ];
 

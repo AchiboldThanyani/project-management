@@ -4,6 +4,7 @@ using ProjectManagement.Application.Common;
 using ProjectManagement.Application.Features.Tasks.DTOs;
 using ProjectManagement.Application.Interfaces;
 using ProjectManagement.Domain.Entities;
+using ProjectManagement.Domain.Enums;
 using ProjectManagement.Domain.Interfaces;
 
 namespace ProjectManagement.Application.Features.Tasks.UpdateTaskStatus;
@@ -11,6 +12,7 @@ namespace ProjectManagement.Application.Features.Tasks.UpdateTaskStatus;
 internal sealed class UpdateTaskStatusCommandHandler(
     ITaskRepository repository,
     ICurrentUserService currentUser,
+    IProjectPermissionService permissions,
     IUnitOfWork unitOfWork,
     IMapper mapper)
     : IRequestHandler<UpdateTaskStatusCommand, Result<TaskDto>>
@@ -21,7 +23,9 @@ internal sealed class UpdateTaskStatusCommandHandler(
         if (task is null)
             return TaskErrors.NotFound(request.TaskId);
 
-        // Domain event raised inside ChangeStatus — activity log written by the event handler
+        if (!await permissions.HasProjectRoleAsync(task.ProjectId, currentUser.UserId, ProjectMemberRole.Member, cancellationToken))
+            return Error.Forbidden("Task.Forbidden", "You must be a project member to update task status.");
+
         task.ChangeStatus(request.Status, currentUser.UserId);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);

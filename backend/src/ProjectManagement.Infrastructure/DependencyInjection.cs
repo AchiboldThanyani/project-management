@@ -54,6 +54,7 @@ public static class DependencyInjection
         // HTTP context / current user
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
+        services.AddScoped<IProjectPermissionService, ProjectPermissionService>();
 
         // Register MediatR handlers that live in Infrastructure (Auth handlers that need Identity)
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(DependencyInjection).Assembly));
