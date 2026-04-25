@@ -26,6 +26,7 @@ public class ProjectTask : BaseEntity
     public ICollection<Label> Labels { get; set; } = [];
     public ICollection<SubTask> SubTasks { get; set; } = [];
     public ICollection<TimeLog> TimeLogs { get; set; } = [];
+    public ICollection<TaskAttachment> Attachments { get; set; } = [];
 
     // Dependencies where this task is the one being blocked
     public ICollection<TaskDependency> BlockedByDependencies { get; set; } = [];

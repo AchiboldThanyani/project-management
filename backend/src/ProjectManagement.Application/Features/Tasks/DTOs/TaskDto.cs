@@ -1,4 +1,5 @@
 using ProjectManagement.Application.Features.Labels.DTOs;
+using ProjectManagement.Application.Features.Tasks.Attachments;
 using ProjectManagement.Application.Features.Tasks.Dependencies.DTOs;
 using ProjectManagement.Application.Features.Tasks.SubTasks;
 using ProjectManagement.Application.Features.Tasks.TimeLogs;
@@ -28,6 +29,7 @@ public record TaskDto
     public IReadOnlyList<LabelDto> Labels { get; init; } = [];
     public IReadOnlyList<SubTaskDto> SubTasks { get; init; } = [];
     public IReadOnlyList<TimeLogDto> TimeLogs { get; init; } = [];
+    public IReadOnlyList<TaskAttachmentDto> Attachments { get; init; } = [];
 
     public IReadOnlyList<DependencyTaskRef> BlockedBy { get; init; } = [];
     public IReadOnlyList<DependencyTaskRef> Blocking { get; init; } = [];

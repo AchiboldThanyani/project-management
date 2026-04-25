@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { map } from 'rxjs/operators';
-import { CreateTaskRequest, SubTask, Task, TimeLog, UpdateTaskRequest, UpdateTaskStatusRequest } from '@pm/shared/models';
+import { CreateTaskRequest, SubTask, Task, TaskAttachment, TimeLog, UpdateTaskRequest, UpdateTaskStatusRequest } from '@pm/shared/models';
 import { environment } from '@pm/shared/util';
 
 interface PagedResult<T> { items: T[]; totalCount: number; page: number; pageSize: number; }
@@ -54,5 +54,22 @@ export class TaskService {
 
   deleteTimeLog(timeLogId: string) {
     return this.http.delete<void>(`${this.base}/timelogs/${timeLogId}`);
+  }
+
+  uploadAttachment(taskId: string, file: File) {
+    const form = new FormData();
+    form.append('file', file);
+    return this.http.post<TaskAttachment>(`${this.base}/${taskId}/attachments`, form);
+  }
+
+  deleteAttachment(attachmentId: string) {
+    return this.http.delete<void>(`${this.base}/attachments/${attachmentId}`);
+  }
+
+  fetchAttachmentBlob(attachmentId: string) {
+    return this.http.get(`${this.base}/attachments/${attachmentId}/download`, {
+      responseType: 'blob',
+      observe: 'response',
+    });
   }
 }

@@ -14,6 +14,9 @@ using ProjectManagement.Application.Features.Tasks.SubTasks;
 using ProjectManagement.Application.Features.Tasks.SubTasks.CreateSubTask;
 using ProjectManagement.Application.Features.Tasks.SubTasks.DeleteSubTask;
 using ProjectManagement.Application.Features.Tasks.SubTasks.ToggleSubTask;
+using ProjectManagement.Application.Features.Tasks.Attachments;
+using ProjectManagement.Application.Features.Tasks.Attachments.DeleteAttachment;
+using ProjectManagement.Application.Features.Tasks.Attachments.UploadAttachment;
 using ProjectManagement.Application.Features.Tasks.TimeLogs;
 using ProjectManagement.Application.Features.Tasks.TimeLogs.DeleteTimeLog;
 using ProjectManagement.Application.Features.Tasks.TimeLogs.LogTime;
@@ -122,6 +125,28 @@ public class TasksController(IMediator mediator) : ControllerBase
     [HttpDelete("timelogs/{timeLogId:guid}")]
     public async Task<IActionResult> DeleteTimeLog(Guid timeLogId, CancellationToken ct)
         => (await mediator.Send(new DeleteTimeLogCommand(timeLogId), ct)).ToActionResult(this);
+
+    // ── Attachments ───────────────────────────────────────────────────────────
+
+    [HttpPost("{taskId:guid}/attachments")]
+    [Consumes("multipart/form-data")]
+    public async Task<ActionResult<TaskAttachmentDto>> UploadAttachment(Guid taskId, IFormFile file, CancellationToken ct)
+    {
+        await using var stream = file.OpenReadStream();
+        return (await mediator.Send(new UploadAttachmentCommand(taskId, stream, file.FileName, file.ContentType, file.Length), ct)).ToActionResult(this);
+    }
+
+    [HttpGet("attachments/{id:guid}/download")]
+    public async Task<IActionResult> DownloadAttachment(Guid id, CancellationToken ct)
+    {
+        var attachment = await mediator.Send(new GetAttachmentDownloadQuery(id), ct);
+        if (attachment is null) return NotFound();
+        return PhysicalFile(attachment.FullPath, attachment.ContentType, attachment.FileName);
+    }
+
+    [HttpDelete("attachments/{id:guid}")]
+    public async Task<IActionResult> DeleteAttachment(Guid id, CancellationToken ct)
+        => (await mediator.Send(new DeleteAttachmentCommand(id), ct)).ToActionResult(this);
 }
 
 public record CreateTaskRequest(

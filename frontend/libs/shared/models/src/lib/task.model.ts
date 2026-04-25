@@ -34,6 +34,16 @@ export interface TimeLog {
   createdAt: string;
 }
 
+export interface TaskAttachment {
+  id: string;
+  taskId: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  uploadedById: string;
+  createdAt: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -54,6 +64,7 @@ export interface Task {
   labels: { id: string; name: string; color: string }[];
   subTasks: SubTask[];
   timeLogs: TimeLog[];
+  attachments: TaskAttachment[];
   blockedBy: TaskRef[];
   blocking: TaskRef[];
   isBlocked: boolean;

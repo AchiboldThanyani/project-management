@@ -1,5 +1,7 @@
 import { Component, OnInit, signal, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { DomSanitizer, SafeHtml, SafeResourceUrl } from '@angular/platform-browser';
+import { marked } from 'marked';
 import { ActivatedRoute } from '@angular/router';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
@@ -894,6 +896,44 @@ const COLUMNS = [
 
           <div class="panel-divider"></div>
 
+          <!-- Attachments -->
+          <div class="attachments-section">
+            <div class="section-header">
+              <span class="material-icons-round section-ico">attach_file</span>
+              <span class="section-label">Attachments</span>
+              <span class="section-count" *ngIf="selectedTask()!.attachments?.length">{{ selectedTask()!.attachments.length }}</span>
+            </div>
+
+            <div class="attach-list">
+              <div *ngFor="let a of selectedTask()!.attachments ?? []" class="attach-item">
+                <span class="material-icons-round attach-icon">{{ fileIcon(a.contentType) }}</span>
+                <div class="attach-info">
+                  <span class="attach-name">{{ a.fileName }}</span>
+                  <span class="attach-meta">{{ formatBytes(a.sizeBytes) }}</span>
+                </div>
+                <div class="attach-actions">
+                  <button class="attach-act-btn" (click)="previewAttachment(a)" title="Preview" *ngIf="isPreviewable(a.contentType)">
+                    <span class="material-icons-round">visibility</span>
+                  </button>
+                  <button class="attach-act-btn" (click)="downloadAttachment(a)" title="Download">
+                    <span class="material-icons-round">download</span>
+                  </button>
+                  <button class="attach-act-btn danger" (click)="deleteAttachment(a.id)" title="Remove">
+                    <span class="material-icons-round">delete_outline</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <label class="add-subtask-btn attach-upload-btn" [class.disabled]="uploadingAttachment()">
+              <span class="material-icons-round">{{ uploadingAttachment() ? 'hourglass_top' : 'upload' }}</span>
+              {{ uploadingAttachment() ? 'Uploading…' : 'Attach file' }}
+              <input type="file" class="attach-input" (change)="onFileSelected($event)" [disabled]="uploadingAttachment()">
+            </label>
+          </div>
+
+          <div class="panel-divider"></div>
+
           <!-- Comments -->
           <div class="comments-section">
             <div class="comments-header">
@@ -1382,6 +1422,28 @@ const COLUMNS = [
 
     <!-- Backdrop to close sprint menu -->
     <div *ngIf="openSprintMenuId" class="menu-backdrop" (click)="openSprintMenuId = null"></div>
+
+    <!-- Attachment Preview Modal -->
+    <div class="overlay" *ngIf="previewAttach()" (click)="closePreview()">
+      <div class="attach-preview-card" (click)="$event.stopPropagation()">
+        <div class="attach-preview-header">
+          <span class="attach-preview-name">{{ previewAttach()!.fileName }}</span>
+          <div style="display:flex;gap:6px">
+            <button class="icon-btn" (click)="downloadAttachment(previewAttach()!)" title="Download">
+              <span class="material-icons-round">download</span>
+            </button>
+            <button class="icon-btn" (click)="closePreview()">
+              <span class="material-icons-round">close</span>
+            </button>
+          </div>
+        </div>
+        <div class="attach-preview-body">
+          <img *ngIf="previewAttach()!.contentType.startsWith('image/')" [src]="previewBlobUrl()" class="preview-img" />
+          <iframe *ngIf="previewAttach()!.contentType === 'application/pdf'" [src]="previewBlobUrl()" class="preview-pdf"></iframe>
+          <div *ngIf="isMarkdown(previewAttach()!.contentType) && previewMarkdownHtml()" class="preview-md md-body" [innerHTML]="previewMarkdownHtml()"></div>
+        </div>
+      </div>
+    </div>
 
     <!-- Complete Sprint Dialog -->
     <div class="overlay" *ngIf="completingSprintId()" (click)="cancelCompleteSprint()">
@@ -2017,6 +2079,56 @@ const COLUMNS = [
     .add-subtask-btn:hover { color: var(--violet); }
     .add-subtask-btn .material-icons-round { font-size: 15px; }
 
+    /* Attachments */
+    .attachments-section { display: flex; flex-direction: column; gap: 8px; }
+    .attach-list { display: flex; flex-direction: column; gap: 4px; }
+    .attach-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 10px; border-radius: var(--r-md);
+      background: var(--surface); border: 1px solid var(--border);
+    }
+    .attach-icon { font-size: 18px; color: var(--violet); flex-shrink: 0; }
+    .attach-info { flex: 1; min-width: 0; }
+    .attach-name {
+      font-size: 12px; font-weight: 500; color: var(--ink);
+      text-decoration: none; display: block;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .attach-name:hover { text-decoration: underline; color: var(--violet); }
+    .attach-meta { font-size: 10px; color: var(--soft); }
+    .attach-actions { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+    .attach-act-btn {
+      width: 28px; height: 28px; border-radius: var(--r-sm);
+      background: none; border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--soft); transition: background .12s, color .12s;
+    }
+    .attach-act-btn:hover { background: var(--border); color: var(--ink); }
+    .attach-act-btn.danger:hover { background: var(--rose-c); color: var(--rose); }
+    .attach-act-btn .material-icons-round { font-size: 16px; }
+    .attach-upload-btn { cursor: pointer; }
+    .attach-upload-btn.disabled { opacity: .5; cursor: not-allowed; }
+    .attach-input { display: none; }
+
+    /* Preview modal */
+    .attach-preview-card {
+      background: var(--white); border-radius: var(--r-xl);
+      box-shadow: var(--shadow-lg); display: flex; flex-direction: column;
+      width: 90vw; max-width: 900px; max-height: 88vh; overflow: hidden;
+    }
+    .attach-preview-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+    }
+    .attach-preview-name { font-size: 14px; font-weight: 600; color: var(--ink); }
+    .attach-preview-body {
+      flex: 1; overflow: auto; display: flex; align-items: center; justify-content: center;
+      background: var(--surface); padding: 16px;
+    }
+    .preview-img { max-width: 100%; max-height: 100%; border-radius: var(--r-md); object-fit: contain; }
+    .preview-pdf { width: 100%; height: 70vh; border: none; border-radius: var(--r-md); }
+    .preview-md { width: 100%; max-width: 720px; padding: 8px; align-self: flex-start; }
+
     .timelog-icon { font-size: 16px; color: var(--soft); flex-shrink: 0; }
     .timelog-body { flex: 1; display: flex; align-items: center; gap: 8px; font-size: 12px; }
     .timelog-hours { font-weight: 600; color: var(--ink); }
@@ -2591,6 +2703,99 @@ export class ProjectDetailComponent implements OnInit {
         } : t);
       },
       error: () => this.toast('Failed to delete time log', true),
+    });
+  }
+
+  // ── Attachments ─────────────────────────────────────────────────────────
+  private readonly sanitizer = inject(DomSanitizer);
+  uploadingAttachment = signal(false);
+  previewAttach = signal<import('@pm/shared/models').TaskAttachment | null>(null);
+  private _previewBlobUrl: SafeResourceUrl | null = null;
+  private _previewRawUrl: string | null = null;
+  previewMarkdownHtml = signal<SafeHtml | null>(null);
+
+  previewBlobUrl(): SafeResourceUrl { return this._previewBlobUrl!; }
+
+  isPreviewable(contentType: string): boolean {
+    return contentType.startsWith('image/') || contentType === 'application/pdf' || this.isMarkdown(contentType);
+  }
+
+  isMarkdown(contentType: string): boolean {
+    return contentType === 'text/markdown' || contentType === 'text/x-markdown';
+  }
+
+  fileIcon(contentType: string): string {
+    if (contentType.startsWith('image/')) return 'image';
+    if (contentType === 'application/pdf') return 'picture_as_pdf';
+    if (contentType.includes('spreadsheet') || contentType.includes('excel')) return 'table_chart';
+    if (contentType.includes('word') || contentType.includes('document')) return 'description';
+    if (contentType === 'application/zip') return 'folder_zip';
+    return 'insert_drive_file';
+  }
+
+  formatBytes(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  previewAttachment(a: import('@pm/shared/models').TaskAttachment) {
+    this.taskService.fetchAttachmentBlob(a.id).subscribe(async res => {
+      this._revokePreview();
+      this.previewMarkdownHtml.set(null);
+
+      if (this.isMarkdown(a.contentType)) {
+        const text = await res.body!.text();
+        const html = marked.parse(text) as string;
+        this.previewMarkdownHtml.set(this.sanitizer.bypassSecurityTrustHtml(html));
+      } else {
+        this._previewRawUrl = URL.createObjectURL(res.body!);
+        this._previewBlobUrl = this.sanitizer.bypassSecurityTrustResourceUrl(this._previewRawUrl);
+      }
+      this.previewAttach.set(a);
+    });
+  }
+
+  closePreview() {
+    this._revokePreview();
+    this.previewAttach.set(null);
+    this.previewMarkdownHtml.set(null);
+  }
+
+  private _revokePreview() {
+    if (this._previewRawUrl) { URL.revokeObjectURL(this._previewRawUrl); this._previewRawUrl = null; }
+  }
+
+  downloadAttachment(a: import('@pm/shared/models').TaskAttachment) {
+    this.taskService.fetchAttachmentBlob(a.id).subscribe(res => {
+      const url = URL.createObjectURL(res.body!);
+      const link = document.createElement('a');
+      link.href = url; link.download = a.fileName; link.click();
+      URL.revokeObjectURL(url);
+    });
+  }
+
+  onFileSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    const task = this.selectedTask();
+    if (!file || !task) return;
+    input.value = '';
+    this.uploadingAttachment.set(true);
+    this.taskService.uploadAttachment(task.id, file).subscribe({
+      next: (attachment) => {
+        this.selectedTask.update(t => t ? { ...t, attachments: [attachment, ...(t.attachments ?? [])] } : t);
+        this.uploadingAttachment.set(false);
+        this.toast('File attached');
+      },
+      error: () => { this.uploadingAttachment.set(false); this.toast('Upload failed', true); },
+    });
+  }
+
+  deleteAttachment(attachmentId: string) {
+    this.taskService.deleteAttachment(attachmentId).subscribe({
+      next: () => this.selectedTask.update(t => t ? { ...t, attachments: (t.attachments ?? []).filter(a => a.id !== attachmentId) } : t),
+      error: () => this.toast('Failed to delete attachment', true),
     });
   }
 

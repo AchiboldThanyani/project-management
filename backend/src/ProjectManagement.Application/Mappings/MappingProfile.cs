@@ -4,6 +4,7 @@ using ProjectManagement.Application.Features.Projects.DTOs;
 using ProjectManagement.Application.Features.Sprints.DTOs;
 using ProjectManagement.Application.Features.Tasks.Dependencies.DTOs;
 using ProjectManagement.Application.Features.Tasks.DTOs;
+using ProjectManagement.Application.Features.Tasks.Attachments;
 using ProjectManagement.Application.Features.Tasks.SubTasks;
 using ProjectManagement.Application.Features.Tasks.TimeLogs;
 using ProjectManagement.Application.Features.Teams.DTOs;
@@ -35,6 +36,8 @@ public class MappingProfile : Profile
             .ForMember(d => d.Status,       o => o.MapFrom(s => s.BlockedTask.Status))
             .ForMember(d => d.ProjectId,    o => o.MapFrom(s => s.BlockedTask.ProjectId));
 
+        CreateMap<TaskAttachment, TaskAttachmentDto>();
+
         CreateMap<SubTask, SubTaskDto>();
 
         CreateMap<TimeLog, TimeLogDto>()
@@ -46,6 +49,7 @@ public class MappingProfile : Profile
             .ForMember(d => d.SubTasks,          o => o.MapFrom(s => s.SubTasks.OrderBy(st => st.Order)))
             .ForMember(d => d.TimeLogs,          o => o.MapFrom(s => s.TimeLogs.OrderByDescending(tl => tl.LoggedDate)))
             .ForMember(d => d.TotalLoggedHours,  o => o.MapFrom(s => s.TimeLogs.Sum(tl => tl.Hours)))
+            .ForMember(d => d.Attachments,       o => o.MapFrom(s => s.Attachments.OrderByDescending(a => a.CreatedAt)))
             .ForMember(d => d.BlockedBy,         o => o.MapFrom(s => s.BlockedByDependencies.Select(dep =>
                 new DependencyTaskRef { DependencyId = dep.Id, Id = dep.BlockingTask.Id,
                     Title = dep.BlockingTask.Title, Status = dep.BlockingTask.Status,

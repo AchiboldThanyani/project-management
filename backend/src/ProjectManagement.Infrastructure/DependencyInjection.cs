@@ -23,6 +23,7 @@ public static class DependencyInjection
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
         services.AddScoped<IJwtTokenService, JwtTokenService>();
         services.AddScoped<IClaudeService, ClaudeCliService>();
+        services.AddScoped<IFileStorageService, FileStorageService>();
         services.AddScoped<IUserRepository, UserRepository>();
 
         // Per-entity repositories
@@ -45,6 +46,7 @@ public static class DependencyInjection
         services.AddScoped<INotificationRepository, NotificationRepository>();
         services.AddScoped<ISubTaskRepository, SubTaskRepository>();
         services.AddScoped<ITimeLogRepository, TimeLogRepository>();
+        services.AddScoped<ITaskAttachmentRepository, TaskAttachmentRepository>();
 
         services.AddHostedService<ProjectManagement.Infrastructure.BackgroundServices.OverdueTaskScannerService>();
         services.AddHostedService<ProjectManagement.Infrastructure.BackgroundServices.TicketSlaBreachScannerService>();
