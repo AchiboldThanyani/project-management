@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { marked } from 'marked';
-import { AiService } from '@pm/shared/util';
+import { AiService, ChatMessage } from '@pm/shared/util';
 import { ProjectService } from '@pm/projects/data-access';
 import { Project } from '@pm/shared/models';
 
@@ -130,6 +130,18 @@ const QUICK_PROMPTS: { icon: string; label: string }[] = [
                   }
                 </div>
               </div>
+            }
+          </div>
+        }
+
+        <!-- Suggested follow-ups -->
+        @if (suggestions().length > 0 && !loading()) {
+          <div class="suggestions">
+            @for (s of suggestions(); track s) {
+              <button class="suggestion-chip" (click)="sendQuick(s)">
+                <span class="material-icons-round">arrow_forward</span>
+                {{ s }}
+              </button>
             }
           </div>
         }
@@ -415,6 +427,21 @@ const QUICK_PROMPTS: { icon: string; label: string }[] = [
       100% { background-position: -100% 0; }
     }
 
+    /* ── Suggestions ─────────────────────────────────── */
+    .suggestions {
+      padding: 8px 16px; display: flex; flex-direction: column; gap: 5px;
+      flex-shrink: 0; border-top: 1px solid rgba(99,102,241,.08);
+    }
+    .suggestion-chip {
+      display: flex; align-items: center; gap: 7px;
+      background: rgba(255,255,255,.6); border: 1px solid rgba(99,102,241,.18);
+      border-radius: 10px; padding: 7px 12px;
+      font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--text);
+      cursor: pointer; text-align: left; transition: border-color .15s, background .15s;
+    }
+    .suggestion-chip:hover { border-color: var(--violet); background: rgba(238,242,255,.8); color: var(--violet); }
+    .suggestion-chip .material-icons-round { font-size: 13px; color: var(--violet); flex-shrink: 0; }
+
     /* ── Input ────────────────────────────────────────── */
     .input-area {
       padding: 12px 16px 10px; flex-shrink: 0;
@@ -467,12 +494,13 @@ export class AiAssistantComponent implements OnInit, AfterViewChecked {
   private projectSvc = inject(ProjectService);
   private sanitizer = inject(DomSanitizer);
 
-  open     = signal(false);
-  loading  = signal(false);
-  messages = signal<Message[]>([]);
-  projects = signal<Project[]>([]);
-  input    = '';
-  focused  = false;
+  open        = signal(false);
+  loading     = signal(false);
+  messages    = signal<Message[]>([]);
+  projects    = signal<Project[]>([]);
+  suggestions = signal<string[]>([]);
+  input       = '';
+  focused     = false;
   selectedProjectId: string | null = null;
   quickPrompts = QUICK_PROMPTS;
 
@@ -493,7 +521,7 @@ export class AiAssistantComponent implements OnInit, AfterViewChecked {
 
   toggle() { this.open.update(v => !v); }
   close()  { this.open.set(false); }
-  clearChat() { this.messages.set([]); }
+  clearChat() { this.messages.set([]); this.suggestions.set([]); }
 
   ngAfterViewChecked() {
     if (this.shouldScroll && this.messageList) {
@@ -513,6 +541,11 @@ export class AiAssistantComponent implements OnInit, AfterViewChecked {
     const text = this.input.trim();
     if (!text || this.loading()) return;
 
+    this.suggestions.set([]);
+    const history: ChatMessage[] = this.messages()
+      .filter(m => !m.loading)
+      .map(m => ({ role: m.role, content: m.text }));
+
     this.input = '';
     this.loading.set(true);
     this.messages.update(msgs => [
@@ -522,12 +555,13 @@ export class AiAssistantComponent implements OnInit, AfterViewChecked {
     ]);
     this.shouldScroll = true;
 
-    this.aiSvc.ask(text, this.selectedProjectId ?? undefined).subscribe({
-      next: (reply) => {
+    this.aiSvc.ask(text, this.selectedProjectId ?? undefined, history).subscribe({
+      next: ({ answer, suggestions }) => {
         this.messages.update(msgs => [
           ...msgs.slice(0, -1),
-          { role: 'assistant', text: reply, html: this.toHtml(reply) },
+          { role: 'assistant', text: answer, html: this.toHtml(answer) },
         ]);
+        this.suggestions.set(suggestions ?? []);
         this.loading.set(false);
         this.shouldScroll = true;
       },

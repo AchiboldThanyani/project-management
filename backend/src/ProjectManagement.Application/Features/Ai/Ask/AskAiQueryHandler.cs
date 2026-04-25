@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.RegularExpressions;
 using MediatR;
 using ProjectManagement.Application.Common;
 using ProjectManagement.Application.Interfaces;
@@ -15,15 +16,47 @@ internal sealed class AskAiQueryHandler(
     IUserRepository users,
     IActivityRepository activity,
     ITicketRepository tickets)
-    : IRequestHandler<AskAiQuery, Result<string>>
+    : IRequestHandler<AskAiQuery, Result<AiResponse>>
 {
-    public async Task<Result<string>> Handle(AskAiQuery req, CancellationToken ct)
+    private static readonly Regex SuggestionsRegex =
+        new(@"\[SUGGESTIONS:\s*(.+?)\]\s*$", RegexOptions.Singleline | RegexOptions.Compiled);
+
+    public async Task<Result<AiResponse>> Handle(AskAiQuery req, CancellationToken ct)
     {
         var context = await BuildContextAsync(req.ProjectId, ct);
-        var prompt = $"{context}\n\n---\n\nQuestion from team member: {req.Question}";
 
-        var answer = await claude.AskAsync(prompt, ct);
-        return Result<string>.Success(answer);
+        var sb = new StringBuilder(context);
+        sb.AppendLine();
+
+        if (req.History is { Count: > 0 })
+        {
+            sb.AppendLine("=== CONVERSATION HISTORY ===");
+            foreach (var msg in req.History)
+                sb.AppendLine($"[{(msg.Role == "user" ? "User" : "Assistant")}]: {msg.Content}");
+            sb.AppendLine();
+        }
+
+        sb.AppendLine("---");
+        sb.AppendLine($"Current question: {req.Question}");
+        sb.AppendLine();
+        sb.AppendLine("After your response, on a new line append exactly (no extra text after):");
+        sb.AppendLine("[SUGGESTIONS: First follow-up question | Second follow-up question | Third follow-up question]");
+        sb.AppendLine("Keep each suggestion under 60 characters and make them specific to your response.");
+
+        var raw = await claude.AskAsync(sb.ToString(), ct);
+
+        var suggestions = new List<string>();
+        var match = SuggestionsRegex.Match(raw);
+        if (match.Success)
+        {
+            suggestions = match.Groups[1].Value
+                .Split('|', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+                .Take(3)
+                .ToList();
+            raw = SuggestionsRegex.Replace(raw, "").TrimEnd();
+        }
+
+        return Result<AiResponse>.Success(new AiResponse(raw, suggestions));
     }
 
     private async Task<string> BuildContextAsync(Guid? projectId, CancellationToken ct)

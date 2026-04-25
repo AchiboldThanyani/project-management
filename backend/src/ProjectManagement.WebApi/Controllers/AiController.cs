@@ -12,8 +12,8 @@ namespace ProjectManagement.WebApi.Controllers;
 public class AiController(IMediator mediator) : ControllerBase
 {
     [HttpPost("ask")]
-    public async Task<ActionResult<string>> Ask([FromBody] AiAskBody body, CancellationToken ct)
-        => (await mediator.Send(new AskAiQuery(body.Question, body.ProjectId), ct)).ToActionResult(this);
+    public async Task<ActionResult<AiResponse>> Ask([FromBody] AiAskBody body, CancellationToken ct)
+        => (await mediator.Send(new AskAiQuery(body.Question, body.ProjectId, body.History), ct)).ToActionResult(this);
 }
 
-public record AiAskBody(string Question, Guid? ProjectId = null);
+public record AiAskBody(string Question, Guid? ProjectId = null, IReadOnlyList<ChatMessage>? History = null);
