@@ -28,6 +28,7 @@ public class ProjectMemberRepository(ApplicationDbContext db)
                 FullName    = x.u.FirstName + " " + x.u.LastName,
                 Email       = x.u.Email ?? string.Empty,
                 Role        = x.m.Role,
+                SystemRole  = x.u.Role,
                 OpenTaskCount = db.Tasks.Count(t =>
                     t.ProjectId == projectId &&
                     t.AssigneeId == x.m.UserId &&
@@ -56,6 +57,7 @@ public class ProjectMemberRepository(ApplicationDbContext db)
                 FullName    = x.u.FirstName + " " + x.u.LastName,
                 Email       = x.u.Email ?? string.Empty,
                 Role        = x.m.Role,
+                SystemRole  = x.u.Role,
                 OpenTaskCount = db.Tasks.Count(t =>
                     t.ProjectId == x.m.ProjectId &&
                     t.AssigneeId == x.m.UserId &&
@@ -64,5 +66,14 @@ public class ProjectMemberRepository(ApplicationDbContext db)
                 JoinedAt    = x.m.CreatedAt,
             })
             .FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<string>> GetMemberUserIdsAsync(
+        Guid projectId, CancellationToken ct = default)
+    {
+        return await db.ProjectMembers
+            .Where(m => m.ProjectId == projectId)
+            .Select(m => m.UserId)
+            .ToListAsync(ct);
     }
 }
