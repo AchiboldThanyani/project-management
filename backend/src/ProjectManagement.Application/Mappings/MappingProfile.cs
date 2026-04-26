@@ -41,7 +41,8 @@ public class MappingProfile : Profile
         CreateMap<SubTask, SubTaskDto>();
 
         CreateMap<TimeLog, TimeLogDto>()
-            .ForMember(d => d.UserName, o => o.Ignore());
+            .ForMember(d => d.UserName, o => o.Ignore())
+            .ForMember(d => d.SubTaskTitle, o => o.MapFrom(s => s.SubTask != null ? s.SubTask.Title : null));
 
         CreateMap<ProjectTask, TaskDto>()
             .ForMember(d => d.AssigneeName,      o => o.Ignore())

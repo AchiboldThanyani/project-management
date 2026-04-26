@@ -4,6 +4,8 @@ public record TimeLogDto
 {
     public Guid Id { get; init; }
     public Guid TaskId { get; init; }
+    public Guid? SubTaskId { get; init; }
+    public string? SubTaskTitle { get; init; }
     public string UserId { get; init; } = default!;
     public string? UserName { get; init; }
     public decimal Hours { get; init; }

@@ -7,5 +7,6 @@ public record SubTaskDto
     public string Title { get; init; } = default!;
     public bool IsCompleted { get; init; }
     public int Order { get; init; }
+    public decimal? EstimatedHours { get; init; }
     public DateTime CreatedAt { get; init; }
 }

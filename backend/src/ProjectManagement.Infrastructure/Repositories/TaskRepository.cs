@@ -36,7 +36,7 @@ public class TaskRepository(ApplicationDbContext context)
     private static IQueryable<ProjectTask> WithDependencies(IQueryable<ProjectTask> q) =>
         q.Include(t => t.Labels)
          .Include(t => t.SubTasks)
-         .Include(t => t.TimeLogs)
+         .Include(t => t.TimeLogs).ThenInclude(tl => tl.SubTask)
          .Include(t => t.Attachments)
          .Include(t => t.BlockedByDependencies).ThenInclude(d => d.BlockingTask)
          .Include(t => t.BlockingDependencies).ThenInclude(d => d.BlockedTask);
