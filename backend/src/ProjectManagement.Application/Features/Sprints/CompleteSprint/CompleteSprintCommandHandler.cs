@@ -30,20 +30,39 @@ internal sealed class CompleteSprintCommandHandler(
         if (!await permissions.HasProjectRoleAsync(sprint.ProjectId, currentUser.UserId, ProjectMemberRole.Lead, cancellationToken))
             return Error.Forbidden("Sprint.Forbidden", "You must be a Lead or Manager to complete sprints.");
 
-        // Count incomplete tasks still in this sprint
-        var (allTasks, _) = await taskRepository.FindPagedAsync(
+        // Validate carry-over target if provided
+        if (request.TargetSprintId.HasValue)
+        {
+            var target = await repository.GetByIdAsync(request.TargetSprintId.Value, cancellationToken);
+            if (target is null || target.ProjectId != sprint.ProjectId || target.IsCompleted)
+                return SprintErrors.InvalidCarryOverTarget(request.TargetSprintId.Value);
+        }
+
+        // Find incomplete tasks in this sprint
+        var (incompleteTasks, _) = await taskRepository.FindPagedAsync(
             t => t.SprintId == request.Id
               && t.Status != TaskStatus.Done
               && t.Status != TaskStatus.Cancelled,
             1, 1000, cancellationToken);
 
-        var carryOverCount = allTasks.Count;
+        var carryOverCount = incompleteTasks.Count;
+
+        // Move incomplete tasks
+        if (carryOverCount > 0)
+        {
+            var taskIds = incompleteTasks.Select(t => t.Id);
+            await taskRepository.BulkUpdateSprintAsync(taskIds, request.TargetSprintId, cancellationToken);
+        }
 
         sprint.Complete(request.RetroNotes);
         await repository.UpdateAsync(sprint, cancellationToken);
 
+        var destination = request.TargetSprintId.HasValue
+            ? $"Sprint {request.TargetSprintId.Value}"
+            : "backlog";
+
         var activityMsg = carryOverCount > 0
-            ? $"completed sprint \"{sprint.Name}\" with {carryOverCount} task(s) carried over"
+            ? $"completed sprint \"{sprint.Name}\" — {carryOverCount} task(s) moved to {destination}"
             : $"completed sprint \"{sprint.Name}\"";
 
         var log = ActivityLog.Create(currentUser.UserId, currentUser.FullName,
