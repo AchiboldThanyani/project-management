@@ -12,3 +12,4 @@ export * from './lib/label.model';
 export * from './lib/project-member.model';
 export * from './lib/ticket.model';
 export * from './lib/notification.model';
+export * from './lib/board.model';
