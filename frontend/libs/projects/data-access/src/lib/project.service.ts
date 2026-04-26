@@ -38,6 +38,10 @@ export class ProjectService {
     return this.http.get<Sprint[]>(`${this.base}/${projectId}/sprints`);
   }
 
+  getFutureSprints(projectId: string) {
+    return this.http.get<Sprint[]>(`${this.sprintsBase}/project/${projectId}/future`);
+  }
+
   createSprint(projectId: string, request: CreateSprintRequest) {
     return this.http.post<Sprint>(`${this.base}/${projectId}/sprints`, request);
   }
@@ -54,7 +58,10 @@ export class ProjectService {
     return this.http.post<Sprint>(`${this.sprintsBase}/${sprintId}/activate`, {});
   }
 
-  completeSprint(sprintId: string, retroNotes?: string) {
-    return this.http.post<Sprint>(`${this.sprintsBase}/${sprintId}/complete`, { retroNotes: retroNotes ?? null });
+  completeSprint(sprintId: string, retroNotes?: string, targetSprintId?: string | null) {
+    return this.http.post<Sprint>(`${this.sprintsBase}/${sprintId}/complete`, {
+      retroNotes: retroNotes ?? null,
+      targetSprintId: targetSprintId ?? null,
+    });
   }
 }
