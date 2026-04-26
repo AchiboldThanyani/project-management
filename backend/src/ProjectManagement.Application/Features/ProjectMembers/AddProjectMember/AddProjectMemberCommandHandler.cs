@@ -15,7 +15,6 @@ internal sealed class AddProjectMemberCommandHandler(
     INotificationService notificationService,
     ICurrentUserService currentUser,
     IProjectPermissionService permissions,
-    IUserRepository users,
     IUnitOfWork unitOfWork)
     : IRequestHandler<AddProjectMemberCommand, Result<ProjectMemberDto>>
 {
@@ -31,11 +30,7 @@ internal sealed class AddProjectMemberCommandHandler(
         if (existing.Count > 0)
             return Error.Conflict("ProjectMember.AlreadyExists", "User is already a member of this project.");
 
-        // ProjectManagers are always assigned Manager role regardless of what was requested
-        var systemRole = await users.GetRoleAsync(request.UserId, cancellationToken);
-        var role = systemRole == UserRole.ProjectManager ? ProjectMemberRole.Manager : request.Role;
-
-        var member = ProjectMember.Create(request.ProjectId, request.UserId, role);
+        var member = ProjectMember.Create(request.ProjectId, request.UserId, request.Role);
         await repo.AddAsync(member, cancellationToken);
 
         // Stage notification for the new member
