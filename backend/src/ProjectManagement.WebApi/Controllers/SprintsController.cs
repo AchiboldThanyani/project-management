@@ -5,6 +5,7 @@ using ProjectManagement.Application.Features.Sprints.ActivateSprint;
 using ProjectManagement.Application.Features.Sprints.CompleteSprint;
 using ProjectManagement.Application.Features.Sprints.DeleteSprint;
 using ProjectManagement.Application.Features.Sprints.DTOs;
+using ProjectManagement.Application.Features.Sprints.GetFutureSprintsByProject;
 using ProjectManagement.Application.Features.Sprints.UpdateSprint;
 using ProjectManagement.WebApi.Extensions;
 
@@ -15,6 +16,10 @@ namespace ProjectManagement.WebApi.Controllers;
 [Authorize]
 public class SprintsController(IMediator mediator) : ControllerBase
 {
+    [HttpGet("project/{projectId:guid}/future")]
+    public async Task<ActionResult<IReadOnlyList<SprintDto>>> GetFuture(Guid projectId, CancellationToken ct)
+        => (await mediator.Send(new GetFutureSprintsByProjectQuery(projectId), ct)).ToActionResult(this);
+
     [HttpPut("{id:guid}")]
     public async Task<ActionResult<SprintDto>> Update(Guid id, [FromBody] UpdateSprintRequest request, CancellationToken ct)
         => (await mediator.Send(new UpdateSprintCommand(id, request.Name, request.Goal, request.StartDate, request.EndDate), ct)).ToActionResult(this);
@@ -25,7 +30,7 @@ public class SprintsController(IMediator mediator) : ControllerBase
 
     [HttpPost("{id:guid}/complete")]
     public async Task<ActionResult<SprintDto>> Complete(Guid id, [FromBody] CompleteSprintRequest req, CancellationToken ct)
-        => (await mediator.Send(new CompleteSprintCommand(id, req.RetroNotes), ct)).ToActionResult(this);
+        => (await mediator.Send(new CompleteSprintCommand(id, req.RetroNotes, req.TargetSprintId), ct)).ToActionResult(this);
 
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
@@ -33,4 +38,4 @@ public class SprintsController(IMediator mediator) : ControllerBase
 }
 
 public record UpdateSprintRequest(string Name, string? Goal, DateTime StartDate, DateTime EndDate);
-public record CompleteSprintRequest(string? RetroNotes = null);
+public record CompleteSprintRequest(string? RetroNotes = null, Guid? TargetSprintId = null);

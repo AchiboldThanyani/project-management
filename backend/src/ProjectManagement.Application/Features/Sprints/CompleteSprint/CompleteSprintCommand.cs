@@ -3,4 +3,8 @@ using ProjectManagement.Application.Features.Sprints.DTOs;
 
 namespace ProjectManagement.Application.Features.Sprints.CompleteSprint;
 
-public sealed record CompleteSprintCommand(Guid Id, string? RetroNotes = null) : ICommand<SprintDto>;
+public sealed record CompleteSprintCommand(
+    Guid Id,
+    string? RetroNotes = null,
+    Guid? TargetSprintId = null
+) : ICommand<SprintDto>;
