@@ -147,6 +147,10 @@ export class NotificationBellComponent {
       case 2: return 'schedule';
       case 3: return 'reply';
       case 4: return 'warning';
+      case 5: return 'comment';
+      case 6: return 'play_circle';
+      case 7: return 'check_circle';
+      case 8: return 'group_add';
       default: return 'notifications';
     }
   }
