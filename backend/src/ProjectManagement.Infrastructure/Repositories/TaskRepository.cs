@@ -9,7 +9,6 @@ namespace ProjectManagement.Infrastructure.Repositories;
 public class TaskRepository(ApplicationDbContext context)
     : Repository<ProjectTask>(context), ITaskRepository
 {
-    // Always include labels + dependencies so TaskDto is fully populated
     public override async Task<ProjectTask?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
         await WithDependencies(context.Tasks).FirstOrDefaultAsync(t => t.Id == id, ct);
 
@@ -24,6 +23,15 @@ public class TaskRepository(ApplicationDbContext context)
 
     public async Task<ProjectTask?> GetByIdWithLabelsAsync(Guid taskId, CancellationToken ct = default) =>
         await WithDependencies(context.Tasks).FirstOrDefaultAsync(t => t.Id == taskId, ct);
+
+    public async Task BulkUpdateSprintAsync(IEnumerable<Guid> taskIds, Guid? sprintId, CancellationToken ct)
+    {
+        var ids = taskIds.ToList();
+        if (ids.Count == 0) return;
+        await context.Tasks
+            .Where(t => ids.Contains(t.Id))
+            .ExecuteUpdateAsync(s => s.SetProperty(t => t.SprintId, sprintId), ct);
+    }
 
     private static IQueryable<ProjectTask> WithDependencies(IQueryable<ProjectTask> q) =>
         q.Include(t => t.Labels)
