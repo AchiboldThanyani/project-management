@@ -14,7 +14,6 @@ internal sealed class CreateCommentCommandHandler(
     ITaskRepository taskRepository,
     INotificationRepository notificationRepo,
     INotificationService notificationService,
-    ICurrentUserService currentUser,
     IUnitOfWork unitOfWork,
     IMapper mapper)
     : IRequestHandler<CreateCommentCommand, Result<CommentDto>>
@@ -23,29 +22,31 @@ internal sealed class CreateCommentCommandHandler(
     {
         var comment = Comment.Create(request.Content, request.TaskId, request.AuthorId);
         await repository.AddAsync(comment, cancellationToken);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // Load task for assignee and project info
-        var tasks = await taskRepository.FindAsync(t => t.Id == request.TaskId, cancellationToken);
-        var task = tasks.FirstOrDefault();
+        // Load task for assignee info
+        var task = await taskRepository.GetByIdAsync(request.TaskId, cancellationToken);
         if (task is null)
+        {
+            await unitOfWork.SaveChangesAsync(cancellationToken);
             return mapper.Map<CommentDto>(comment);
+        }
 
-        // Collect recipients: assignee + prior comment authors, deduped, excluding commenter
-        var currentUserId = currentUser.UserId;
+        // Collect recipients: assignee + prior comment authors, deduped, excluding the new commenter
         var recipients = new HashSet<string>();
 
-        if (task.AssigneeId is not null && task.AssigneeId != currentUserId)
+        if (task.AssigneeId is not null && task.AssigneeId != request.AuthorId)
             recipients.Add(task.AssigneeId);
 
+        // comment.Id is a client-generated Guid (set in BaseEntity ctor) — safe to use before SaveChangesAsync
         var priorComments = await repository.FindAsync(
             c => c.TaskId == request.TaskId && c.Id != comment.Id, cancellationToken);
         foreach (var c in priorComments)
         {
-            if (c.AuthorId != currentUserId)
+            if (c.AuthorId != request.AuthorId)
                 recipients.Add(c.AuthorId);
         }
 
+        // Stage all notification entities
         foreach (var recipientId in recipients)
         {
             var n = Notification.Create(
@@ -55,6 +56,14 @@ internal sealed class CreateCommentCommandHandler(
                 type: NotificationType.CommentAdded,
                 relatedEntityId: task.Id);
             await notificationRepo.AddAsync(n, cancellationToken);
+        }
+
+        // Commit comment + all notifications atomically
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // Fire real-time pushes after DB rows exist
+        foreach (var recipientId in recipients)
+        {
             await notificationService.NotifyUser(
                 recipientId, "New comment",
                 $"New comment on \"{task.Title}\"",
