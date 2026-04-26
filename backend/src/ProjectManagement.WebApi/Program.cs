@@ -93,5 +93,6 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");
 app.MapHub<ProjectManagement.WebApi.Hubs.TaskHub>("/hubs/tasks").RequireCors("Angular");
+app.MapHub<ProjectManagement.WebApi.Hubs.BoardHub>("/hubs/boards").RequireCors("Angular");
 
 app.Run();
