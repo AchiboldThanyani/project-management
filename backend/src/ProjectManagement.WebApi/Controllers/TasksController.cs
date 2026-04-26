@@ -22,7 +22,6 @@ using ProjectManagement.Application.Features.Tasks.TimeLogs.DeleteTimeLog;
 using ProjectManagement.Application.Features.Tasks.TimeLogs.LogTime;
 using ProjectManagement.Application.Features.Tasks.UpdateTask;
 using ProjectManagement.Application.Features.Tasks.UpdateTaskStatus;
-using ProjectManagement.Application.Common;
 using ProjectManagement.Domain.Enums;
 using ProjectManagement.WebApi.Extensions;
 using TaskStatus = ProjectManagement.Domain.Enums.TaskStatus;
@@ -119,7 +118,7 @@ public class TasksController(IMediator mediator) : ControllerBase
     {
         if (!DateOnly.TryParse(req.LoggedDate, out var loggedDate))
             return BadRequest(new { Code = "InvalidDate", Description = "loggedDate must be YYYY-MM-DD" });
-        return (await mediator.Send(new LogTimeCommand(taskId, req.Hours, loggedDate, req.Description), ct)).ToActionResult(this);
+        return (await mediator.Send(new LogTimeCommand(taskId, req.Hours, loggedDate, req.Description, req.SubTaskId), ct)).ToActionResult(this);
     }
 
     [HttpDelete("timelogs/{timeLogId:guid}")]
@@ -160,4 +159,4 @@ public record UpdateTaskRequest(
 
 public record UpdateStatusRequest(TaskStatus Status);
 public record CreateSubTaskRequest(string Title);
-public record LogTimeRequest(decimal Hours, string LoggedDate, string? Description);
+public record LogTimeRequest(decimal Hours, string LoggedDate, string? Description, Guid? SubTaskId = null);
