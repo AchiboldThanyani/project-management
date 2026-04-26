@@ -33,6 +33,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<TicketComment> TicketComments => Set<TicketComment>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<TaskAttachment> TaskAttachments => Set<TaskAttachment>();
+    public DbSet<ProjectBoard> ProjectBoards => Set<ProjectBoard>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
