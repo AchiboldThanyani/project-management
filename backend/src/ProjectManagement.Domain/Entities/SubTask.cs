@@ -8,6 +8,7 @@ public class SubTask : BaseEntity
     public string Title { get; private set; } = string.Empty;
     public bool IsCompleted { get; private set; }
     public int Order { get; private set; }
+    public decimal? EstimatedHours { get; private set; }
 
     public ProjectTask Task { get; set; } = null!;
 
@@ -29,6 +30,12 @@ public class SubTask : BaseEntity
     public void Rename(string title)
     {
         Title = title;
+        SetUpdated();
+    }
+
+    public void SetEstimatedHours(decimal? hours)
+    {
+        EstimatedHours = hours;
         SetUpdated();
     }
 }
