@@ -11,4 +11,10 @@ public class SprintRepository(ApplicationDbContext context)
     public Task<Sprint?> GetActiveSprintForProjectAsync(Guid projectId, CancellationToken cancellationToken = default)
         => context.Sprints
             .FirstOrDefaultAsync(s => s.ProjectId == projectId && s.IsActive, cancellationToken);
+
+    public async Task<IReadOnlyList<Sprint>> GetFutureSprintsForProjectAsync(Guid projectId, CancellationToken cancellationToken = default)
+        => await context.Sprints
+            .Where(s => s.ProjectId == projectId && !s.IsActive && !s.IsCompleted)
+            .OrderBy(s => s.StartDate)
+            .ToListAsync(cancellationToken);
 }
