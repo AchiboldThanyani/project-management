@@ -48,12 +48,20 @@ export class TaskService {
     return this.http.delete<void>(`${this.base}/subtasks/${subTaskId}`);
   }
 
-  logTime(taskId: string, hours: number, loggedDate: string, description?: string) {
-    return this.http.post<TimeLog>(`${this.base}/${taskId}/timelogs`, { hours, loggedDate, description });
+  logTime(taskId: string, hours: number, loggedDate: string, description?: string, subTaskId?: string) {
+    return this.http.post<TimeLog>(`${this.base}/${taskId}/timelogs`, { hours, loggedDate, description, subTaskId });
   }
 
   deleteTimeLog(timeLogId: string) {
     return this.http.delete<void>(`${this.base}/timelogs/${timeLogId}`);
+  }
+
+  updateTimeLog(timeLogId: string, hours: number, loggedDate: string, description?: string) {
+    return this.http.put<TimeLog>(`${this.base}/timelogs/${timeLogId}`, { hours, loggedDate, description });
+  }
+
+  setSubTaskEstimate(subTaskId: string, estimatedHours: number | null) {
+    return this.http.patch<SubTask>(`${this.base}/subtasks/${subTaskId}/estimate`, { estimatedHours });
   }
 
   uploadAttachment(taskId: string, file: File) {

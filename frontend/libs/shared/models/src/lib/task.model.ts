@@ -20,12 +20,15 @@ export interface SubTask {
   title: string;
   isCompleted: boolean;
   order: number;
+  estimatedHours?: number;
   createdAt: string;
 }
 
 export interface TimeLog {
   id: string;
   taskId: string;
+  subTaskId?: string;
+  subTaskTitle?: string;
   userId: string;
   userName?: string;
   hours: number;
