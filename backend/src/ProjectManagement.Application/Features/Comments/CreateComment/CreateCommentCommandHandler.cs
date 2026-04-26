@@ -20,16 +20,12 @@ internal sealed class CreateCommentCommandHandler(
 {
     public async Task<Result<CommentDto>> Handle(CreateCommentCommand request, CancellationToken cancellationToken)
     {
-        var comment = Comment.Create(request.Content, request.TaskId, request.AuthorId);
-        await repository.AddAsync(comment, cancellationToken);
-
-        // Load task for assignee info
         var task = await taskRepository.GetByIdAsync(request.TaskId, cancellationToken);
         if (task is null)
-        {
-            await unitOfWork.SaveChangesAsync(cancellationToken);
-            return mapper.Map<CommentDto>(comment);
-        }
+            return Error.NotFound("Task.NotFound", $"Task {request.TaskId} was not found.");
+
+        var comment = Comment.Create(request.Content, request.TaskId, request.AuthorId);
+        await repository.AddAsync(comment, cancellationToken);
 
         // Collect recipients: assignee + prior comment authors, deduped, excluding the new commenter
         var recipients = new HashSet<string>();
@@ -37,9 +33,8 @@ internal sealed class CreateCommentCommandHandler(
         if (task.AssigneeId is not null && task.AssigneeId != request.AuthorId)
             recipients.Add(task.AssigneeId);
 
-        // comment.Id is a client-generated Guid (set in BaseEntity ctor) — safe to use before SaveChangesAsync
         var priorComments = await repository.FindAsync(
-            c => c.TaskId == request.TaskId && c.Id != comment.Id, cancellationToken);
+            c => c.TaskId == request.TaskId, cancellationToken);
         foreach (var c in priorComments)
         {
             if (c.AuthorId != request.AuthorId)
