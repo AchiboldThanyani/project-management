@@ -12,6 +12,9 @@ namespace ProjectManagement.Application.Features.Sprints.ActivateSprint;
 internal sealed class ActivateSprintCommandHandler(
     ISprintRepository repository,
     IActivityRepository activityRepository,
+    IProjectMemberRepository memberRepository,
+    INotificationRepository notificationRepo,
+    INotificationService notificationService,
     ICurrentUserService currentUser,
     IProjectPermissionService permissions,
     IUnitOfWork unitOfWork,
@@ -41,7 +44,32 @@ internal sealed class ActivateSprintCommandHandler(
         var log = ActivityLog.Create(currentUser.UserId, currentUser.FullName,
             $"activated sprint \"{sprint.Name}\"", "Sprint", sprint.Id, sprint.Name);
         await activityRepository.AddAsync(log, cancellationToken);
+
+        // Stage notification entities for all project members except the activator
+        var memberIds = await memberRepository.GetMemberUserIdsAsync(sprint.ProjectId, cancellationToken);
+        var recipients = memberIds.Where(id => id != currentUser.UserId).ToList();
+
+        foreach (var memberId in recipients)
+        {
+            var n = Notification.Create(
+                userId: memberId,
+                title: "Sprint started",
+                body: $"Sprint \"{sprint.Name}\" has started",
+                type: NotificationType.SprintStarted,
+                relatedEntityId: sprint.Id);
+            await notificationRepo.AddAsync(n, cancellationToken);
+        }
+
         await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // Fire real-time pushes after DB rows exist
+        foreach (var memberId in recipients)
+        {
+            await notificationService.NotifyUser(
+                memberId, "Sprint started",
+                $"Sprint \"{sprint.Name}\" has started",
+                NotificationType.SprintStarted, sprint.Id, cancellationToken);
+        }
 
         return mapper.Map<SprintDto>(sprint);
     }
