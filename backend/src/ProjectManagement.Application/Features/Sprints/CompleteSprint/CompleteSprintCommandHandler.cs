@@ -15,6 +15,9 @@ internal sealed class CompleteSprintCommandHandler(
     ISprintRepository repository,
     ITaskRepository taskRepository,
     IActivityRepository activityRepository,
+    IProjectMemberRepository memberRepository,
+    INotificationRepository notificationRepo,
+    INotificationService notificationService,
     ICurrentUserService currentUser,
     IProjectPermissionService permissions,
     IUnitOfWork unitOfWork,
@@ -68,7 +71,32 @@ internal sealed class CompleteSprintCommandHandler(
         var log = ActivityLog.Create(currentUser.UserId, currentUser.FullName,
             activityMsg, "Sprint", sprint.Id, sprint.Name);
         await activityRepository.AddAsync(log, cancellationToken);
+
+        // Stage notification entities for all project members except the completer
+        var memberIds = await memberRepository.GetMemberUserIdsAsync(sprint.ProjectId, cancellationToken);
+        var recipients = memberIds.Where(id => id != currentUser.UserId).ToList();
+
+        foreach (var memberId in recipients)
+        {
+            var n = Notification.Create(
+                userId: memberId,
+                title: "Sprint completed",
+                body: $"Sprint \"{sprint.Name}\" has been completed",
+                type: NotificationType.SprintCompleted,
+                relatedEntityId: sprint.Id);
+            await notificationRepo.AddAsync(n, cancellationToken);
+        }
+
         await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // Fire real-time pushes after DB rows exist
+        foreach (var memberId in recipients)
+        {
+            await notificationService.NotifyUser(
+                memberId, "Sprint completed",
+                $"Sprint \"{sprint.Name}\" has been completed",
+                NotificationType.SprintCompleted, sprint.Id, cancellationToken);
+        }
 
         var dto = mapper.Map<SprintDto>(sprint);
         return dto with { CarryOverCount = carryOverCount };
