@@ -10,6 +10,7 @@ public record ProjectMemberDto
     public string FullName { get; init; } = default!;
     public string Email { get; init; } = default!;
     public ProjectMemberRole Role { get; init; }
+    public UserRole SystemRole { get; init; }
     public int OpenTaskCount { get; init; }
     public DateTime JoinedAt { get; init; }
 }

@@ -10,6 +10,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { ProjectService, ProjectMemberService } from '@pm/projects/data-access';
 import { TaskService, CommentService, IssueService, LabelService, TaskDependencyService, TicketService, InviteService } from '@pm/tasks/data-access';
 import { AuthService, UserService } from '@pm/auth/data-access';
+import { BoardsTabComponent } from '@pm/boards/feature';
 import {
   Project, Task, TaskStatus, TaskPriority, Sprint, Comment, User,
   Issue, IssueComment, IssueType,
@@ -35,7 +36,7 @@ const COLUMNS = [
   standalone: true,
   imports: [
     CommonModule, ReactiveFormsModule, FormsModule, DragDropModule,
-    MatSnackBarModule, MatDialogModule,
+    MatSnackBarModule, MatDialogModule, BoardsTabComponent,
   ],
   template: `
     <div *ngIf="loading()" class="loading-wrap">
@@ -83,6 +84,9 @@ const COLUMNS = [
         </button>
         <button class="tab" [class.active]="activeTab === 'invites'" (click)="switchToInvites()">
           <span class="material-icons-round">link</span> Invites
+        </button>
+        <button class="tab" [class.active]="activeTab === 'brainstorm'" (click)="activeTab = 'brainstorm'">
+          <span class="material-icons-round">brush</span> Brainstorm
         </button>
       </div>
 
@@ -550,6 +554,12 @@ const COLUMNS = [
           </div>
         </div>
       </div>
+
+      <!-- ── Brainstorm tab ────────────────────────── -->
+      <pm-boards-tab
+        *ngIf="activeTab === 'brainstorm' && project()"
+        [projectId]="project()!.id"
+      />
 
     </div>
 
@@ -2520,7 +2530,7 @@ export class ProjectDetailComponent implements OnInit {
   private dependencyService = inject(TaskDependencyService);
   private memberService = inject(ProjectMemberService);
   private userService = inject(UserService);
-  private auth = inject(AuthService);
+  protected auth = inject(AuthService);
   private ticketService = inject(TicketService);
   private inviteService = inject(InviteService);
   private fb = inject(FormBuilder);

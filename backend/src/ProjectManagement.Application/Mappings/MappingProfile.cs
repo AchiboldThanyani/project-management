@@ -1,5 +1,6 @@
 using AutoMapper;
 using ProjectManagement.Application.Features.Labels.DTOs;
+using ProjectManagement.Application.Features.ProjectBoards.DTOs;
 using ProjectManagement.Application.Features.Projects.DTOs;
 using ProjectManagement.Application.Features.Sprints.DTOs;
 using ProjectManagement.Application.Features.Tasks.Dependencies.DTOs;
@@ -17,6 +18,8 @@ public class MappingProfile : Profile
     public MappingProfile()
     {
         CreateMap<Project, ProjectDto>();
+        CreateMap<ProjectBoard, ProjectBoardDto>();
+        CreateMap<ProjectBoard, ProjectBoardDetailDto>();
 
         CreateMap<Label, LabelDto>();
 

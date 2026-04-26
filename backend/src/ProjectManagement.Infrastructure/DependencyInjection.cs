@@ -47,6 +47,7 @@ public static class DependencyInjection
         services.AddScoped<ISubTaskRepository, SubTaskRepository>();
         services.AddScoped<ITimeLogRepository, TimeLogRepository>();
         services.AddScoped<ITaskAttachmentRepository, TaskAttachmentRepository>();
+        services.AddScoped<IBoardRepository, BoardRepository>();
 
         services.AddHostedService<ProjectManagement.Infrastructure.BackgroundServices.OverdueTaskScannerService>();
         services.AddHostedService<ProjectManagement.Infrastructure.BackgroundServices.TicketSlaBreachScannerService>();

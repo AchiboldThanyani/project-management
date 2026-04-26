@@ -17,6 +17,7 @@ public class Project : BaseEntity
     public ICollection<Sprint> Sprints { get; set; } = [];
     public ICollection<ProjectTask> Tasks { get; set; } = [];
     public ICollection<ProjectMember> Members { get; set; } = [];
+    public ICollection<ProjectBoard> Boards { get; set; } = [];
 
     private Project() { }
 

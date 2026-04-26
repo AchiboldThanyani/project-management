@@ -24,7 +24,9 @@
       "@pm/tasks/data-access": ["libs/tasks/data-access/src/index.ts"],
       "@pm/teams/data-access": ["libs/teams/data-access/src/index.ts"],
       "@pm/teams/feature": ["libs/teams/feature/src/index.ts"],
-      "@pm/layout/feature": ["libs/layout/feature/src/index.ts"]
+      "@pm/layout/feature": ["libs/layout/feature/src/index.ts"],
+      "@pm/boards/data-access": ["libs/boards/data-access/src/index.ts"],
+      "@pm/boards/feature": ["libs/boards/feature/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]
