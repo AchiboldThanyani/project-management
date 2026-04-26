@@ -39,13 +39,17 @@ internal sealed class TaskStatusChangedEventHandler(
                 type: NotificationType.TaskBlocked,
                 relatedEntityId: e.TaskId);
             await notificationRepo.AddAsync(n, ct);
+        }
+
+        await unitOfWork.SaveChangesAsync(ct);
+        await notificationService.NotifyTaskStatusChanged(e.TaskId, e.ProjectId, e.OldStatus, e.NewStatus, ct);
+
+        if (e.NewStatus == TaskStatus.Blocked)
+        {
             await notificationService.NotifyUser(
                 e.ChangedByUserId, "Task blocked",
                 $"\"{e.TaskTitle}\" was marked as Blocked",
                 NotificationType.TaskBlocked, e.TaskId, ct);
         }
-
-        await unitOfWork.SaveChangesAsync(ct);
-        await notificationService.NotifyTaskStatusChanged(e.TaskId, e.ProjectId, e.OldStatus, e.NewStatus, ct);
     }
 }
