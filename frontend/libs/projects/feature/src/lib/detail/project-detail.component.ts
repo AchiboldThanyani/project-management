@@ -839,6 +839,24 @@ const COLUMNS = [
                   <span class="material-icons-round">{{ st.isCompleted ? 'check_circle' : 'radio_button_unchecked' }}</span>
                 </button>
                 <span class="subtask-title" [class.completed]="st.isCompleted">{{ st.title }}</span>
+                <ng-container *ngIf="estimatingSubTaskId() !== st.id">
+                  <span class="timelog-desc" *ngIf="st.estimatedHours" style="margin-left:4px">
+                    {{ st.estimatedHours }}h est.
+                  </span>
+                  <button class="icon-btn" (click)="estimatingSubTaskId.set(st.id); estimateHoursInput = st.estimatedHours ?? null"
+                          title="Set estimate" style="font-size:14px">
+                    <span class="material-icons-round" style="font-size:14px">timer</span>
+                  </button>
+                </ng-container>
+                <ng-container *ngIf="estimatingSubTaskId() === st.id">
+                  <input class="timelog-hrs" type="number" [(ngModel)]="estimateHoursInput"
+                         name="est_{{ st.id }}" min="0" step="0.25" style="width:70px"
+                         placeholder="Hrs" />
+                  <button class="btn-primary sm" (click)="setSubTaskEstimate(st.id)">OK</button>
+                  <button class="icon-btn" (click)="estimatingSubTaskId.set(null)">
+                    <span class="material-icons-round">close</span>
+                  </button>
+                </ng-container>
                 <button class="subtask-del" (click)="deleteSubTask(st.id)">
                   <span class="material-icons-round">close</span>
                 </button>
@@ -878,15 +896,36 @@ const COLUMNS = [
             </div>
             <div class="timelog-list">
               <div *ngFor="let tl of selectedTask()!.timeLogs ?? []" class="timelog-item">
-                <span class="material-icons-round timelog-icon">schedule</span>
-                <div class="timelog-body">
-                  <span class="timelog-hours">{{ tl.hours }}h</span>
-                  <span class="timelog-date">{{ tl.loggedDate | date:'MMM d' }}</span>
-                  <span class="timelog-desc" *ngIf="tl.description">{{ tl.description }}</span>
-                </div>
-                <button class="subtask-del" (click)="deleteTimeLog(tl.id)">
-                  <span class="material-icons-round">close</span>
-                </button>
+                <ng-container *ngIf="editingLogId() !== tl.id">
+                  <span class="material-icons-round timelog-icon">schedule</span>
+                  <div class="timelog-body">
+                    <span class="timelog-hours">{{ tl.hours }}h</span>
+                    <span class="timelog-date">{{ tl.loggedDate | date:'MMM d' }}</span>
+                    <span class="timelog-desc" *ngIf="tl.description">{{ tl.description }}</span>
+                    <span class="timelog-subtask" *ngIf="tl.subTaskTitle">· {{ tl.subTaskTitle }}</span>
+                  </div>
+                  <button class="icon-btn" *ngIf="tl.userId === auth.user()?.userId"
+                          (click)="startEditLog(tl)" title="Edit">
+                    <span class="material-icons-round" style="font-size:16px">edit</span>
+                  </button>
+                  <button class="subtask-del" (click)="confirmDeleteTimeLog(tl.id)">
+                    <span class="material-icons-round">close</span>
+                  </button>
+                </ng-container>
+                <ng-container *ngIf="editingLogId() === tl.id">
+                  <form class="timelog-form" style="flex:1" (ngSubmit)="saveEditLog(tl.id)">
+                    <input class="timelog-hrs" type="number" [(ngModel)]="editLogHours" name="editHrs"
+                           min="0.25" step="0.25" style="width:80px" />
+                    <input class="timelog-date-input" type="date" [(ngModel)]="editLogDate" name="editDt" />
+                    <input class="timelog-desc-input" [(ngModel)]="editLogDesc" name="editDesc"
+                           placeholder="Description (optional)" />
+                    <button type="submit" class="btn-primary sm"
+                            [disabled]="!editLogHours || editLogHours <= 0">Save</button>
+                    <button type="button" class="icon-btn" (click)="editingLogId.set(null)">
+                      <span class="material-icons-round">close</span>
+                    </button>
+                  </form>
+                </ng-container>
               </div>
             </div>
             <form class="timelog-form" (ngSubmit)="logTime()" *ngIf="showTimeLogInput()">
@@ -894,6 +933,11 @@ const COLUMNS = [
                      placeholder="Hours" min="0.25" step="0.25" style="width:80px" />
               <input class="timelog-date-input" type="date" [(ngModel)]="newTimeDate" name="dt" />
               <input class="timelog-desc-input" [(ngModel)]="newTimeDesc" name="desc" placeholder="Description (optional)" />
+              <select class="filter-select" [(ngModel)]="newTimeSubTaskId" name="subTask"
+                      *ngIf="selectedTask()!.subTasks?.length">
+                <option [ngValue]="null">Parent task</option>
+                <option *ngFor="let st of selectedTask()!.subTasks" [value]="st.id">{{ st.title }}</option>
+              </select>
               <button type="submit" class="btn-primary sm" [disabled]="!newTimeHours || newTimeHours <= 0">Log</button>
               <button type="button" class="icon-btn" (click)="showTimeLogInput.set(false)">
                 <span class="material-icons-round">close</span>
@@ -2668,6 +2712,8 @@ export class ProjectDetailComponent implements OnInit {
   // ── Sub-tasks ────────────────────────────────────
   showSubTaskInput = signal(false);
   newSubTaskTitle = '';
+  estimatingSubTaskId = signal<string | null>(null);
+  estimateHoursInput: number | null = null;
 
   completedSubTasks = computed(() => (this.selectedTask()?.subTasks ?? []).filter(s => s.isCompleted).length);
   subTaskProgress = computed(() => {
@@ -2710,11 +2756,31 @@ export class ProjectDetailComponent implements OnInit {
     });
   }
 
+  setSubTaskEstimate(subTaskId: string) {
+    const hours = Number(this.estimateHoursInput);
+    if (hours < 0) return;
+    this.taskService.setSubTaskEstimate(subTaskId, hours || null).subscribe({
+      next: (updated) => {
+        this.selectedTask.update(t => t ? {
+          ...t, subTasks: (t.subTasks ?? []).map(s => s.id === subTaskId ? { ...s, estimatedHours: updated.estimatedHours } : s)
+        } : t);
+        this.estimatingSubTaskId.set(null);
+        this.estimateHoursInput = null;
+      },
+      error: () => this.toast('Failed to set estimate', true),
+    });
+  }
+
   // ── Time logs ────────────────────────────────────
   showTimeLogInput = signal(false);
   newTimeHours: number | null = null;
   newTimeDate = new Date().toISOString().split('T')[0];
   newTimeDesc = '';
+  newTimeSubTaskId: string | null = null;
+  editingLogId = signal<string | null>(null);
+  editLogHours: number | null = null;
+  editLogDate = '';
+  editLogDesc = '';
 
   timeProgress = computed(() => {
     const est = this.selectedTask()?.estimatedHours;
@@ -2726,7 +2792,7 @@ export class ProjectDetailComponent implements OnInit {
     const task = this.selectedTask();
     const hours = Number(this.newTimeHours);
     if (!task || !hours || hours <= 0) return;
-    this.taskService.logTime(task.id, hours, this.newTimeDate, this.newTimeDesc || undefined).subscribe({
+    this.taskService.logTime(task.id, hours, this.newTimeDate, this.newTimeDesc || undefined, this.newTimeSubTaskId ?? undefined).subscribe({
       next: (tl) => {
         this.selectedTask.update(t => t ? {
           ...t,
@@ -2736,6 +2802,7 @@ export class ProjectDetailComponent implements OnInit {
         this.newTimeHours = null;
         this.newTimeDesc = '';
         this.showTimeLogInput.set(false);
+        this.newTimeSubTaskId = null;
       },
       error: () => this.toast('Failed to log time', true),
     });
@@ -2753,6 +2820,33 @@ export class ProjectDetailComponent implements OnInit {
       },
       error: () => this.toast('Failed to delete time log', true),
     });
+  }
+
+  startEditLog(tl: any) {
+    this.editingLogId.set(tl.id);
+    this.editLogHours = tl.hours;
+    this.editLogDate = tl.loggedDate;
+    this.editLogDesc = tl.description ?? '';
+  }
+
+  saveEditLog(timeLogId: string) {
+    const task = this.selectedTask();
+    const hours = Number(this.editLogHours);
+    if (!task || !hours || hours <= 0) return;
+    this.taskService.updateTimeLog(timeLogId, hours, this.editLogDate, this.editLogDesc || undefined)
+      .subscribe({
+        next: () => {
+          this.editingLogId.set(null);
+          this.taskService.getById(task.id).subscribe(updated => this.selectedTask.set(updated));
+        },
+        error: () => this.toast('Failed to update time log', true),
+      });
+  }
+
+  confirmDeleteTimeLog(timeLogId: string) {
+    const tl = this.selectedTask()?.timeLogs?.find(t => t.id === timeLogId);
+    if (!confirm(`Delete ${tl?.hours}h log entry?`)) return;
+    this.deleteTimeLog(timeLogId);
   }
 
   // ── Attachments ─────────────────────────────────────────────────────────
