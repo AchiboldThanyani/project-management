@@ -20,6 +20,8 @@ using ProjectManagement.Application.Features.Tasks.Attachments.UploadAttachment;
 using ProjectManagement.Application.Features.Tasks.TimeLogs;
 using ProjectManagement.Application.Features.Tasks.TimeLogs.DeleteTimeLog;
 using ProjectManagement.Application.Features.Tasks.TimeLogs.LogTime;
+using ProjectManagement.Application.Features.Tasks.TimeLogs.UpdateTimeLog;
+using ProjectManagement.Application.Features.Tasks.SubTasks.UpdateSubTask;
 using ProjectManagement.Application.Features.Tasks.UpdateTask;
 using ProjectManagement.Application.Features.Tasks.UpdateTaskStatus;
 using ProjectManagement.Domain.Enums;
@@ -111,6 +113,10 @@ public class TasksController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> DeleteSubTask(Guid subTaskId, CancellationToken ct)
         => (await mediator.Send(new DeleteSubTaskCommand(subTaskId), ct)).ToActionResult(this);
 
+    [HttpPatch("subtasks/{subTaskId:guid}/estimate")]
+    public async Task<ActionResult<SubTaskDto>> SetSubTaskEstimate(Guid subTaskId, [FromBody] SetEstimateRequest req, CancellationToken ct)
+        => (await mediator.Send(new UpdateSubTaskCommand(subTaskId, req.EstimatedHours), ct)).ToActionResult(this);
+
     // ── Time logs ─────────────────────────────────────────────────────────────
 
     [HttpPost("{taskId:guid}/timelogs")]
@@ -124,6 +130,14 @@ public class TasksController(IMediator mediator) : ControllerBase
     [HttpDelete("timelogs/{timeLogId:guid}")]
     public async Task<IActionResult> DeleteTimeLog(Guid timeLogId, CancellationToken ct)
         => (await mediator.Send(new DeleteTimeLogCommand(timeLogId), ct)).ToActionResult(this);
+
+    [HttpPut("timelogs/{timeLogId:guid}")]
+    public async Task<ActionResult<TimeLogDto>> UpdateTimeLog(Guid timeLogId, [FromBody] UpdateTimeLogRequest req, CancellationToken ct)
+    {
+        if (!DateOnly.TryParse(req.LoggedDate, out var loggedDate))
+            return BadRequest(new { Code = "InvalidDate", Description = "loggedDate must be YYYY-MM-DD" });
+        return (await mediator.Send(new UpdateTimeLogCommand(timeLogId, req.Hours, req.Description, loggedDate), ct)).ToActionResult(this);
+    }
 
     // ── Attachments ───────────────────────────────────────────────────────────
 
@@ -160,3 +174,5 @@ public record UpdateTaskRequest(
 public record UpdateStatusRequest(TaskStatus Status);
 public record CreateSubTaskRequest(string Title);
 public record LogTimeRequest(decimal Hours, string LoggedDate, string? Description, Guid? SubTaskId = null);
+public record UpdateTimeLogRequest(decimal Hours, string LoggedDate, string? Description);
+public record SetEstimateRequest(decimal? EstimatedHours);
