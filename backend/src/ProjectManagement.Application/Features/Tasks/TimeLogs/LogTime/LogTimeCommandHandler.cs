@@ -17,6 +17,9 @@ internal sealed class LogTimeCommandHandler(
         var task = await taskRepo.GetByIdAsync(request.TaskId, ct);
         if (task is null) return Error.NotFound("Task.NotFound", "Task not found");
 
+        if (request.Hours <= 0)
+            return Error.Validation("TimeLog.InvalidHours", "Hours must be greater than 0");
+
         if (request.SubTaskId.HasValue)
         {
             var subTask = await subTaskRepo.GetByIdAsync(request.SubTaskId.Value, ct);

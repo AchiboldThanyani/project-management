@@ -14,6 +14,9 @@ internal sealed class UpdateTimeLogCommandHandler(ITimeLogRepository repo, ICurr
         if (log.UserId != currentUser.UserId)
             return Error.Forbidden("TimeLog.Forbidden", "You can only edit your own time logs");
 
+        if (request.Hours <= 0)
+            return Error.Validation("TimeLog.InvalidHours", "Hours must be greater than 0");
+
         log.Update(request.Hours, request.Description, request.LoggedDate);
         await repo.SaveAsync(ct);
 
