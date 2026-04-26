@@ -9,7 +9,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { ProjectService, ProjectMemberService } from '@pm/projects/data-access';
 import { TaskService, CommentService, IssueService, LabelService, TaskDependencyService, TicketService, InviteService } from '@pm/tasks/data-access';
-import { UserService } from '@pm/auth/data-access';
+import { AuthService, UserService } from '@pm/auth/data-access';
 import {
   Project, Task, TaskStatus, TaskPriority, Sprint, Comment, User,
   Issue, IssueComment, IssueType,
@@ -103,10 +103,10 @@ const COLUMNS = [
             <option [ngValue]="2">High</option>
             <option [ngValue]="3">Critical</option>
           </select>
-          <select class="filter-select" *ngIf="users().length > 0" [(ngModel)]="filterAssigneeId" (ngModelChange)="applyFilters()">
+          <select class="filter-select" *ngIf="members().length > 0" [(ngModel)]="filterAssigneeId" (ngModelChange)="applyFilters()">
             <option [ngValue]="null">Anyone</option>
             <option value="unassigned">Unassigned</option>
-            <option *ngFor="let u of users()" [value]="u.id">{{ u.fullName }}</option>
+            <option *ngFor="let m of assignableMembers()" [value]="m.userId">{{ m.fullName }}</option>
           </select>
           <select class="filter-select" *ngIf="labels().length > 0" [(ngModel)]="filterLabelId" (ngModelChange)="applyFilters()">
             <option [ngValue]="null">All labels</option>
@@ -275,7 +275,7 @@ const COLUMNS = [
           </select>
           <select class="filter-select" [(ngModel)]="issueFilterAssignee">
             <option [ngValue]="null">Anyone</option>
-            <option *ngFor="let u of users()" [value]="u.id">{{ u.fullName }}</option>
+            <option *ngFor="let m of assignableMembers()" [value]="m.userId">{{ m.fullName }}</option>
           </select>
         </div>
 
@@ -423,7 +423,7 @@ const COLUMNS = [
         <!-- Header row -->
         <div class="members-header">
           <p class="members-subtitle">People working on this project and their open task workload.</p>
-          <button class="btn-primary sm" (click)="showAddMember.set(true)">
+          <button class="btn-primary sm" *ngIf="canManageMembers()" (click)="showAddMember.set(true)">
             <span class="material-icons-round">person_add</span> Add Member
           </button>
         </div>
@@ -458,13 +458,19 @@ const COLUMNS = [
             </div>
 
             <!-- Actions -->
-            <div class="member-actions">
-              <select class="role-select" [ngModel]="m.role" (ngModelChange)="changeMemberRole(m, $event)">
-                <option [value]="0">Viewer</option>
-                <option [value]="1">Member</option>
-                <option [value]="2">Lead</option>
-                <option [value]="3">Manager</option>
-              </select>
+            <div class="member-actions" *ngIf="canManageMembers()">
+              @if (m.systemRole === 1) {
+                <span class="pm-locked" title="Role locked — designated Project Manager">
+                  <span class="material-icons-round">lock</span> PM
+                </span>
+              } @else {
+                <select class="role-select" [ngModel]="m.role" (ngModelChange)="changeMemberRole(m, $event)">
+                  <option [value]="0">Viewer</option>
+                  <option [value]="1">Member</option>
+                  <option [value]="2">Lead</option>
+                  <option [value]="3">Manager</option>
+                </select>
+              }
               <button class="icon-btn danger-icon" title="Remove from project" (click)="removeMember(m)">
                 <span class="material-icons-round">person_remove</span>
               </button>
@@ -1020,11 +1026,11 @@ const COLUMNS = [
                 </select>
               </div>
             </div>
-            <div class="field-group" *ngIf="users().length > 0">
+            <div class="field-group" *ngIf="members().length > 0">
               <label class="field-label">Assignee</label>
               <select class="field-input" formControlName="assigneeId">
                 <option [ngValue]="null">— Unassigned —</option>
-                <option *ngFor="let u of users()" [value]="u.id">{{ u.fullName }}</option>
+                <option *ngFor="let m of assignableMembers()" [value]="m.userId">{{ m.fullName }}</option>
               </select>
             </div>
             <div class="form-actions">
@@ -1082,11 +1088,11 @@ const COLUMNS = [
               </select>
             </div>
           </div>
-          <div class="field-group" *ngIf="users().length > 0">
+          <div class="field-group" *ngIf="members().length > 0">
             <label class="field-label">Assignee</label>
             <select class="field-input" formControlName="assigneeId">
               <option [ngValue]="null">— Unassigned —</option>
-              <option *ngFor="let u of users()" [value]="u.id">{{ u.fullName }}</option>
+              <option *ngFor="let m of assignableMembers()" [value]="m.userId">{{ m.fullName }}</option>
             </select>
           </div>
           <div class="form-actions">
@@ -1208,11 +1214,11 @@ const COLUMNS = [
               </select>
             </div>
           </div>
-          <div class="field-group" *ngIf="users().length > 0">
+          <div class="field-group" *ngIf="members().length > 0">
             <label class="field-label">Assignee</label>
             <select class="field-input" formControlName="assigneeId">
               <option [ngValue]="null">— Unassigned —</option>
-              <option *ngFor="let u of users()" [value]="u.id">{{ u.fullName }}</option>
+              <option *ngFor="let m of assignableMembers()" [value]="m.userId">{{ m.fullName }}</option>
             </select>
           </div>
           <div class="form-actions">
@@ -1459,16 +1465,30 @@ const COLUMNS = [
             <span class="material-icons-round">close</span>
           </button>
         </div>
+
         <ng-container *ngIf="completingSprintCarryOver() > 0">
           <div class="retro-carry-warn">
             <span class="material-icons-round">warning</span>
-            <span><strong>{{ completingSprintCarryOver() }} incomplete task(s)</strong> will be carried over to the backlog.</span>
+            <span><strong>{{ completingSprintCarryOver() }} incomplete task(s)</strong> will be carried over.</span>
+          </div>
+          <div class="field-group" style="margin-top:12px">
+            <label class="field-label">Move incomplete tasks to</label>
+            <select class="field-input" style="padding:8px 10px"
+                    [(ngModel)]="completingSprintTargetId">
+              <option [ngValue]="null">Backlog</option>
+              <option *ngFor="let s of futureSprints()" [ngValue]="s.id">{{ s.name }}</option>
+            </select>
+            <p *ngIf="futureSprints().length === 0" style="font-size:12px;color:var(--soft);margin:4px 0 0">
+              No planned sprints — tasks will go to the backlog.
+            </p>
           </div>
         </ng-container>
-        <div class="field-group">
+
+        <div class="field-group" [style.margin-top]="completingSprintCarryOver() > 0 ? '16px' : '0'">
           <label class="field-label">Retrospective Notes <span style="font-weight:400;text-transform:none">(optional)</span></label>
           <textarea class="field-input" rows="5" placeholder="What went well? What could be improved?" [(ngModel)]="completingSprintRetroNotes"></textarea>
         </div>
+
         <div class="form-actions">
           <button class="btn-ghost" (click)="cancelCompleteSprint()">Cancel</button>
           <button class="btn-primary" (click)="confirmCompleteSprint()">Complete Sprint</button>
@@ -2206,6 +2226,8 @@ const COLUMNS = [
       cursor: pointer;
     }
     .role-select:focus { outline: none; border-color: var(--violet); }
+    .pm-locked { display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; color: var(--violet); background: var(--violet-c); border-radius: var(--r-full); padding: 4px 10px; }
+    .pm-locked .material-icons-round { font-size: 13px; }
 
     /* ── Labels ── */
     .label-chip {
@@ -2454,6 +2476,7 @@ export class ProjectDetailComponent implements OnInit {
   private dependencyService = inject(TaskDependencyService);
   private memberService = inject(ProjectMemberService);
   private userService = inject(UserService);
+  private auth = inject(AuthService);
   private ticketService = inject(TicketService);
   private inviteService = inject(InviteService);
   private fb = inject(FormBuilder);
@@ -2478,6 +2501,9 @@ export class ProjectDetailComponent implements OnInit {
 
   completingSprintId = signal<string | null>(null);
   completingSprintRetroNotes = '';
+  completingSprintTargetId: string | null = null;
+  futureSprints = signal<Sprint[]>([]);
+
   completingSprintCarryOver = computed(() => {
     const id = this.completingSprintId();
     if (!id) return 0;
@@ -2556,6 +2582,22 @@ export class ProjectDetailComponent implements OnInit {
   members = signal<ProjectMember[]>([]);
   membersLoading = signal(false);
   showAddMember = signal(false);
+
+  myProjectRole = computed(() => {
+    const me = this.auth.user()?.userId;
+    return this.members().find(m => m.userId === me)?.role ?? ProjectMemberRole.Viewer;
+  });
+
+  assignableMembers = computed(() => {
+    const isManager = this.myProjectRole() === ProjectMemberRole.Manager || this.auth.isAdmin();
+    return isManager
+      ? this.members()
+      : this.members().filter(m => m.role !== ProjectMemberRole.Manager);
+  });
+
+  canManageMembers = computed(() =>
+    this.myProjectRole() === ProjectMemberRole.Manager || this.auth.isAdmin()
+  );
 
   addMemberForm = this.fb.group({
     userId: ['', Validators.required],
@@ -2825,6 +2867,7 @@ export class ProjectDetailComponent implements OnInit {
     this.taskService.getByProject(id).subscribe(t => { this.tasks.set(t); this.filteredTasks.set(t); });
     this.projectService.getSprints(id).subscribe(s => this.sprints.set(s));
     this.userService.getAll().subscribe({ next: u => this.users.set(u), error: () => {} });
+    this.loadMembers();
     this.labelService.seed(id).subscribe({
       complete: () => this.labelService.getByProject(id).subscribe(l => this.labels.set(l)),
       error: () => this.labelService.getByProject(id).subscribe(l => this.labels.set(l)),
@@ -3213,20 +3256,43 @@ export class ProjectDetailComponent implements OnInit {
   openCompleteSprint(s: Sprint) {
     this.completingSprintId.set(s.id);
     this.completingSprintRetroNotes = '';
+    this.completingSprintTargetId = null;
+    this.futureSprints.set([]);
+
+    const projectId = this.project()?.id;
+    if (projectId) {
+      this.projectService.getFutureSprints(projectId).subscribe({
+        next: sprints => this.futureSprints.set(sprints),
+      });
+    }
   }
 
   cancelCompleteSprint() {
     this.completingSprintId.set(null);
     this.completingSprintRetroNotes = '';
+    this.completingSprintTargetId = null;
+    this.futureSprints.set([]);
   }
 
   confirmCompleteSprint() {
     const id = this.completingSprintId();
     if (!id) return;
     const notes = this.completingSprintRetroNotes.trim() || undefined;
+    const targetId = this.completingSprintTargetId;
+    const carryCount = this.completingSprintCarryOver();
+    const targetName = targetId
+      ? (this.futureSprints().find(s => s.id === targetId)?.name ?? 'next sprint')
+      : 'backlog';
     this.cancelCompleteSprint();
-    this.projectService.completeSprint(id, notes).subscribe({
-      next: updated => { this.sprints.update(all => all.map(x => x.id === updated.id ? updated : x)); this.toast('Sprint completed'); },
+
+    this.projectService.completeSprint(id, notes, targetId).subscribe({
+      next: updated => {
+        this.sprints.update(all => all.map(x => x.id === updated.id ? updated : x));
+        const msg = carryCount > 0
+          ? `Sprint completed — ${carryCount} task(s) moved to ${targetName}`
+          : 'Sprint completed';
+        this.toast(msg);
+      },
       error: () => this.toast('Failed to complete sprint', true),
     });
   }
