@@ -35,7 +35,7 @@ internal sealed class RegisterCommandHandler(
                 return Error.Validation("Auth.InvalidInvite", "Invite link is invalid or has expired.");
         }
 
-        var role = invite is not null ? UserRole.Customer : UserRole.Internal;
+        var role = invite is not null ? UserRole.Client : UserRole.Staff; // PM designation is admin-assigned only
 
         var user = new ApplicationUser
         {

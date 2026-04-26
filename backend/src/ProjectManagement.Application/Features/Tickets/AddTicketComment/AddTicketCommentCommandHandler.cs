@@ -25,15 +25,15 @@ internal sealed class AddTicketCommentCommandHandler(
             return Error.NotFound("Ticket.NotFound", "Ticket not found.");
 
         var role = await users.GetRoleAsync(currentUser.UserId, ct);
-        var isFromCustomer = role == UserRole.Customer;
+        var isFromCustomer = role == UserRole.Client;
 
         var comment = TicketComment.Create(req.TicketId, currentUser.UserId, req.Content, isFromCustomer);
         await comments.AddAsync(comment, ct);
 
-        // Notify the assigned agent when a customer replies
+        // Notify the assigned agent when a client replies
         if (isFromCustomer && ticket.AssignedToId is not null)
         {
-            var title = "Customer Reply";
+            var title = "Client Reply";
             var body  = $"{currentUser.FullName} replied on ticket #{ticket.Number}: \"{ticket.Subject}\"";
             var notification = Notification.Create(
                 ticket.AssignedToId, title, body,

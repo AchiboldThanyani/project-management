@@ -11,6 +11,7 @@ internal sealed class UpdateProjectMemberRoleCommandHandler(
     IProjectMemberRepository repo,
     ICurrentUserService currentUser,
     IProjectPermissionService permissions,
+    IUserRepository users,
     IUnitOfWork unitOfWork)
     : IRequestHandler<UpdateProjectMemberRoleCommand, Result<ProjectMemberDto>>
 {
@@ -19,11 +20,17 @@ internal sealed class UpdateProjectMemberRoleCommandHandler(
     {
         if (!await permissions.HasProjectRoleAsync(request.ProjectId, currentUser.UserId, ProjectMemberRole.Manager, cancellationToken))
             return Error.Forbidden("ProjectMember.Forbidden", "You must be a Manager to change member roles.");
+
         var members = await repo.FindAsync(
             m => m.ProjectId == request.ProjectId && m.UserId == request.UserId, cancellationToken);
 
         if (members.Count == 0)
             return Error.NotFound("ProjectMember.NotFound", "Member not found on this project.");
+
+        // ProjectManagers are permanently locked to Manager role
+        var systemRole = await users.GetRoleAsync(request.UserId, cancellationToken);
+        if (systemRole == UserRole.ProjectManager)
+            return Error.Forbidden("ProjectMember.RoleLocked", "A Project Manager's role cannot be changed — it is set by their system designation.");
 
         members[0].UpdateRole(request.Role);
         await unitOfWork.SaveChangesAsync(cancellationToken);

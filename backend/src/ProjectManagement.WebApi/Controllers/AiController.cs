@@ -8,7 +8,7 @@ namespace ProjectManagement.WebApi.Controllers;
 
 [ApiController]
 [Route("api/ai")]
-[Authorize(Roles = "Internal,Admin")]
+[Authorize(Roles = "ProjectManager,Admin")]
 public class AiController(IMediator mediator) : ControllerBase
 {
     [HttpPost("ask")]

@@ -8,6 +8,6 @@ public record UserDto
     public string Email { get; init; } = default!;
     public string FirstName { get; init; } = default!;
     public string LastName { get; init; } = default!;
-    public UserRole Role { get; init; } = UserRole.Internal;
+    public UserRole Role { get; init; } = UserRole.Staff;
     public string FullName => $"{FirstName} {LastName}";
 }

@@ -74,8 +74,10 @@ import { NotificationBellComponent } from './notification-bell.component';
         <router-outlet></router-outlet>
       </div>
 
-      <!-- ─── AI ASSISTANT (floating) ───────────────── -->
-      <app-ai-assistant class="ai-fab" />
+      <!-- ─── AI ASSISTANT (floating) — PM + Admin only ─ -->
+      @if (auth.isAdmin() || auth.isProjectManager()) {
+        <app-ai-assistant class="ai-fab" />
+      }
 
     </div>
   `,

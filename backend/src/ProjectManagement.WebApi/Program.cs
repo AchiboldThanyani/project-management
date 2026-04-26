@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using ProjectManagement.Application;
 using ProjectManagement.Infrastructure;
+using ProjectManagement.WebApi;
 using ProjectManagement.WebApi.Middleware;
 using Scalar.AspNetCore;
 
@@ -94,5 +95,10 @@ app.MapControllers();
 app.MapHealthChecks("/health");
 app.MapHub<ProjectManagement.WebApi.Hubs.TaskHub>("/hubs/tasks").RequireCors("Angular");
 app.MapHub<ProjectManagement.WebApi.Hubs.BoardHub>("/hubs/boards").RequireCors("Angular");
+
+if (app.Environment.IsDevelopment())
+    await DbSeeder.SeedDemoDataAsync(app.Services);
+else
+    await DbSeeder.SeedAdminUserAsync(app.Services);
 
 app.Run();

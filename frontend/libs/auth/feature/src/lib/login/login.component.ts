@@ -226,7 +226,7 @@ export class LoginComponent {
     this.error = null;
     this.authService.login(this.form.value).subscribe({
       next: () => {
-          const route = this.authService.isCustomer() ? '/portal/tickets' : '/dashboard';
+          const route = this.authService.isClient() ? '/portal/tickets' : '/dashboard';
           this.router.navigate([route]);
         },
       error: (err: any) => {

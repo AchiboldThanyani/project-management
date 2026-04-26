@@ -556,10 +556,9 @@ const COLUMNS = [
       </div>
 
       <!-- ── Brainstorm tab ────────────────────────── -->
-      <pm-boards-tab
-        *ngIf="activeTab === 'brainstorm' && project()"
-        [projectId]="project()!.id"
-      />
+      <div *ngIf="activeTab === 'brainstorm' && project()" style="display:flex;flex-direction:column;height:calc(100vh - 160px);">
+        <pm-boards-tab [projectId]="project()!.id" />
+      </div>
 
     </div>
 
@@ -2550,7 +2549,7 @@ export class ProjectDetailComponent implements OnInit {
   editMode = signal(false);
   editingSprint = signal<Sprint | null>(null);
 
-  activeTab: 'board' | 'sprints' | 'issues' | 'timeline' | 'members' | 'tickets' | 'invites' = 'board';
+  activeTab: 'board' | 'sprints' | 'issues' | 'timeline' | 'members' | 'tickets' | 'invites' | 'brainstorm' = 'board';
   openSprintMenuId: string | null = null;
 
   completingSprintId = signal<string | null>(null);

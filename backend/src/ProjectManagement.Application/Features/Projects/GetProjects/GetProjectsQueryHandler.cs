@@ -12,13 +12,13 @@ internal sealed class GetProjectsQueryHandler(IProjectRepository repository, IMa
 {
     public async Task<Result<PagedResult<ProjectDto>>> Handle(GetProjectsQuery request, CancellationToken cancellationToken)
     {
-        var cacheKey = $"projects:{request.UserId}:p{request.Page}:s{request.PageSize}";
+        var cacheKey = $"projects:{request.UserId}:admin{request.IsAdmin}:p{request.Page}:s{request.PageSize}";
 
         if (cache.TryGetValue(cacheKey, out PagedResult<ProjectDto>? cached) && cached is not null)
             return Result<PagedResult<ProjectDto>>.Success(cached);
 
-        var (items, totalCount) = await repository.FindPagedAsync(
-            p => p.OwnerId == request.UserId, request.Page, request.PageSize, cancellationToken);
+        var (items, totalCount) = await repository.GetProjectsForUserAsync(
+            request.UserId, request.IsAdmin, request.Page, request.PageSize, cancellationToken);
 
         var dtos = mapper.Map<IReadOnlyList<ProjectDto>>(items);
         var result = new PagedResult<ProjectDto>(dtos, totalCount, request.Page, request.PageSize);

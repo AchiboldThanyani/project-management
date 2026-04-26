@@ -12,10 +12,8 @@ public static class TeamDtoBuilder
         CancellationToken cancellationToken)
     {
         var userIds = members.Select(m => m.UserId).Distinct().ToList();
-        var users = await Task.WhenAll(userIds.Select(id => userRepository.GetUserByIdAsync(id, cancellationToken)));
-        var userMap = users
-            .Where(u => u is not null)
-            .ToDictionary(u => u!.Id, u => u!);
+        var users = await userRepository.GetUsersByIdsAsync(userIds, cancellationToken);
+        var userMap = users.ToDictionary(u => u.Id, u => u);
 
         return new TeamDto
         {
@@ -45,10 +43,8 @@ public static class TeamDtoBuilder
         CancellationToken cancellationToken)
     {
         var userIds = allMembers.Select(m => m.UserId).Distinct().ToList();
-        var users = await Task.WhenAll(userIds.Select(id => userRepository.GetUserByIdAsync(id, cancellationToken)));
-        var userMap = users
-            .Where(u => u is not null)
-            .ToDictionary(u => u!.Id, u => u!);
+        var users = await userRepository.GetUsersByIdsAsync(userIds, cancellationToken);
+        var userMap = users.ToDictionary(u => u.Id, u => u);
 
         var membersByTeam = allMembers.GroupBy(m => m.TeamId).ToDictionary(g => g.Key, g => g.ToList());
 

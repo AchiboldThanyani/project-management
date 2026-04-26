@@ -10,7 +10,7 @@ namespace ProjectManagement.Infrastructure.Services;
 
 public class JwtTokenService(IConfiguration configuration) : IJwtTokenService
 {
-    public string GenerateToken(string userId, string email, string firstName, string lastName, string role = "Internal")
+    public string GenerateToken(string userId, string email, string firstName, string lastName, string role = "Staff")
     {
         var jwtSettings = configuration.GetSection("JwtSettings");
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Secret"]!));

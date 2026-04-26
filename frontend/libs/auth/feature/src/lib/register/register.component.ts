@@ -220,7 +220,7 @@ export class RegisterComponent {
     this.error = null;
     this.authService.register(this.form.value).subscribe({
       next: () => {
-          const route = this.authService.isCustomer() ? '/portal/tickets' : '/dashboard';
+          const route = this.authService.isClient() ? '/portal/tickets' : '/dashboard';
           this.router.navigate([route]);
         },
       error: (err: any) => {

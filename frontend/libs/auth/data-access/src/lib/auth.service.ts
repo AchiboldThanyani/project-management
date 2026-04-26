@@ -21,8 +21,9 @@ export class AuthService {
   readonly token = this._token.asReadonly();
   readonly user = this._user.asReadonly();
   readonly isAuthenticated = computed(() => !!this._token());
-  readonly role = computed(() => this._user()?.role ?? 'Internal');
-  readonly isCustomer = computed(() => this.role() === 'Customer');
+  readonly role = computed(() => this._user()?.role ?? 'Staff');
+  readonly isClient = computed(() => this.role() === 'Client');
+  readonly isProjectManager = computed(() => this.role() === 'ProjectManager');
   readonly isAdmin = computed(() => this.role() === 'Admin');
 
   constructor(private http: HttpClient, private router: Router) {
@@ -69,11 +70,12 @@ export class AuthService {
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
       const role = payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] ?? payload['role'];
-      if (role === 'Customer') return 'Customer';
+      if (role === 'ProjectManager') return 'ProjectManager';
+      if (role === 'Client') return 'Client';
       if (role === 'Admin') return 'Admin';
-      return 'Internal';
+      return 'Staff';
     } catch {
-      return 'Internal';
+      return 'Staff';
     }
   }
 

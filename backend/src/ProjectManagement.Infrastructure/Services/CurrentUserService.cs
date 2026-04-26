@@ -25,4 +25,7 @@ public class CurrentUserService(IHttpContextAccessor httpContextAccessor) : ICur
 
     public bool IsAdmin =>
         httpContextAccessor.HttpContext?.User.IsInRole("Admin") ?? false;
+
+    public bool IsProjectManager =>
+        httpContextAccessor.HttpContext?.User.IsInRole("ProjectManager") ?? false;
 }

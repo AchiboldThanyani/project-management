@@ -32,7 +32,7 @@ public class ProjectsController(IMediator mediator) : ControllerBase
     [HttpGet]
     public async Task<ActionResult<PagedResult<ProjectDto>>> GetAll(
         [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
-        => (await mediator.Send(new GetProjectsQuery(CurrentUserId, page, pageSize), ct)).ToActionResult(this);
+        => (await mediator.Send(new GetProjectsQuery(CurrentUserId, User.IsInRole("Admin"), page, pageSize), ct)).ToActionResult(this);
 
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<ProjectDto>> GetById(Guid id, CancellationToken ct)

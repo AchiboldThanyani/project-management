@@ -19,6 +19,7 @@ export interface ProjectMember {
   fullName: string;
   email: string;
   role: ProjectMemberRole;
+  systemRole: number;
   openTaskCount: number;
   joinedAt: string;
 }

@@ -16,7 +16,7 @@ namespace ProjectManagement.WebApi.Controllers;
 /// <summary>Internal dev-side ticket endpoints.</summary>
 [ApiController]
 [Route("api/projects/{projectId:guid}/tickets")]
-[Authorize(Roles = "Internal,Admin")]
+[Authorize(Roles = "Staff,ProjectManager,Admin")]
 public class TicketsController(IMediator mediator) : ControllerBase
 {
     [HttpGet]

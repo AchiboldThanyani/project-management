@@ -7,7 +7,7 @@ export interface AdminUser {
   email: string;
   firstName: string;
   lastName: string;
-  role: number; // 0=Internal, 1=Customer, 2=Admin
+  role: number; // 0=Staff, 1=ProjectManager, 2=Client, 3=Admin
   fullName: string;
 }
 

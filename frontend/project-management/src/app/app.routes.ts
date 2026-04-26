@@ -1,5 +1,5 @@
 import { Route } from '@angular/router';
-import { adminGuard, authGuard, customerGuard, guestGuard } from '@pm/shared/util';
+import { adminGuard, authGuard, clientGuard, guestGuard } from '@pm/shared/util';
 
 export const appRoutes: Route[] = [
   { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
@@ -19,7 +19,7 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'portal',
-    canActivate: [customerGuard],
+    canActivate: [clientGuard],
     loadComponent: () => import('./portal/portal-shell.component').then((m) => m.PortalShellComponent),
     children: [
       { path: '', redirectTo: 'tickets', pathMatch: 'full' },

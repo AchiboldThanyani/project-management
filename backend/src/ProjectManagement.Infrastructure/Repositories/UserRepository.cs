@@ -33,6 +33,15 @@ public class UserRepository(UserManager<ApplicationUser> userManager) : IUserRep
         return new UserDto { Id = u.Id, Email = u.Email!, FirstName = u.FirstName, LastName = u.LastName, Role = u.Role };
     }
 
+    public async Task<IReadOnlyList<UserDto>> GetUsersByIdsAsync(IEnumerable<string> userIds, CancellationToken ct = default)
+    {
+        var ids = userIds.ToList();
+        return await userManager.Users
+            .Where(u => ids.Contains(u.Id))
+            .Select(u => new UserDto { Id = u.Id, Email = u.Email!, FirstName = u.FirstName, LastName = u.LastName, Role = u.Role })
+            .ToListAsync(ct);
+    }
+
     public async Task<Dictionary<string, string>> GetNamesByIdsAsync(IEnumerable<string> userIds, CancellationToken ct = default)
     {
         var ids = userIds.ToList();
@@ -44,7 +53,7 @@ public class UserRepository(UserManager<ApplicationUser> userManager) : IUserRep
     public async Task<UserRole> GetRoleAsync(string userId, CancellationToken ct = default)
     {
         var user = await userManager.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
-        return user?.Role ?? UserRole.Internal;
+        return user?.Role ?? UserRole.Staff;
     }
 
     public async Task<bool> ChangeUserRoleAsync(string userId, UserRole newRole, CancellationToken ct = default)

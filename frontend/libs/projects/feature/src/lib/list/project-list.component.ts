@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, inject } from '@angular/core';
+import { Component, OnInit, signal, inject, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -76,9 +76,6 @@ import { ConfirmDialogComponent } from '@pm/shared/util';
         </div>
       </div>
     </div>
-
-    <!-- Backdrop for menu -->
-    <div class="menu-backdrop" *ngIf="menuOpen" (click)="menuOpen=null"></div>
 
     <!-- Create / Edit Dialog -->
     <div class="dialog-overlay" *ngIf="showForm()" (click)="closeForm()">
@@ -178,7 +175,6 @@ import { ConfirmDialogComponent } from '@pm/shared/util';
     .dd-item .material-icons-round { font-size: 15px; color: var(--muted); }
     .dd-item.danger { color: var(--rose); }
     .dd-item.danger .material-icons-round { color: var(--rose); }
-    .menu-backdrop { position: fixed; inset: 0; z-index: 90; }
 
     /* Empty */
     .empty-state { grid-column: 1/-1; display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 64px 0; color: var(--soft); }
@@ -229,6 +225,9 @@ export class ProjectListComponent implements OnInit {
   saving = signal(false);
   editingProject = signal<Project | null>(null);
   menuOpen: string | null = null;
+
+  @HostListener('document:click')
+  closeMenu() { this.menuOpen = null; }
 
   private readonly ACCENT_COUNT = 6;
   private readonly STATUS_CLASSES = ['planning', 'active', 'on-hold', 'completed', 'archived'];

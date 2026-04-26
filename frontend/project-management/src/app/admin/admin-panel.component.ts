@@ -4,8 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { AuthService } from '@pm/auth/data-access';
 import { AdminService, AdminUser } from './admin.service';
 
-const ROLE_LABELS: Record<number, string> = { 0: 'Internal', 1: 'Customer', 2: 'Admin' };
-const ROLE_CLASSES: Record<number, string> = { 0: 'role-internal', 1: 'role-customer', 2: 'role-admin' };
+const ROLE_LABELS: Record<number, string> = { 0: 'Staff', 1: 'Project Manager', 2: 'Client', 3: 'Admin' };
+const ROLE_CLASSES: Record<number, string> = { 0: 'role-staff', 1: 'role-pm', 2: 'role-client', 3: 'role-admin' };
 
 @Component({
   selector: 'app-admin-panel',
@@ -23,6 +23,7 @@ const ROLE_CLASSES: Record<number, string> = { 0: 'role-internal', 1: 'role-cust
         </div>
         <div class="topbar-meta">
           <span class="stat-chip">{{ users().length }} users</span>
+          <span class="stat-chip pms">{{ pmCount() }} PMs</span>
           <span class="stat-chip admins">{{ adminCount() }} admins</span>
         </div>
       </div>
@@ -40,11 +41,14 @@ const ROLE_CLASSES: Record<number, string> = { 0: 'role-internal', 1: 'role-cust
           <!-- Role filter tabs -->
           <div class="filter-tabs">
             <button [class.active]="roleFilter() === null" (click)="roleFilter.set(null)">All</button>
-            <button [class.active]="roleFilter() === 2" (click)="roleFilter.set(2)">
+            <button [class.active]="roleFilter() === 3" (click)="roleFilter.set(3)">
               <span class="material-icons-round">shield</span> Admins
             </button>
-            <button [class.active]="roleFilter() === 0" (click)="roleFilter.set(0)">Internal</button>
-            <button [class.active]="roleFilter() === 1" (click)="roleFilter.set(1)">Customers</button>
+            <button [class.active]="roleFilter() === 1" (click)="roleFilter.set(1)">
+              <span class="material-icons-round">manage_accounts</span> Project Managers
+            </button>
+            <button [class.active]="roleFilter() === 0" (click)="roleFilter.set(0)">Staff</button>
+            <button [class.active]="roleFilter() === 2" (click)="roleFilter.set(2)">Clients</button>
           </div>
 
           <!-- User table -->
@@ -76,14 +80,16 @@ const ROLE_CLASSES: Record<number, string> = { 0: 'role-internal', 1: 'role-cust
                       <span [class]="'role-badge ' + roleClass(u.role)">{{ roleLabel(u.role) }}</span>
                     </td>
                     <td class="action-cell">
-                      @if (u.id !== currentUserId()) {
-                        <select [ngModel]="u.role" (ngModelChange)="changeRole(u, $event)" class="role-select">
-                          <option [value]="0">Internal</option>
-                          <option [value]="1">Customer</option>
-                          <option [value]="2">Admin</option>
-                        </select>
-                      } @else {
+                      @if (u.id === currentUserId()) {
                         <span class="no-change">Cannot change own role</span>
+                      } @else if (u.role === 2) {
+                        <span class="no-change">External client — fixed</span>
+                      } @else {
+                        <select [ngModel]="u.role" (ngModelChange)="changeRole(u, +$event)" class="role-select">
+                          <option [ngValue]="0">Staff</option>
+                          <option [ngValue]="1">Project Manager</option>
+                          <option [ngValue]="3">Admin</option>
+                        </select>
                       }
                     </td>
                   </tr>
@@ -111,7 +117,8 @@ const ROLE_CLASSES: Record<number, string> = { 0: 'role-internal', 1: 'role-cust
     .topbar-sub { font-size: 12px; color: var(--muted); }
     .topbar-meta { display: flex; gap: 8px; }
     .stat-chip { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-full); padding: 4px 12px; font-size: 12px; font-weight: 600; color: var(--muted); }
-    .stat-chip.admins { background: var(--amber-c); color: var(--amber); border-color: var(--amber); }
+    .stat-chip.pms    { background: var(--violet-c); color: var(--violet); border-color: var(--violet); }
+    .stat-chip.admins { background: var(--amber-c);  color: var(--amber);  border-color: var(--amber); }
 
     .content { flex: 1; overflow-y: auto; padding: 24px 28px; display: flex; flex-direction: column; gap: 16px; }
     .loading { display: flex; justify-content: center; padding: 60px; }
@@ -146,17 +153,19 @@ const ROLE_CLASSES: Record<number, string> = { 0: 'role-internal', 1: 'role-cust
 
     .user-cell { display: flex; align-items: center; gap: 10px; }
     .avatar { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; flex-shrink: 0; }
-    .avatar.av-internal { background: var(--blue); }
-    .avatar.av-customer { background: var(--teal); }
-    .avatar.av-admin    { background: var(--amber); }
+    .avatar.av-staff  { background: var(--blue); }
+    .avatar.av-pm     { background: var(--violet); }
+    .avatar.av-client { background: var(--teal); }
+    .avatar.av-admin  { background: var(--amber); }
     .user-name { font-size: 14px; font-weight: 600; color: var(--ink); display: flex; align-items: center; gap: 6px; }
     .you-badge { font-size: 10px; font-weight: 600; background: var(--violet-c); color: var(--violet); padding: 1px 7px; border-radius: var(--r-full); }
     .email-cell { font-size: 13px; color: var(--muted); }
 
     .role-badge { padding: 3px 10px; border-radius: var(--r-full); font-size: 12px; font-weight: 600; }
-    .role-internal { background: var(--blue-c);   color: var(--blue); }
-    .role-customer  { background: var(--teal-c);   color: var(--teal); }
-    .role-admin     { background: var(--amber-c);  color: var(--amber); }
+    .role-staff  { background: var(--blue-c);    color: var(--blue); }
+    .role-pm     { background: var(--violet-c); color: var(--violet); }
+    .role-client { background: var(--teal-c);   color: var(--teal); }
+    .role-admin  { background: var(--amber-c);  color: var(--amber); }
 
     .action-cell { width: 180px; }
     .role-select { border: 1px solid var(--border); border-radius: var(--r-md); padding: 6px 10px; font-size: 13px; color: var(--ink); background: var(--surface); outline: none; cursor: pointer; width: 100%; }
@@ -175,7 +184,8 @@ export class AdminPanelComponent implements OnInit {
   roleFilter = signal<number | null>(null);
 
   currentUserId = () => this.auth.user()?.userId ?? '';
-  adminCount = () => this.users().filter(u => u.role === 2).length;
+  adminCount = () => this.users().filter(u => u.role === 3).length;
+  pmCount = () => this.users().filter(u => u.role === 1).length;
 
   filtered(): AdminUser[] {
     const q = this.search.toLowerCase();
@@ -203,6 +213,6 @@ export class AdminPanelComponent implements OnInit {
 
   roleLabel(r: number) { return ROLE_LABELS[r] ?? 'Internal'; }
   roleClass(r: number) { return ROLE_CLASSES[r] ?? 'role-internal'; }
-  avatarClass(r: number) { return r === 2 ? 'av-admin' : r === 1 ? 'av-customer' : 'av-internal'; }
+  avatarClass(r: number) { return r === 3 ? 'av-admin' : r === 2 ? 'av-client' : r === 1 ? 'av-pm' : 'av-staff'; }
   initials(name: string) { return name.split(' ').map(p => p[0] ?? '').join('').slice(0, 2).toUpperCase(); }
 }

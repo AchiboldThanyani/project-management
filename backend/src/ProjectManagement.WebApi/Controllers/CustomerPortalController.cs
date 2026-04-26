@@ -14,10 +14,10 @@ using ProjectManagement.WebApi.Extensions;
 
 namespace ProjectManagement.WebApi.Controllers;
 
-/// <summary>Customer-facing portal endpoints — only accessible to Customer role.</summary>
+/// <summary>Client-facing portal endpoints — only accessible to Client role.</summary>
 [ApiController]
 [Route("api/portal")]
-[Authorize(Roles = "Customer")]
+[Authorize(Roles = "Client")]
 public class CustomerPortalController(IMediator mediator) : ControllerBase
 {
     [HttpGet("projects")]
