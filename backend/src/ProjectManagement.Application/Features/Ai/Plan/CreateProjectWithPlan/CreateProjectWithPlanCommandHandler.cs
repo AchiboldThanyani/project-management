@@ -22,6 +22,8 @@ internal sealed class CreateProjectWithPlanCommandHandler(
         if (!currentUser.IsProjectManager && !currentUser.IsAdmin)
             return Error.Forbidden("Plan.Forbidden", "Only Project Managers and Admins can apply a plan.");
 
+        // OwnerId is always the calling user — AI plans belong to the PM who generated them,
+        // not a separately nominated owner.
         var project = Project.Create(req.Name, currentUser.UserId, req.Description);
         await projectRepository.AddAsync(project, ct);
 
@@ -29,6 +31,8 @@ internal sealed class CreateProjectWithPlanCommandHandler(
             $"created project \"{req.Name}\" from AI plan", "Project", project.Id, req.Name);
         await activityRepository.AddAsync(projectLog, ct);
 
+        // Per-task activity logging is intentionally omitted to avoid flooding the feed
+        // when bulk-creating tasks from an AI plan. The project-level entry above covers the audit trail.
         foreach (var item in req.Tasks)
         {
             var task = ProjectTask.Create(
