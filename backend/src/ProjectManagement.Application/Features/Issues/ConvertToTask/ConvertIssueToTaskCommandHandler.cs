@@ -22,10 +22,12 @@ internal sealed class ConvertIssueToTaskCommandHandler(
         if (issue is null) return IssueErrors.NotFound(request.IssueId);
         if (issue.ConvertedToTaskId.HasValue) return IssueErrors.AlreadyConverted;
 
+        var taskNumber = await taskRepository.GetNextTaskNumberAsync(issue.ProjectId, cancellationToken);
         var task = ProjectTask.Create(
             issue.Title,
             issue.ProjectId,
             issue.ReporterId,
+            taskNumber,
             issue.Description,
             request.Priority ?? issue.Priority,
             null,
@@ -44,6 +46,7 @@ internal sealed class ConvertIssueToTaskCommandHandler(
         return new TaskDto
         {
             Id = task.Id,
+            TaskNumber = task.TaskNumber,
             Title = task.Title,
             Description = task.Description,
             Priority = task.Priority,

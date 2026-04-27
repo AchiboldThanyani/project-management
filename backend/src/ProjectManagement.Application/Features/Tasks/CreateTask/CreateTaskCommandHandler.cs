@@ -23,10 +23,13 @@ internal sealed class CreateTaskCommandHandler(
         if (!await permissions.HasProjectRoleAsync(request.ProjectId, currentUser.UserId, ProjectMemberRole.Member, cancellationToken))
             return Error.Forbidden("Task.Forbidden", "You must be a project member to create tasks.");
 
+        var taskNumber = await repository.GetNextTaskNumberAsync(request.ProjectId, cancellationToken);
+
         var task = ProjectTask.Create(
             request.Title,
             request.ProjectId,
             request.ReporterId,
+            taskNumber,
             request.Description,
             request.Priority,
             request.DueDate,

@@ -24,6 +24,15 @@ public class TaskRepository(ApplicationDbContext context)
     public async Task<ProjectTask?> GetByIdWithLabelsAsync(Guid taskId, CancellationToken ct = default) =>
         await WithDependencies(context.Tasks).FirstOrDefaultAsync(t => t.Id == taskId, ct);
 
+    public async Task<int> GetNextTaskNumberAsync(Guid projectId, CancellationToken ct = default)
+    {
+        var max = await context.Tasks
+            .Where(t => t.ProjectId == projectId)
+            .Select(t => (int?)t.TaskNumber)
+            .MaxAsync(ct);
+        return (max ?? 0) + 1;
+    }
+
     public async Task BulkUpdateSprintAsync(IEnumerable<Guid> taskIds, Guid? sprintId, CancellationToken ct)
     {
         var ids = taskIds.ToList();

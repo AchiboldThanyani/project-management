@@ -1019,7 +1019,7 @@ const COLUMNS = [
                       <span class="material-icons-round">delete_outline</span>
                     </button>
                   </div>
-                  <div class="comment-content" [innerHTML]="mentionHtml(c.content)"></div>
+                  <p class="comment-content">{{ mentionText(c.content) }}</p>
                 </div>
               </div>
               <p *ngIf="comments().length === 0 && !commentsLoading()" class="no-comments">No comments yet.</p>
@@ -3549,7 +3549,7 @@ export class ProjectDetailComponent implements OnInit {
     });
   }
 
-  taskId(task: Task): string { return task.id.slice(0, 8).toUpperCase(); }
+  taskId(task: Task): string { return `TASK-${task.taskNumber.toString().padStart(3, '0')}`; }
   doneSubtasks(task: Task): number { return (task.subTasks ?? []).filter(s => s.isCompleted).length; }
   priorityIcon(p: TaskPriority): string {
     return { [TaskPriority.Low]: '↓', [TaskPriority.Medium]: '→', [TaskPriority.High]: '↑', [TaskPriority.Critical]: '⬆' }[p] ?? '→';
@@ -3571,14 +3571,18 @@ export class ProjectDetailComponent implements OnInit {
     return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase();
   }
 
-  mentionHtml(content: string | null | undefined): SafeHtml {
+  mentionHtml(content: string | null | undefined): string {
     if (!content) return '';
-    const html = content
+    return content
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/@\[([^\]]+)\]\([^)]+\)/g, '<span class="mention-badge">@$1</span>');
-    return this.sanitizer.bypassSecurityTrustHtml(html);
+  }
+
+  mentionText(content: string | null | undefined): string {
+    if (!content) return '';
+    return content.replace(/@\[([^\]]+)\]\([^)]+\)/g, '@$1');
   }
 
   // ── Label methods ────────────────────────────────

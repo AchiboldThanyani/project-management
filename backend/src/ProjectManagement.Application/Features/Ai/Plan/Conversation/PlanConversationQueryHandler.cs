@@ -7,7 +7,7 @@ using ProjectManagement.Domain.Enums;
 
 namespace ProjectManagement.Application.Features.Ai.Plan.Conversation;
 
-public sealed class PlanConversationQueryHandler(
+internal sealed class PlanConversationQueryHandler(
     IClaudeService claude,
     ICurrentUserService currentUser)
     : IRequestHandler<PlanConversationQuery, Result<PlanConversationResponse>>

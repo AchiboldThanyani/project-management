@@ -25,10 +25,12 @@ internal sealed class ConvertTicketToTaskCommandHandler(
         if (ticket.ConvertedToTaskId.HasValue)
             return Error.Conflict("Ticket.AlreadyConverted", "Ticket has already been converted to a task.");
 
+        var taskNumber = await tasks.GetNextTaskNumberAsync(ticket.ProjectId, ct);
         var task = ProjectTask.Create(
             req.Title        ?? ticket.Subject,
             ticket.ProjectId,
             currentUser.UserId,
+            taskNumber,
             req.Description  ?? ticket.Description,
             req.Priority     ?? ticket.Priority,
             dueDate: null,

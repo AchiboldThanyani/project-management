@@ -11,6 +11,7 @@ namespace ProjectManagement.Application.Features.Tasks.DTOs;
 public record TaskDto
 {
     public Guid Id { get; init; }
+    public int TaskNumber { get; init; }
     public string Title { get; init; } = default!;
     public string? Description { get; init; }
     public TaskStatus Status { get; init; }

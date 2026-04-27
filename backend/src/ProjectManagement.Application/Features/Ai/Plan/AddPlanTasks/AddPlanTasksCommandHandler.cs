@@ -31,10 +31,12 @@ internal sealed class AddPlanTasksCommandHandler(
         // when bulk-creating tasks from an AI plan. A single project-level entry covers the audit trail.
         foreach (var item in req.Tasks)
         {
+            var taskNumber = await taskRepository.GetNextTaskNumberAsync(req.ProjectId, ct);
             var task = ProjectTask.Create(
                 title: item.Title,
                 projectId: req.ProjectId,
                 reporterId: currentUser.UserId,
+                taskNumber: taskNumber,
                 description: item.Description,
                 priority: item.Priority);
             await taskRepository.AddAsync(task, ct);

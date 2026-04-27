@@ -17,6 +17,7 @@ public class ProjectTask : BaseEntity
     public Guid? SprintId { get; private set; }
     public string? AssigneeId { get; private set; }
     public string ReporterId { get; private set; } = string.Empty;
+    public int TaskNumber { get; private set; }
 
     public decimal? EstimatedHours { get; private set; }
 
@@ -36,6 +37,7 @@ public class ProjectTask : BaseEntity
     private ProjectTask() { }
 
     public static ProjectTask Create(string title, Guid projectId, string reporterId,
+        int taskNumber,
         string? description = null, TaskPriority priority = TaskPriority.Medium,
         DateTime? dueDate = null, Guid? sprintId = null, string? assigneeId = null,
         int? storyPoints = null, decimal? estimatedHours = null)
@@ -45,6 +47,7 @@ public class ProjectTask : BaseEntity
             Title = title,
             ProjectId = projectId,
             ReporterId = reporterId,
+            TaskNumber = taskNumber,
             Description = description,
             Priority = priority,
             DueDate = AsUtc(dueDate),
