@@ -151,6 +151,7 @@ export class NotificationBellComponent {
       case 6: return 'play_circle';
       case 7: return 'check_circle';
       case 8: return 'group_add';
+      case 9: return 'alternate_email';
       default: return 'notifications';
     }
   }

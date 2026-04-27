@@ -1019,7 +1019,7 @@ const COLUMNS = [
                       <span class="material-icons-round">delete_outline</span>
                     </button>
                   </div>
-                  <p class="comment-content">{{ c.content }}</p>
+                  <div class="comment-content" [innerHTML]="c.content | mention"></div>
                 </div>
               </div>
               <p *ngIf="comments().length === 0 && !commentsLoading()" class="no-comments">No comments yet.</p>
