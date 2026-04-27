@@ -11,4 +11,5 @@ public enum NotificationType
     SprintStarted   = 6,
     SprintCompleted = 7,
     AddedToProject  = 8,
+    Mentioned       = 9,
 }
