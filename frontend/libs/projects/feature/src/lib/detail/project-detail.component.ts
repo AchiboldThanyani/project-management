@@ -2563,7 +2563,7 @@ const COLUMNS = [
 
     .mention-name { font-size: 13px; color: var(--ink); font-weight: 500; }
 
-    .mention-badge {
+    :host ::ng-deep .mention-badge {
       display: inline-block;
       background: rgba(99,102,241,.12);
       color: var(--violet);
