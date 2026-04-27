@@ -1019,7 +1019,7 @@ const COLUMNS = [
                       <span class="material-icons-round">delete_outline</span>
                     </button>
                   </div>
-                  <div class="comment-content" [innerHTML]="c.content | mention"></div>
+                  <div class="comment-content" [innerHTML]="mentionHtml(c.content)"></div>
                 </div>
               </div>
               <p *ngIf="comments().length === 0 && !commentsLoading()" class="no-comments">No comments yet.</p>
@@ -3569,6 +3569,16 @@ export class ProjectDetailComponent implements OnInit {
   nameInitials(name: string): string {
     const parts = name.trim().split(' ');
     return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase();
+  }
+
+  mentionHtml(content: string | null | undefined): SafeHtml {
+    if (!content) return '';
+    const html = content
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/@\[([^\]]+)\]\([^)]+\)/g, '<span class="mention-badge">@$1</span>');
+    return this.sanitizer.bypassSecurityTrustHtml(html);
   }
 
   // ── Label methods ────────────────────────────────
