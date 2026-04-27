@@ -1,9 +1,10 @@
-import { Component, signal, inject, Input, OnInit, ElementRef, ViewChild, AfterViewChecked } from '@angular/core';
+import { Component, signal, computed, inject, Input, OnInit, ElementRef, ViewChild, AfterViewChecked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { marked } from 'marked';
-import { AiService, ChatMessage } from '@pm/shared/util';
+import { AiService, ChatMessage, PlanConversationMessage, PlanConversationPhase, PlanTaskItem } from '@pm/shared/util';
+import { AuthService } from '@pm/auth/data-access';
 import { ProjectService } from '@pm/projects/data-access';
 import { Project } from '@pm/shared/models';
 
@@ -566,6 +567,20 @@ export class AiAssistantComponent implements OnInit, AfterViewChecked {
   private aiSvc = inject(AiService);
   private projectSvc = inject(ProjectService);
   private sanitizer = inject(DomSanitizer);
+  private authSvc = inject(AuthService);
+
+  // Plan Mode state
+  mode            = signal<'ask' | 'plan'>('ask');
+  canUsePlanMode  = computed(() => this.authSvc.isProjectManager() || this.authSvc.isAdmin());
+  planPhase       = signal<'clarifying' | 'generating' | 'confirming' | 'applying'>('clarifying');
+  planMessages    = signal<PlanConversationMessage[]>([]);
+  planLoading     = signal(false);
+  planError       = signal('');
+  pendingSpec     = signal('');
+  pendingTasks    = signal<PlanTaskItem[]>([]);
+  checkedTasks    = signal<boolean[]>([]);
+  newProjectName  = signal('');
+  newProjectDesc  = signal('');
 
   open        = signal(false);
   loading     = signal(false);
@@ -595,6 +610,154 @@ export class AiAssistantComponent implements OnInit, AfterViewChecked {
   toggle() { this.open.update(v => !v); }
   close()  { this.open.set(false); }
   clearChat() { this.messages.set([]); this.suggestions.set([]); }
+
+  switchMode(m: 'ask' | 'plan') {
+    this.mode.set(m);
+    this.messages.set([]);
+    this.suggestions.set([]);
+    this.planMessages.set([]);
+    this.planPhase.set('clarifying');
+    this.planError.set('');
+    this.pendingSpec.set('');
+    this.pendingTasks.set([]);
+    this.checkedTasks.set([]);
+    this.newProjectName.set('');
+    this.newProjectDesc.set('');
+  }
+
+  sendPlan() {
+    const text = this.input.trim();
+    if (!text || this.planLoading()) return;
+
+    this.planError.set('');
+    const history = [...this.planMessages()];
+    this.planMessages.update(msgs => [
+      ...msgs,
+      { role: 'user', content: text },
+      { role: 'assistant', content: '' },
+    ]);
+    this.input = '';
+    this.planLoading.set(true);
+    this.shouldScroll = true;
+
+    this.aiSvc.planConversation(history, text, 'Clarifying').subscribe({
+      next: ({ response }) => {
+        this.planMessages.update(msgs => [
+          ...msgs.slice(0, -1),
+          { role: 'assistant', content: response ?? '' },
+        ]);
+        this.planLoading.set(false);
+        this.shouldScroll = true;
+      },
+      error: () => {
+        this.planMessages.update(msgs => msgs.slice(0, -1));
+        this.planError.set('Something went wrong. Try again.');
+        this.planLoading.set(false);
+      },
+    });
+  }
+
+  onPlanEnter(event: Event) {
+    if (!(event as KeyboardEvent).shiftKey) { event.preventDefault(); this.sendPlan(); }
+  }
+
+  generateSpec() {
+    if (this.planLoading()) return;
+    this.planError.set('');
+    this.planPhase.set('generating');
+    this.planLoading.set(true);
+
+    const history = this.planMessages().filter(m => m.content !== '');
+    this.aiSvc.planConversation(history, '', 'Generating').subscribe({
+      next: ({ response }) => {
+        this.pendingSpec.set(response ?? '');
+        this.extractTasks(response ?? '');
+      },
+      error: () => {
+        this.planPhase.set('clarifying');
+        this.planError.set('Failed to generate spec. Try again.');
+        this.planLoading.set(false);
+      },
+    });
+  }
+
+  private extractTasks(spec: string) {
+    this.aiSvc.planConversation([], spec, 'Extracting').subscribe({
+      next: ({ tasks }) => {
+        if (!tasks || tasks.length === 0) {
+          this.planError.set("Claude couldn't extract tasks. Try rephrasing and generate again.");
+          this.planPhase.set('clarifying');
+          this.planLoading.set(false);
+          return;
+        }
+        const h1Match = spec.match(/^#\s+(.+)$/m);
+        const paraMatch = spec.match(/^(?!#)[^\n]+\n/m);
+        this.newProjectName.set(h1Match ? h1Match[1].trim() : 'New Project');
+        this.newProjectDesc.set(paraMatch ? paraMatch[0].trim() : '');
+        this.pendingTasks.set(tasks);
+        this.checkedTasks.set(tasks.map(() => true));
+        this.planPhase.set('confirming');
+        this.planLoading.set(false);
+        this.shouldScroll = true;
+      },
+      error: () => {
+        this.planPhase.set('clarifying');
+        this.planError.set('Failed to extract tasks. Try again.');
+        this.planLoading.set(false);
+      },
+    });
+  }
+
+  toggleTask(index: number) {
+    this.checkedTasks.update(arr => {
+      const copy = [...arr];
+      copy[index] = !copy[index];
+      return copy;
+    });
+  }
+
+  confirmedTaskCount(): number {
+    return this.checkedTasks().filter(Boolean).length;
+  }
+
+  applyPlan() {
+    const tasks = this.pendingTasks().filter((_, i) => this.checkedTasks()[i]);
+    if (tasks.length === 0) return;
+    this.planPhase.set('applying');
+    this.planError.set('');
+
+    if (this.selectedProjectId) {
+      this.aiSvc.addPlanTasks(this.selectedProjectId, tasks).subscribe({
+        next: () => this.onPlanApplied('Tasks added to backlog.'),
+        error: () => {
+          this.planPhase.set('confirming');
+          this.planError.set('Failed to add tasks. Try again.');
+        },
+      });
+    } else {
+      this.aiSvc.createProjectFromPlan({
+        name: this.newProjectName(),
+        description: this.newProjectDesc(),
+        tasks,
+      }).subscribe({
+        next: (p) => this.onPlanApplied(`Project "${p.name}" created with ${tasks.length} tasks.`),
+        error: () => {
+          this.planPhase.set('confirming');
+          this.planError.set('Failed to create project. Try again.');
+        },
+      });
+    }
+  }
+
+  private onPlanApplied(message: string) {
+    this.planPhase.set('clarifying');
+    this.planMessages.set([
+      { role: 'assistant', content: `✅ ${message} Switch to Ask mode to query your new data.` },
+    ]);
+    this.pendingTasks.set([]);
+    this.checkedTasks.set([]);
+    this.planLoading.set(false);
+  }
 
   ngAfterViewChecked() {
     if (this.shouldScroll && this.messageList) {
