@@ -819,7 +819,8 @@ export class AiAssistantComponent implements OnInit, AfterViewChecked {
   @Input() set projectId(id: string | undefined) {
     if (id) this.selectedProjectId = id;
   }
-  @ViewChild('messageList') private messageList?: ElementRef<HTMLDivElement>;
+  @ViewChild('messageList')     private messageList?:     ElementRef<HTMLDivElement>;
+  @ViewChild('planMessageList') private planMessageList?: ElementRef<HTMLDivElement>;
 
   private aiSvc = inject(AiService);
   private projectSvc = inject(ProjectService);
@@ -838,6 +839,7 @@ export class AiAssistantComponent implements OnInit, AfterViewChecked {
   checkedTasks    = signal<boolean[]>([]);
   newProjectName  = signal('');
   newProjectDesc  = signal('');
+  confirmedTaskCount = computed(() => this.checkedTasks().filter(Boolean).length);
 
   open        = signal(false);
   loading     = signal(false);
@@ -855,7 +857,7 @@ export class AiAssistantComponent implements OnInit, AfterViewChecked {
     this.projectSvc.getAll().subscribe(list => this.projects.set(list));
   }
 
-  private toHtml(text: string): SafeHtml {
+  toHtml(text: string): SafeHtml {
     const html = marked.parse(text) as string;
     return this.sanitizer.bypassSecurityTrustHtml(html);
   }
@@ -907,7 +909,7 @@ export class AiAssistantComponent implements OnInit, AfterViewChecked {
         this.shouldScroll = true;
       },
       error: () => {
-        this.planMessages.update(msgs => msgs.slice(0, -1));
+        this.planMessages.update(msgs => msgs.slice(0, -2));
         this.planError.set('Something went wrong. Try again.');
         this.planLoading.set(false);
       },
@@ -973,10 +975,6 @@ export class AiAssistantComponent implements OnInit, AfterViewChecked {
     });
   }
 
-  confirmedTaskCount(): number {
-    return this.checkedTasks().filter(Boolean).length;
-  }
-
   applyPlan() {
     const tasks = this.pendingTasks().filter((_, i) => this.checkedTasks()[i]);
     if (tasks.length === 0) return;
@@ -1013,14 +1011,17 @@ export class AiAssistantComponent implements OnInit, AfterViewChecked {
     ]);
     this.pendingTasks.set([]);
     this.checkedTasks.set([]);
+    this.pendingSpec.set('');
     this.planLoading.set(false);
   }
 
   ngAfterViewChecked() {
-    if (this.shouldScroll && this.messageList) {
-      const el = this.messageList.nativeElement;
-      el.scrollTop = el.scrollHeight;
-      this.shouldScroll = false;
+    if (this.shouldScroll) {
+      const el = (this.messageList ?? this.planMessageList)?.nativeElement;
+      if (el) {
+        el.scrollTop = el.scrollHeight;
+        this.shouldScroll = false;
+      }
     }
   }
 
