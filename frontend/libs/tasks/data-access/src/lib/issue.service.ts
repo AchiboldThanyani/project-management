@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { map } from 'rxjs/operators';
-import { Issue, IssueComment, CreateIssueRequest, UpdateIssueRequest } from '@pm/shared/models';
+import { Issue, IssueComment, CreateIssueRequest, UpdateIssueRequest, TaskPriority } from '@pm/shared/models';
 import { environment } from '@pm/shared/util';
 
 interface PagedResult<T> { items: T[]; totalCount: number; page: number; pageSize: number; }
@@ -38,7 +38,7 @@ export class IssueService {
     return this.http.patch<Issue>(`${this.base}/${id}/reopen`, {});
   }
 
-  convertToTask(id: string, sprintId: string | null, priority: number | null) {
+  convertToTask(id: string, sprintId: string | null, priority: TaskPriority | null) {
     return this.http.post<any>(`${this.base}/${id}/convert`, { sprintId, priority });
   }
 

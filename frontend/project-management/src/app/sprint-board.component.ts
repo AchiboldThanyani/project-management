@@ -26,11 +26,11 @@ const STATUS_COLUMNS = [
   { status: TaskStatus.Cancelled,  label: 'CANCELLED',   dot: 'var(--muted)' },
 ];
 
-const PRIORITY_ICONS: Record<number, string> = {
+const PRIORITY_ICONS: Record<TaskPriority, string> = {
   [TaskPriority.Low]: '↓', [TaskPriority.Medium]: '→',
   [TaskPriority.High]: '↑', [TaskPriority.Critical]: '⬆',
 };
-const PRIORITY_CLASS: Record<number, string> = {
+const PRIORITY_CLASS: Record<TaskPriority, string> = {
   [TaskPriority.Low]: 'low', [TaskPriority.Medium]: 'medium',
   [TaskPriority.High]: 'high', [TaskPriority.Critical]: 'critical',
 };
@@ -716,9 +716,15 @@ export class SprintBoardComponent implements OnInit {
   taskId(task: Task): string { return task.id.slice(0, 8).toUpperCase(); }
   priorityIcon(p: TaskPriority): string { return PRIORITY_ICONS[p] ?? '→'; }
   priorityClass(p: TaskPriority): string { return PRIORITY_CLASS[p] ?? 'low'; }
-  priorityLabel(p: number): string { return ['Low', 'Medium', 'High', 'Critical'][p] ?? ''; }
-  statusLabel(s: number): string { return ['To Do', 'In Progress', 'In Review', 'Done', 'Blocked', 'Cancelled'][s] ?? ''; }
-  statusClass(s: number): string { return ['planning', 'active', 'on-hold', 'completed', 'archived', 'archived'][s] ?? 'planning'; }
+  priorityLabel(p: TaskPriority): string {
+    return { [TaskPriority.Low]: 'Low', [TaskPriority.Medium]: 'Medium', [TaskPriority.High]: 'High', [TaskPriority.Critical]: 'Critical' }[p] ?? '';
+  }
+  statusLabel(s: TaskStatus): string {
+    return { [TaskStatus.Todo]: 'To Do', [TaskStatus.InProgress]: 'In Progress', [TaskStatus.InReview]: 'In Review', [TaskStatus.Done]: 'Done', [TaskStatus.Blocked]: 'Blocked', [TaskStatus.Cancelled]: 'Cancelled' }[s] ?? '';
+  }
+  statusClass(s: TaskStatus): string {
+    return { [TaskStatus.Todo]: 'planning', [TaskStatus.InProgress]: 'active', [TaskStatus.InReview]: 'on-hold', [TaskStatus.Done]: 'completed', [TaskStatus.Blocked]: 'archived', [TaskStatus.Cancelled]: 'archived' }[s] ?? 'planning';
+  }
   initials(name: string): string {
     const parts = name.trim().split(' ');
     return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase();

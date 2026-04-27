@@ -1,17 +1,17 @@
 export enum TaskStatus {
-  Todo = 0,
-  InProgress = 1,
-  InReview = 2,
-  Done = 3,
-  Blocked = 4,
-  Cancelled = 5,
+  Todo = 'Todo',
+  InProgress = 'InProgress',
+  InReview = 'InReview',
+  Done = 'Done',
+  Blocked = 'Blocked',
+  Cancelled = 'Cancelled',
 }
 
 export enum TaskPriority {
-  Low = 0,
-  Medium = 1,
-  High = 2,
-  Critical = 3,
+  Low = 'Low',
+  Medium = 'Medium',
+  High = 'High',
+  Critical = 'Critical',
 }
 
 export interface SubTask {

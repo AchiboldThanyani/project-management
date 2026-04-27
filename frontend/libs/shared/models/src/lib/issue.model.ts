@@ -1,3 +1,5 @@
+import { TaskPriority } from './task.model';
+
 export enum IssueType {
   Bug = 0,
   Feature = 1,
@@ -39,7 +41,7 @@ export interface Issue {
   description?: string;
   type: IssueType;
   status: IssueStatus;
-  priority: number;
+  priority: TaskPriority;
   projectId: string;
   reporterId: string;
   reporterName?: string;
@@ -64,7 +66,7 @@ export interface CreateIssueRequest {
   title: string;
   description?: string;
   type: IssueType;
-  priority: number;
+  priority: TaskPriority;
   projectId: string;
   assigneeId?: string;
 }
@@ -73,6 +75,6 @@ export interface UpdateIssueRequest {
   title: string;
   description?: string;
   type: IssueType;
-  priority: number;
+  priority: TaskPriority;
   assigneeId?: string;
 }

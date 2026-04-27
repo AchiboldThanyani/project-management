@@ -114,7 +114,7 @@ interface VelocityBar { name: string; done: number; pct: number; }
                 </div>
                 <div class="risk-right">
                   <span class="risk-chip blocked" *ngIf="t.status === TaskStatus.Blocked">Blocked</span>
-                  <span class="risk-chip overdue" *ngIf="isOverdue(t) && t.status !== 4">{{ daysOverdue(t.dueDate!) }}d overdue</span>
+                  <span class="risk-chip overdue" *ngIf="isOverdue(t) && t.status !== TaskStatus.Blocked">{{ daysOverdue(t.dueDate!) }}d overdue</span>
                   <span class="risk-assignee" *ngIf="t.assigneeName">{{ initials(t.assigneeName) }}</span>
                 </div>
               </div>

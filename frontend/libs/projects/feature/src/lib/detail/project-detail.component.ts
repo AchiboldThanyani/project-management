@@ -102,10 +102,10 @@ const COLUMNS = [
           </select>
           <select class="filter-select" [(ngModel)]="filterPriority" (ngModelChange)="applyFilters()">
             <option [ngValue]="null">All priorities</option>
-            <option [ngValue]="0">Low</option>
-            <option [ngValue]="1">Medium</option>
-            <option [ngValue]="2">High</option>
-            <option [ngValue]="3">Critical</option>
+            <option [ngValue]="TaskPriority.Low">Low</option>
+            <option [ngValue]="TaskPriority.Medium">Medium</option>
+            <option [ngValue]="TaskPriority.High">High</option>
+            <option [ngValue]="TaskPriority.Critical">Critical</option>
           </select>
           <select class="filter-select" *ngIf="members().length > 0" [(ngModel)]="filterAssigneeId" (ngModelChange)="applyFilters()">
             <option [ngValue]="null">Anyone</option>
@@ -714,10 +714,10 @@ const COLUMNS = [
             <div class="detail-item">
               <span class="detail-label">Status</span>
               <select class="detail-select" [ngModel]="selectedTask()!.status" (ngModelChange)="changeStatus($event)">
-                <option [ngValue]="0">To Do</option>
-                <option [ngValue]="1">In Progress</option>
-                <option [ngValue]="2">In Review</option>
-                <option [ngValue]="3">Done</option>
+                <option [ngValue]="TaskStatus.Todo">To Do</option>
+                <option [ngValue]="TaskStatus.InProgress">In Progress</option>
+                <option [ngValue]="TaskStatus.InReview">In Review</option>
+                <option [ngValue]="TaskStatus.Done">Done</option>
               </select>
             </div>
             <div class="detail-item">
@@ -787,7 +787,7 @@ const COLUMNS = [
               </div>
               <div *ngIf="(selectedTask()!.blockedBy ?? []).length === 0 && showDepPicker() !== 'blockedBy'" class="dep-empty">None</div>
               <div *ngFor="let ref of selectedTask()!.blockedBy ?? []" class="dep-row"
-                   [class.dep-open]="ref.status !== 3 && ref.status !== 5">
+                   [class.dep-open]="ref.status !== TaskStatus.Done && ref.status !== TaskStatus.Cancelled">
                 <span class="dep-status-dot" [class]="'s-' + ref.status"></span>
                 <span class="dep-title">{{ ref.title }}</span>
                 <span class="dep-status-label">{{ statusLabel(ref.status) }}</span>
@@ -1055,10 +1055,10 @@ const COLUMNS = [
               <div class="field-group">
                 <label class="field-label">Priority</label>
                 <select class="field-input" formControlName="priority">
-                  <option [ngValue]="0">Low</option>
-                  <option [ngValue]="1">Medium</option>
-                  <option [ngValue]="2">High</option>
-                  <option [ngValue]="3">Critical</option>
+                  <option [ngValue]="TaskPriority.Low">Low</option>
+                  <option [ngValue]="TaskPriority.Medium">Medium</option>
+                  <option [ngValue]="TaskPriority.High">High</option>
+                  <option [ngValue]="TaskPriority.Critical">Critical</option>
                 </select>
               </div>
               <div class="field-group">
@@ -1117,10 +1117,10 @@ const COLUMNS = [
             <div class="field-group">
               <label class="field-label">Priority</label>
               <select class="field-input" formControlName="priority">
-                <option [ngValue]="0">Low</option>
-                <option [ngValue]="1">Medium</option>
-                <option [ngValue]="2">High</option>
-                <option [ngValue]="3">Critical</option>
+                <option [ngValue]="TaskPriority.Low">Low</option>
+                <option [ngValue]="TaskPriority.Medium">Medium</option>
+                <option [ngValue]="TaskPriority.High">High</option>
+                <option [ngValue]="TaskPriority.Critical">Critical</option>
               </select>
             </div>
             <div class="field-group">
@@ -1260,10 +1260,10 @@ const COLUMNS = [
             <div class="field-group">
               <label class="field-label">Priority</label>
               <select class="field-input" formControlName="priority">
-                <option [ngValue]="0">↓ Low</option>
-                <option [ngValue]="1">→ Medium</option>
-                <option [ngValue]="2">↑ High</option>
-                <option [ngValue]="3">⬆ Critical</option>
+                <option [ngValue]="TaskPriority.Low">↓ Low</option>
+                <option [ngValue]="TaskPriority.Medium">→ Medium</option>
+                <option [ngValue]="TaskPriority.High">↑ High</option>
+                <option [ngValue]="TaskPriority.Critical">⬆ Critical</option>
               </select>
             </div>
           </div>
@@ -1308,10 +1308,10 @@ const COLUMNS = [
               <label class="field-label">Priority</label>
               <select class="field-input" formControlName="priority">
                 <option [ngValue]="null">Same as issue ({{ priorityLabel(ci.priority) }})</option>
-                <option [ngValue]="0">↓ Low</option>
-                <option [ngValue]="1">→ Medium</option>
-                <option [ngValue]="2">↑ High</option>
-                <option [ngValue]="3">⬆ Critical</option>
+                <option [ngValue]="TaskPriority.Low">↓ Low</option>
+                <option [ngValue]="TaskPriority.Medium">→ Medium</option>
+                <option [ngValue]="TaskPriority.High">↑ High</option>
+                <option [ngValue]="TaskPriority.Critical">⬆ Critical</option>
               </select>
             </div>
             <div class="form-actions">
@@ -2520,6 +2520,9 @@ const COLUMNS = [
   `],
 })
 export class ProjectDetailComponent implements OnInit {
+  readonly TaskStatus = TaskStatus;
+  readonly TaskPriority = TaskPriority;
+
   private route = inject(ActivatedRoute);
   private projectService = inject(ProjectService);
   private taskService = inject(TaskService);
@@ -2568,7 +2571,7 @@ export class ProjectDetailComponent implements OnInit {
   });
 
   filterSprintId: string | null = null;
-  filterPriority: number | null = null;
+  filterPriority: TaskPriority | null = null;
   filterAssigneeId: string | null = null;
   filterLabelId: string | null = null;
   filteredTasks = signal<Task[]>([]);
@@ -2961,7 +2964,7 @@ export class ProjectDetailComponent implements OnInit {
   issueCommentForm = this.fb.group({ content: ['', Validators.required] });
   convertForm = this.fb.group({
     sprintId: [null as string | null],
-    priority: [null as number | null],
+    priority: [null as TaskPriority | null],
   });
 
   ngOnInit() {
@@ -3306,7 +3309,7 @@ export class ProjectDetailComponent implements OnInit {
     const v = this.taskForm.value;
     this.taskService.create({
       title: v.title!, description: v.description ?? undefined,
-      priority: v.priority ?? 1, projectId,
+      priority: v.priority ?? TaskPriority.Medium, projectId,
       dueDate: v.dueDate ? new Date(v.dueDate).toISOString() : undefined,
       storyPoints: v.storyPoints ?? undefined, sprintId: v.sprintId ?? undefined,
       assigneeId: v.assigneeId ?? undefined,
@@ -3414,10 +3417,16 @@ export class ProjectDetailComponent implements OnInit {
 
   taskId(task: Task): string { return task.id.slice(0, 8).toUpperCase(); }
   doneSubtasks(task: Task): number { return (task.subTasks ?? []).filter(s => s.isCompleted).length; }
-  priorityIcon(p: number): string { return ['↓', '→', '↑', '⬆'][p] ?? '→'; }
-  priorityClass(p: number): string { return ['low', 'medium', 'high', 'critical'][p] ?? 'low'; }
-  priorityLabel(p: number): string { return ['Low', 'Medium', 'High', 'Critical'][p] ?? ''; }
-  statusLabel(s: number): string { return TASK_STATUS_LABELS[s as TaskStatus] ?? String(s); }
+  priorityIcon(p: TaskPriority): string {
+    return { [TaskPriority.Low]: '↓', [TaskPriority.Medium]: '→', [TaskPriority.High]: '↑', [TaskPriority.Critical]: '⬆' }[p] ?? '→';
+  }
+  priorityClass(p: TaskPriority): string {
+    return { [TaskPriority.Low]: 'low', [TaskPriority.Medium]: 'medium', [TaskPriority.High]: 'high', [TaskPriority.Critical]: 'critical' }[p] ?? 'low';
+  }
+  priorityLabel(p: TaskPriority): string {
+    return { [TaskPriority.Low]: 'Low', [TaskPriority.Medium]: 'Medium', [TaskPriority.High]: 'High', [TaskPriority.Critical]: 'Critical' }[p] ?? '';
+  }
+  statusLabel(s: TaskStatus): string { return TASK_STATUS_LABELS[s] ?? String(s); }
   isOverdue(date: string | null | undefined): boolean { return !!date && new Date(date) < new Date(); }
   assigneeName(userId: string | null | undefined): string {
     if (!userId) return '';
@@ -3572,7 +3581,7 @@ export class ProjectDetailComponent implements OnInit {
       title: v.title!,
       description: v.description ?? undefined,
       type: v.type ?? IssueType.Bug,
-      priority: v.priority ?? 1,
+      priority: v.priority ?? TaskPriority.Medium,
       assigneeId: v.assigneeId ?? undefined,
     } as any).subscribe({
       next: issue => {
