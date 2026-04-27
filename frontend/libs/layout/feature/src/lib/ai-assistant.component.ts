@@ -64,6 +64,17 @@ const QUICK_PROMPTS: { icon: string; label: string }[] = [
               </button>
             </div>
           </div>
+          <!-- Mode toggle — PM/Admin only -->
+          @if (canUsePlanMode()) {
+            <div class="mode-row">
+              <button class="mode-chip" [class.active]="mode() === 'ask'" (click)="switchMode('ask')">
+                <span class="material-icons-round">chat</span> Ask
+              </button>
+              <button class="mode-chip" [class.active]="mode() === 'plan'" (click)="switchMode('plan')">
+                <span class="material-icons-round">auto_fix_high</span> Plan
+              </button>
+            </div>
+          }
           <!-- Project scope selector -->
           <div class="scope-row">
             <span class="material-icons-round scope-ico">folder</span>
@@ -76,96 +87,218 @@ const QUICK_PROMPTS: { icon: string; label: string }[] = [
           </div>
         </div>
 
-        <!-- Welcome screen -->
-        @if (messages().length === 0) {
-          <div class="welcome">
-            <div class="welcome-hero">
-              <div class="welcome-orb">
-                <span class="material-icons-round">smart_toy</span>
+        @if (mode() === 'ask') {
+          <!-- Welcome screen -->
+          @if (messages().length === 0) {
+            <div class="welcome">
+              <div class="welcome-hero">
+                <div class="welcome-orb">
+                  <span class="material-icons-round">smart_toy</span>
+                </div>
+                <h2 class="welcome-title">What can I help with?</h2>
+                <p class="welcome-sub">
+                  @if (selectedProjectId) {
+                    Scoped to <strong>{{ projectName() }}</strong>. Ask anything about this project.
+                  } @else {
+                    Ask anything about your projects, team, or sprint.
+                  }
+                </p>
               </div>
-              <h2 class="welcome-title">What can I help with?</h2>
-              <p class="welcome-sub">
-                @if (selectedProjectId) {
-                  Scoped to <strong>{{ projectName() }}</strong>. Ask anything about this project.
-                } @else {
-                  Ask anything about your projects, team, or sprint.
+              <div class="quick-grid">
+                @for (q of quickPrompts; track q.label) {
+                  <button class="quick-card" (click)="sendQuick(q.label)">
+                    <span class="material-icons-round quick-icon">{{ q.icon }}</span>
+                    <span class="quick-text">{{ q.label }}</span>
+                  </button>
                 }
-              </p>
+              </div>
             </div>
-            <div class="quick-grid">
-              @for (q of quickPrompts; track q.label) {
-                <button class="quick-card" (click)="sendQuick(q.label)">
-                  <span class="material-icons-round quick-icon">{{ q.icon }}</span>
-                  <span class="quick-text">{{ q.label }}</span>
+          } @else {
+            <!-- Message thread -->
+            <div class="messages" #messageList>
+              @for (msg of messages(); track $index) {
+                <div class="msg" [class.user]="msg.role === 'user'" [class.assistant]="msg.role === 'assistant'">
+                  @if (msg.role === 'assistant') {
+                    <div class="msg-avatar" [class.pulsing]="msg.loading">
+                      <span class="material-icons-round">auto_awesome</span>
+                    </div>
+                  }
+                  <div class="msg-bubble" [class.thinking]="msg.loading">
+                    @if (msg.loading) {
+                      <div class="thinking-body">
+                        <div class="thinking-label">
+                          <span class="thinking-dot"></span>
+                          Thinking
+                        </div>
+                        <div class="shimmer-lines">
+                          <div class="shimmer-line w80"></div>
+                          <div class="shimmer-line w60"></div>
+                          <div class="shimmer-line w90"></div>
+                        </div>
+                      </div>
+                    } @else if (msg.role === 'assistant') {
+                      <div class="msg-text md-body" [innerHTML]="msg.html"></div>
+                    } @else {
+                      <pre class="msg-text">{{ msg.text }}</pre>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          }
+
+          <!-- Suggested follow-ups -->
+          @if (suggestions().length > 0 && !loading()) {
+            <div class="suggestions">
+              @for (s of suggestions(); track s) {
+                <button class="suggestion-chip" (click)="sendQuick(s)">
+                  <span class="material-icons-round">arrow_forward</span>
+                  {{ s }}
                 </button>
               }
             </div>
+          }
+
+          <!-- Input area -->
+          <div class="input-area">
+            <div class="input-shell" [class.focused]="focused" [class.disabled]="loading()">
+              <textarea
+                [(ngModel)]="input"
+                (keydown.enter)="onEnter($event)"
+                (focus)="focused = true"
+                (blur)="focused = false"
+                [disabled]="loading()"
+                [placeholder]="selectedProjectId ? 'Ask about ' + projectName() + '…' : 'Ask about your projects…'"
+                rows="1"
+                class="ai-input"
+              ></textarea>
+              <button class="send-btn" (click)="send()" [disabled]="!input.trim() || loading()">
+                <span class="material-icons-round">{{ loading() ? 'hourglass_top' : 'arrow_upward' }}</span>
+              </button>
+            </div>
+            <p class="input-hint">Enter to send · Shift+Enter for new line</p>
           </div>
-        } @else {
-          <!-- Message thread -->
-          <div class="messages" #messageList>
-            @for (msg of messages(); track $index) {
-              <div class="msg" [class.user]="msg.role === 'user'" [class.assistant]="msg.role === 'assistant'">
-                @if (msg.role === 'assistant') {
-                  <div class="msg-avatar" [class.pulsing]="msg.loading">
-                    <span class="material-icons-round">auto_awesome</span>
+        }
+
+        <!-- ── Plan Mode ─────────────────────────────────── -->
+        @if (mode() === 'plan') {
+          <div class="plan-body">
+
+            @if (planPhase() === 'clarifying' || planPhase() === 'generating') {
+              <div class="messages" #planMessageList>
+                @if (planMessages().length === 0) {
+                  <div class="plan-welcome">
+                    <div class="plan-icon"><span class="material-icons-round">auto_fix_high</span></div>
+                    <p class="plan-hint">
+                      @if (selectedProjectId) {
+                        Describe a feature you want to plan for <strong>{{ projectName() }}</strong>.
+                      } @else {
+                        Describe the project you want to build. I'll ask a few questions, then generate a spec and task list.
+                      }
+                    </p>
                   </div>
                 }
-                <div class="msg-bubble" [class.thinking]="msg.loading">
-                  @if (msg.loading) {
-                    <div class="thinking-body">
-                      <div class="thinking-label">
-                        <span class="thinking-dot"></span>
-                        Thinking
+                @for (msg of planMessages(); track $index) {
+                  <div class="msg" [class.user]="msg.role === 'user'" [class.assistant]="msg.role === 'assistant'">
+                    @if (msg.role === 'assistant') {
+                      <div class="msg-avatar" [class.pulsing]="$last && planLoading()">
+                        <span class="material-icons-round">auto_fix_high</span>
                       </div>
-                      <div class="shimmer-lines">
-                        <div class="shimmer-line w80"></div>
-                        <div class="shimmer-line w60"></div>
-                        <div class="shimmer-line w90"></div>
-                      </div>
+                    }
+                    <div class="msg-bubble" [class.thinking]="$last && planLoading() && msg.content === ''">
+                      @if ($last && planLoading() && msg.content === '') {
+                        <div class="thinking-body">
+                          <div class="thinking-label"><span class="thinking-dot"></span>Thinking</div>
+                          <div class="shimmer-lines">
+                            <div class="shimmer-line w80"></div>
+                            <div class="shimmer-line w60"></div>
+                            <div class="shimmer-line w90"></div>
+                          </div>
+                        </div>
+                      } @else if (msg.role === 'assistant') {
+                        <div class="msg-text md-body" [innerHTML]="toHtml(msg.content)"></div>
+                      } @else {
+                        <pre class="msg-text">{{ msg.content }}</pre>
+                      }
                     </div>
-                  } @else if (msg.role === 'assistant') {
-                    <div class="msg-text md-body" [innerHTML]="msg.html"></div>
-                  } @else {
-                    <pre class="msg-text">{{ msg.text }}</pre>
-                  }
+                  </div>
+                }
+              </div>
+
+              @if (planError()) {
+                <div class="plan-error">{{ planError() }}</div>
+              }
+
+              @if (planMessages().length >= 4 && !planLoading()) {
+                <div class="plan-generate-row">
+                  <button class="generate-btn" (click)="generateSpec()" [disabled]="planLoading()">
+                    <span class="material-icons-round">rocket_launch</span> Generate spec &amp; tasks
+                  </button>
                 </div>
+              }
+
+              <div class="input-area">
+                <div class="input-shell" [class.focused]="focused" [class.disabled]="planLoading()">
+                  <textarea
+                    [(ngModel)]="input"
+                    (keydown.enter)="onPlanEnter($event)"
+                    (focus)="focused = true"
+                    (blur)="focused = false"
+                    [disabled]="planLoading()"
+                    placeholder="Describe your idea or answer the question…"
+                    rows="1"
+                    class="ai-input"
+                  ></textarea>
+                  <button class="send-btn" (click)="sendPlan()" [disabled]="!input.trim() || planLoading()">
+                    <span class="material-icons-round">{{ planLoading() ? 'hourglass_top' : 'arrow_upward' }}</span>
+                  </button>
+                </div>
+                <p class="input-hint">Enter to send · Shift+Enter for new line</p>
               </div>
             }
-          </div>
-        }
 
-        <!-- Suggested follow-ups -->
-        @if (suggestions().length > 0 && !loading()) {
-          <div class="suggestions">
-            @for (s of suggestions(); track s) {
-              <button class="suggestion-chip" (click)="sendQuick(s)">
-                <span class="material-icons-round">arrow_forward</span>
-                {{ s }}
-              </button>
+            @if (planPhase() === 'confirming') {
+              <div class="confirm-panel">
+                @if (!selectedProjectId) {
+                  <label class="confirm-label">Project name</label>
+                  <input class="confirm-input" [value]="newProjectName()" (input)="newProjectName.set($any($event.target).value)" />
+                  <label class="confirm-label">Description</label>
+                  <textarea class="confirm-textarea" [value]="newProjectDesc()" (input)="newProjectDesc.set($any($event.target).value)" rows="3"></textarea>
+                }
+                <div class="confirm-tasks-header">
+                  <span class="confirm-tasks-title">Tasks ({{ confirmedTaskCount() }} / {{ pendingTasks().length }} selected)</span>
+                </div>
+                <div class="confirm-tasks">
+                  @for (task of pendingTasks(); track $index) {
+                    <label class="task-row" [class.unchecked]="!checkedTasks()[$index]">
+                      <input type="checkbox" [checked]="checkedTasks()[$index]" (change)="toggleTask($index)" />
+                      <div class="task-info">
+                        <span class="task-title">{{ task.title }}</span>
+                        <span class="task-desc">{{ task.description }}</span>
+                      </div>
+                      <span class="priority-badge" [class]="'p-' + task.priority.toLowerCase()">{{ task.priority }}</span>
+                    </label>
+                  }
+                </div>
+                @if (planError()) {
+                  <div class="plan-error">{{ planError() }}</div>
+                }
+                <button class="apply-btn" (click)="applyPlan()" [disabled]="confirmedTaskCount() === 0">
+                  <span class="material-icons-round">check_circle</span>
+                  Apply {{ confirmedTaskCount() }} task{{ confirmedTaskCount() !== 1 ? 's' : '' }}
+                </button>
+              </div>
             }
+
+            @if (planPhase() === 'applying') {
+              <div class="plan-applying">
+                <span class="material-icons-round spinning">sync</span>
+                Applying plan…
+              </div>
+            }
+
           </div>
         }
-
-        <!-- Input area -->
-        <div class="input-area">
-          <div class="input-shell" [class.focused]="focused" [class.disabled]="loading()">
-            <textarea
-              [(ngModel)]="input"
-              (keydown.enter)="onEnter($event)"
-              (focus)="focused = true"
-              (blur)="focused = false"
-              [disabled]="loading()"
-              [placeholder]="selectedProjectId ? 'Ask about ' + projectName() + '…' : 'Ask about your projects…'"
-              rows="1"
-              class="ai-input"
-            ></textarea>
-            <button class="send-btn" (click)="send()" [disabled]="!input.trim() || loading()">
-              <span class="material-icons-round">{{ loading() ? 'hourglass_top' : 'arrow_upward' }}</span>
-            </button>
-          </div>
-          <p class="input-hint">Enter to send · Shift+Enter for new line</p>
-        </div>
 
       </div>
     }
@@ -556,6 +689,130 @@ const QUICK_PROMPTS: { icon: string; label: string }[] = [
       border-color: var(--border);
       color: var(--ink);
     }
+
+    /* ── Plan Mode ────────────────────────────────────── */
+    .mode-row {
+      display: flex; gap: 6px; margin-top: 10px; position: relative; z-index: 1;
+    }
+    .mode-chip {
+      display: flex; align-items: center; gap: 5px;
+      padding: 5px 14px; border-radius: 20px; border: 1.5px solid rgba(99,102,241,.2);
+      background: rgba(255,255,255,.6); font-family: 'DM Sans', sans-serif;
+      font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer;
+      transition: all .15s;
+    }
+    .mode-chip .material-icons-round { font-size: 14px; }
+    .mode-chip.active {
+      background: var(--violet); color: #fff; border-color: var(--violet);
+      box-shadow: 0 2px 8px rgba(99,102,241,.35);
+    }
+    .mode-chip:not(.active):hover { border-color: var(--violet); color: var(--violet); }
+
+    .plan-body { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+    .plan-welcome {
+      display: flex; flex-direction: column; align-items: center; gap: 12px;
+      padding: 32px 24px; text-align: center;
+    }
+    .plan-icon {
+      width: 56px; height: 56px; border-radius: 18px;
+      background: linear-gradient(135deg, var(--violet), #818cf8);
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 6px 20px rgba(99,102,241,.35);
+    }
+    .plan-icon .material-icons-round { font-size: 26px; color: #fff; }
+    .plan-hint { font-size: 13px; color: var(--muted); max-width: 280px; line-height: 1.5; margin: 0; }
+
+    .plan-generate-row {
+      padding: 8px 16px; flex-shrink: 0;
+    }
+    .generate-btn {
+      width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 10px; border-radius: 12px; border: none;
+      background: var(--violet); color: #fff; font-family: 'DM Sans', sans-serif;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      box-shadow: 0 3px 12px rgba(99,102,241,.35);
+      transition: opacity .15s, transform .15s;
+    }
+    .generate-btn:hover:not(:disabled) { transform: translateY(-1px); opacity: .92; }
+    .generate-btn:disabled { opacity: .45; cursor: not-allowed; }
+    .generate-btn .material-icons-round { font-size: 16px; }
+
+    .plan-error {
+      margin: 6px 16px; padding: 8px 12px; border-radius: 8px;
+      background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.2);
+      color: #dc2626; font-size: 12px; line-height: 1.4;
+    }
+
+    .confirm-panel {
+      flex: 1; overflow-y: auto; padding: 16px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .confirm-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+    .confirm-input {
+      width: 100%; padding: 8px 12px; border-radius: 10px;
+      border: 1.5px solid rgba(99,102,241,.2); background: rgba(255,255,255,.7);
+      font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--ink);
+      outline: none; transition: border-color .15s;
+      box-sizing: border-box;
+    }
+    .confirm-input:focus { border-color: var(--violet); }
+    .confirm-textarea {
+      width: 100%; padding: 8px 12px; border-radius: 10px;
+      border: 1.5px solid rgba(99,102,241,.2); background: rgba(255,255,255,.7);
+      font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--ink);
+      outline: none; resize: vertical; transition: border-color .15s;
+      box-sizing: border-box;
+    }
+    .confirm-textarea:focus { border-color: var(--violet); }
+    .confirm-tasks-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 4px 0;
+    }
+    .confirm-tasks-title { font-size: 12px; font-weight: 600; color: var(--muted); }
+    .confirm-tasks { display: flex; flex-direction: column; gap: 6px; }
+    .task-row {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 10px 12px; border-radius: 10px;
+      border: 1px solid rgba(99,102,241,.12);
+      background: rgba(255,255,255,.6); cursor: pointer;
+      transition: background .15s, border-color .15s;
+    }
+    .task-row:hover { border-color: rgba(99,102,241,.3); }
+    .task-row.unchecked { opacity: .5; }
+    .task-row input[type=checkbox] { margin-top: 2px; flex-shrink: 0; accent-color: var(--violet); }
+    .task-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+    .task-title { font-size: 13px; font-weight: 600; color: var(--ink); line-height: 1.3; }
+    .task-desc { font-size: 11.5px; color: var(--muted); line-height: 1.4; }
+    .priority-badge {
+      flex-shrink: 0; padding: 2px 8px; border-radius: 20px;
+      font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .3px;
+      margin-top: 1px;
+    }
+    .p-low    { background: rgba(107,114,128,.12); color: #6b7280; }
+    .p-medium { background: rgba(245,158,11,.12);  color: #d97706; }
+    .p-high   { background: rgba(239,68,68,.12);   color: #dc2626; }
+
+    .apply-btn {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; padding: 12px; border-radius: 12px; border: none;
+      background: var(--violet); color: #fff; font-family: 'DM Sans', sans-serif;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      box-shadow: 0 3px 12px rgba(99,102,241,.35);
+      transition: opacity .15s, transform .15s;
+      margin-top: 4px;
+    }
+    .apply-btn:hover:not(:disabled) { transform: translateY(-1px); }
+    .apply-btn:disabled { opacity: .45; cursor: not-allowed; }
+    .apply-btn .material-icons-round { font-size: 18px; }
+
+    .plan-applying {
+      flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 12px; color: var(--muted); font-size: 14px;
+    }
+    .plan-applying .material-icons-round { font-size: 32px; color: var(--violet); }
+    .spinning { animation: spin 1s linear infinite; }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   `],
 })
 export class AiAssistantComponent implements OnInit, AfterViewChecked {
