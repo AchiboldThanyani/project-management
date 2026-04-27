@@ -17,6 +17,10 @@ using ProjectManagement.Application.Features.Projects.UpdateProject;
 using ProjectManagement.Application.Features.Sprints.CreateSprint;
 using ProjectManagement.Application.Features.Sprints.DTOs;
 using ProjectManagement.Application.Features.Sprints.GetSprintsByProject;
+using ProjectManagement.Application.Features.Ai.Plan;
+using ProjectManagement.Application.Features.Ai.Plan.AddPlanTasks;
+using ProjectManagement.Application.Features.Ai.Plan.CreateProjectWithPlan;
+using ProjectManagement.Application.Features.Tasks.DTOs;
 using ProjectManagement.Domain.Enums;
 using ProjectManagement.WebApi.Extensions;
 
@@ -98,6 +102,23 @@ public class ProjectsController(IMediator mediator) : ControllerBase
             _ => StatusCode(500, new { result.Error.Code, result.Error.Description }),
         };
     }
+
+    [HttpPost("from-plan")]
+    [Authorize(Roles = "ProjectManager,Admin")]
+    public async Task<ActionResult<ProjectDto>> CreateFromPlan(
+        [FromBody] CreateFromPlanRequest request, CancellationToken ct)
+    {
+        var result = await mediator.Send(
+            new CreateProjectWithPlanCommand(request.Name, request.Description, request.Tasks), ct);
+        if (!result.IsSuccess) return result.ToActionResult(this);
+        return CreatedAtAction(nameof(GetById), new { id = result.Value!.Id }, result.Value);
+    }
+
+    [HttpPost("{id:guid}/plan-tasks")]
+    [Authorize(Roles = "ProjectManager,Admin")]
+    public async Task<ActionResult<IReadOnlyList<TaskDto>>> AddPlanTasks(
+        Guid id, [FromBody] AddPlanTasksRequest request, CancellationToken ct)
+        => (await mediator.Send(new AddPlanTasksCommand(id, request.Tasks), ct)).ToActionResult(this);
 }
 
 public record CreateProjectRequest(string Name, string? Description, Guid? TeamId, DateTime? StartDate, DateTime? EndDate);
@@ -105,3 +126,5 @@ public record UpdateProjectRequest(string Name, string? Description, Domain.Enum
 public record CreateSprintRequest(string Name, string? Goal, DateTime StartDate, DateTime EndDate);
 public record AddProjectMemberRequest(string UserId, ProjectMemberRole Role);
 public record UpdateProjectMemberRoleRequest(ProjectMemberRole Role);
+public record CreateFromPlanRequest(string Name, string Description, IReadOnlyList<PlanTaskItem> Tasks);
+public record AddPlanTasksRequest(IReadOnlyList<PlanTaskItem> Tasks);
