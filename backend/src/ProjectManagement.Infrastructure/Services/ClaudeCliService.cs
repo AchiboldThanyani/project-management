@@ -30,6 +30,16 @@ public class ClaudeCliService(ILogger<ClaudeCliService> logger) : IClaudeService
             StandardOutputEncoding = Encoding.UTF8,
         };
 
+        // Merge user + machine PATH so the child process can find the npm global bin
+        // (e.g. C:\Users\...\AppData\Roaming\npm) even when the backend is launched
+        // from a host that only inherits the system PATH (VS Code, task runners, etc.).
+        if (isWindows)
+        {
+            var machinePath = Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.Machine) ?? "";
+            var userPath    = Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.User)    ?? "";
+            psi.Environment["PATH"] = $"{userPath};{machinePath}";
+        }
+
         // If ANTHROPIC_API_KEY is set in the environment it takes priority over the stored
         // OAuth session for --print mode, causing "Credit balance is too low" when the key
         // has no credits. Remove it so Claude falls back to the OAuth subscription tokens.
