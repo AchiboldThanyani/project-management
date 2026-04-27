@@ -8,3 +8,4 @@ export * from './lib/ai.service';
 export * from './lib/signalr.service';
 export * from './lib/notification.service';
 export * from './lib/theme.service';
+export * from './lib/mention.pipe';
