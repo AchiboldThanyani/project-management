@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, inject, computed } from '@angular/core';
+import { Component, OnInit, signal, inject, computed, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml, SafeResourceUrl } from '@angular/platform-browser';
 import { marked } from 'marked';
@@ -22,7 +22,7 @@ import {
   Ticket, TicketComment, TicketStatus, TicketType, TICKET_STATUS_LABELS, TICKET_TYPE_LABELS, SlaStatus,
   Invite,
 } from '@pm/shared/models';
-import { ConfirmDialogComponent } from '@pm/shared/util';
+import { ConfirmDialogComponent, MentionPipe } from '@pm/shared/util';
 
 const COLUMNS = [
   { id: 'col-todo',       status: TaskStatus.Todo,       label: 'TO DO',       dot: 'var(--soft)' },
@@ -36,7 +36,7 @@ const COLUMNS = [
   standalone: true,
   imports: [
     CommonModule, ReactiveFormsModule, FormsModule, DragDropModule,
-    MatSnackBarModule, MatDialogModule, BoardsTabComponent,
+    MatSnackBarModule, MatDialogModule, BoardsTabComponent, MentionPipe,
   ],
   template: `
     <div *ngIf="loading()" class="loading-wrap">
@@ -1026,8 +1026,21 @@ const COLUMNS = [
             </div>
 
             <form [formGroup]="commentForm" (ngSubmit)="addComment()" class="comment-form">
-              <textarea class="comment-input" formControlName="content" rows="2"
-                        placeholder="Write a comment…"></textarea>
+              <div class="mention-wrap">
+                <textarea #commentTextarea class="comment-input" formControlName="content" rows="2"
+                          placeholder="Write a comment…"
+                          (input)="onCommentInput($event)"
+                          (keydown)="onCommentKeydown($event)"></textarea>
+                <div class="mention-dropdown" *ngIf="mentionOpen()">
+                  <div *ngFor="let m of filteredMembers; let i = index"
+                       class="mention-option"
+                       [class.mention-highlighted]="i === mentionHighlighted()"
+                       (mousedown)="selectMention(m)">
+                    <span class="mention-ava">{{ nameInitials(m.fullName) }}</span>
+                    <span class="mention-name">{{ m.fullName }}</span>
+                  </div>
+                </div>
+              </div>
               <div class="comment-form-actions">
                 <button type="button" class="btn-danger-ghost" (click)="confirmDeleteTask(selectedTask()!)">
                   <span class="material-icons-round">delete</span> Delete Task
@@ -2517,6 +2530,48 @@ const COLUMNS = [
     .invite-token { font-size: 13px; color: var(--ink); }
     .invite-expiry { font-size: 11px; color: var(--muted); }
     .invite-actions { display: flex; gap: 6px; }
+
+    /* ── @mention autocomplete ───────────────────── */
+    .mention-wrap { position: relative; }
+
+    .mention-dropdown {
+      position: absolute; bottom: calc(100% + 4px); left: 0;
+      min-width: 220px; max-height: 180px; overflow-y: auto;
+      background: rgba(255,255,255,.97);
+      border: 1.5px solid rgba(99,102,241,.25);
+      border-radius: 10px;
+      box-shadow: 0 4px 16px rgba(99,102,241,.15);
+      z-index: 50;
+    }
+
+    .mention-option {
+      display: flex; align-items: center; gap: 9px;
+      padding: 8px 12px; cursor: pointer;
+      transition: background .12s;
+    }
+    .mention-option:hover,
+    .mention-highlighted {
+      background: rgba(99,102,241,.08);
+    }
+
+    .mention-ava {
+      width: 26px; height: 26px; border-radius: 8px; flex-shrink: 0;
+      background: var(--violet); color: #fff;
+      font-size: 10px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .mention-name { font-size: 13px; color: var(--ink); font-weight: 500; }
+
+    .mention-badge {
+      display: inline-block;
+      background: rgba(99,102,241,.12);
+      color: var(--violet);
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-weight: 600;
+      font-size: 0.875em;
+    }
   `],
 })
 export class ProjectDetailComponent implements OnInit {
@@ -2637,6 +2692,21 @@ export class ProjectDetailComponent implements OnInit {
   // ── Members ─────────────────────────────────────
   members = signal<ProjectMember[]>([]);
   membersLoading = signal(false);
+
+  // ── @mention autocomplete ────────────────────────
+  mentionOpen        = signal(false);
+  mentionFilter      = signal('');
+  mentionHighlighted = signal(0);
+  private mentionAtIndex = -1;
+  @ViewChild('commentTextarea') private commentTextareaRef?: ElementRef<HTMLTextAreaElement>;
+
+  get filteredMembers(): ProjectMember[] {
+    const filter = this.mentionFilter().toLowerCase();
+    return this.members().filter(m =>
+      !filter || m.fullName.toLowerCase().includes(filter)
+    );
+  }
+
   showAddMember = signal(false);
 
   myProjectRole = computed(() => {
@@ -3232,11 +3302,18 @@ export class ProjectDetailComponent implements OnInit {
   openTask(task: Task) {
     this.selectedTask.set(task);
     this.editMode.set(false);
+    this.mentionOpen.set(false);
     this.commentsLoading.set(true);
     this.commentService.getByTask(task.id).subscribe({
       next: c => { this.comments.set(c); this.commentsLoading.set(false); },
       error: () => this.commentsLoading.set(false),
     });
+    if (this.members().length === 0) {
+      const id = this.route.snapshot.paramMap.get('id')!;
+      this.memberService.getByProject(id).subscribe({
+        next: m => this.members.set(m),
+      });
+    }
   }
 
   closeTask() { this.selectedTask.set(null); this.editMode.set(false); this.comments.set([]); }
@@ -3282,6 +3359,63 @@ export class ProjectDetailComponent implements OnInit {
       next: c => { this.comments.update(all => [...all, c]); this.commentForm.reset(); },
       error: () => this.toast('Failed to add comment', true),
     });
+  }
+
+  onCommentInput(event: Event): void {
+    const ta = event.target as HTMLTextAreaElement;
+    const val = ta.value;
+    const cursor = ta.selectionStart ?? val.length;
+
+    let atIdx = -1;
+    for (let i = cursor - 1; i >= 0; i--) {
+      if (val[i] === ' ' || val[i] === '\n') break;
+      if (val[i] === '@') { atIdx = i; break; }
+    }
+
+    if (atIdx >= 0) {
+      const typed = val.slice(atIdx + 1, cursor);
+      this.mentionAtIndex = atIdx;
+      this.mentionFilter.set(typed);
+      this.mentionHighlighted.set(0);
+      this.mentionOpen.set(this.filteredMembers.length > 0);
+    } else {
+      this.mentionOpen.set(false);
+      this.mentionAtIndex = -1;
+    }
+  }
+
+  onCommentKeydown(event: KeyboardEvent): void {
+    if (!this.mentionOpen()) return;
+    const members = this.filteredMembers;
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      this.mentionHighlighted.update(i => Math.min(i + 1, members.length - 1));
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      this.mentionHighlighted.update(i => Math.max(i - 1, 0));
+    } else if (event.key === 'Enter' && members.length > 0) {
+      event.preventDefault();
+      this.selectMention(members[this.mentionHighlighted()]);
+    } else if (event.key === 'Escape') {
+      this.mentionOpen.set(false);
+    }
+  }
+
+  selectMention(member: ProjectMember): void {
+    const ta = this.commentTextareaRef?.nativeElement;
+    if (!ta) return;
+    const val = this.commentForm.get('content')!.value as string ?? '';
+    const cursor = ta.selectionStart ?? val.length;
+    const before = val.slice(0, this.mentionAtIndex);
+    const after = val.slice(cursor);
+    const replacement = `@[${member.fullName}](${member.userId}) `;
+    const newVal = before + replacement + after;
+    this.commentForm.get('content')!.setValue(newVal);
+    const newCursor = before.length + replacement.length;
+    setTimeout(() => ta.setSelectionRange(newCursor, newCursor), 0);
+    this.mentionOpen.set(false);
+    this.mentionAtIndex = -1;
+    this.mentionFilter.set('');
   }
 
   deleteComment(c: Comment) {
