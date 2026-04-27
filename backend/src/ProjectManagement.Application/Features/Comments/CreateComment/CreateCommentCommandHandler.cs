@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using AutoMapper;
 using MediatR;
 using ProjectManagement.Application.Common;
@@ -18,6 +19,17 @@ internal sealed class CreateCommentCommandHandler(
     IMapper mapper)
     : IRequestHandler<CreateCommentCommand, Result<CommentDto>>
 {
+    private static readonly Regex MentionRegex =
+        new(@"@\[([^\]]+)\]\(([a-zA-Z0-9\-]+)\)", RegexOptions.Compiled);
+
+    internal static HashSet<string> ExtractMentionedUserIds(string content)
+    {
+        var ids = new HashSet<string>();
+        foreach (Match m in MentionRegex.Matches(content))
+            ids.Add(m.Groups[2].Value);
+        return ids;
+    }
+
     public async Task<Result<CommentDto>> Handle(CreateCommentCommand request, CancellationToken cancellationToken)
     {
         var task = await taskRepository.GetByIdAsync(request.TaskId, cancellationToken);
@@ -53,6 +65,22 @@ internal sealed class CreateCommentCommandHandler(
             await notificationRepo.AddAsync(n, cancellationToken);
         }
 
+        // Collect Mentioned recipients: users tagged via @[Name](id) syntax, excluding commenter
+        var mentionedIds = ExtractMentionedUserIds(request.Content);
+        mentionedIds.Remove(request.AuthorId);
+
+        // Stage Mentioned notifications
+        foreach (var mentionedId in mentionedIds)
+        {
+            var n = Notification.Create(
+                userId: mentionedId,
+                title: "You were mentioned",
+                body: $"You were mentioned in a comment on \"{task.Title}\"",
+                type: NotificationType.Mentioned,
+                relatedEntityId: task.Id);
+            await notificationRepo.AddAsync(n, cancellationToken);
+        }
+
         // Commit comment + all notifications atomically
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -63,6 +91,15 @@ internal sealed class CreateCommentCommandHandler(
                 recipientId, "New comment",
                 $"New comment on \"{task.Title}\"",
                 NotificationType.CommentAdded, task.Id, cancellationToken);
+        }
+
+        // Fire real-time pushes for mentions
+        foreach (var mentionedId in mentionedIds)
+        {
+            await notificationService.NotifyUser(
+                mentionedId, "You were mentioned",
+                $"You were mentioned in a comment on \"{task.Title}\"",
+                NotificationType.Mentioned, task.Id, cancellationToken);
         }
 
         return mapper.Map<CommentDto>(comment);
