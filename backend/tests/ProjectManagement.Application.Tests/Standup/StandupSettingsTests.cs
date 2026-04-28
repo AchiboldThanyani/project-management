@@ -42,14 +42,15 @@ public class StandupSettingsTests
     }
 
     [Fact]
-    public void MarkRun_UpdatesExistingLastRunAt()
+    public void MarkRun_WhenCalledTwice_LastRunAtRemainsSet()
     {
         var settings = StandupSettings.Create(Guid.NewGuid());
         settings.MarkRun();
-        var firstRun = settings.LastRunAt!.Value;
 
         settings.MarkRun();
 
-        Assert.True(settings.LastRunAt >= firstRun);
+        // Verifies repeated calls do not reset LastRunAt to null
+        Assert.NotNull(settings.LastRunAt);
+        Assert.True(settings.LastRunAt >= DateTime.UtcNow.AddSeconds(-5));
     }
 }
