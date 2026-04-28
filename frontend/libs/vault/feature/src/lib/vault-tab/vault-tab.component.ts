@@ -341,6 +341,7 @@ export class VaultTabComponent implements OnInit {
         this.activeDocument.set(updated);
         this.documents.update(all => all.map(d => d.id === updated.id ? updated : d));
       },
+      error: () => this.toast('Failed to save document', true),
     });
   }
 
