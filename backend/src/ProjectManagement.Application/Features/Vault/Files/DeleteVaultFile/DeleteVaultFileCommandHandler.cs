@@ -20,15 +20,16 @@ internal sealed class DeleteVaultFileCommandHandler(
             return Error.Forbidden("Vault.Forbidden", "You must be a project member.");
 
         var vaultFile = await repository.GetByIdAsync(request.FileId, ct);
-        if (vaultFile is null) return Error.NotFound("Vault.FileNotFound", "File not found.");
+        if (vaultFile is null || vaultFile.ProjectId != request.ProjectId) return Error.NotFound("Vault.FileNotFound", "File not found.");
 
         var isManager = await permissions.HasProjectRoleAsync(request.ProjectId, currentUser.UserId, ProjectMemberRole.Manager, ct);
         if (!isManager && vaultFile.UploadedById != currentUser.UserId)
             return Error.Forbidden("Vault.Forbidden", "You can only delete your own files.");
 
-        fileStorage.Delete(vaultFile.StoredFileName);
+        var storedFileName = vaultFile.StoredFileName;
         await repository.DeleteAsync(vaultFile, ct);
         await unitOfWork.SaveChangesAsync(ct);
+        fileStorage.Delete(storedFileName);
         return Result.Success();
     }
 }

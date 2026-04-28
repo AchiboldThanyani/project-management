@@ -89,7 +89,7 @@ const COLUMNS = [
         <button class="tab" [class.active]="activeTab === 'brainstorm'" (click)="activeTab = 'brainstorm'">
           <span class="material-icons-round">brush</span> Brainstorm
         </button>
-        <button class="tab-btn" [class.active]="activeTab === 'vault'" (click)="activeTab = 'vault'">
+        <button class="tab" [class.active]="activeTab === 'vault'" (click)="activeTab = 'vault'">
           <span class="material-icons-round">lock</span>
           Vault
         </button>

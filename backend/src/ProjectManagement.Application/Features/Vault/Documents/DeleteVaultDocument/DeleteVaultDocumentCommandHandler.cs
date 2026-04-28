@@ -19,7 +19,7 @@ internal sealed class DeleteVaultDocumentCommandHandler(
             return Error.Forbidden("Vault.Forbidden", "You must be a project member.");
 
         var doc = await repository.GetByIdAsync(request.DocumentId, ct);
-        if (doc is null) return Error.NotFound("Vault.DocumentNotFound", "Document not found.");
+        if (doc is null || doc.ProjectId != request.ProjectId) return Error.NotFound("Vault.DocumentNotFound", "Document not found.");
 
         var isManager = await permissions.HasProjectRoleAsync(request.ProjectId, currentUser.UserId, ProjectMemberRole.Manager, ct);
         if (!isManager && doc.CreatedById != currentUser.UserId)

@@ -21,8 +21,11 @@ internal sealed class UpdateVaultDocumentCommandHandler(
         if (!await permissions.HasProjectRoleAsync(request.ProjectId, currentUser.UserId, ProjectMemberRole.Member, ct))
             return Error.Forbidden("Vault.Forbidden", "Members and above can edit documents.");
 
+        if (string.IsNullOrWhiteSpace(request.Title) || request.Title.Length > 200)
+            return Error.Validation("Vault.InvalidDocumentTitle", "Document title must be between 1 and 200 characters.");
+
         var doc = await repository.GetByIdAsync(request.DocumentId, ct);
-        if (doc is null) return Error.NotFound("Vault.DocumentNotFound", "Document not found.");
+        if (doc is null || doc.ProjectId != request.ProjectId) return Error.NotFound("Vault.DocumentNotFound", "Document not found.");
 
         doc.Update(request.Title, request.ContentJson, currentUser.UserId, currentUser.FullName);
         await unitOfWork.SaveChangesAsync(ct);

@@ -20,7 +20,7 @@ internal sealed class GetVaultDocumentsQueryHandler(
             return Error.Forbidden("Vault.Forbidden", "You must be a project member.");
 
         var docs = request.FolderId.HasValue
-            ? await repository.GetByFolderAsync(request.FolderId.Value, ct)
+            ? await repository.GetByFolderAsync(request.FolderId.Value, request.ProjectId, ct)
             : await repository.GetByProjectAsync(request.ProjectId, ct);
 
         return Result<IReadOnlyList<VaultDocumentDto>>.Success(mapper.Map<IReadOnlyList<VaultDocumentDto>>(docs));

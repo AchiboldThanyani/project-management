@@ -18,7 +18,7 @@ internal sealed class DownloadVaultFileQueryHandler(
             return Error.Forbidden("Vault.Forbidden", "You must be a project member.");
 
         var vaultFile = await repository.GetByIdAsync(request.FileId, ct);
-        if (vaultFile is null) return Error.NotFound("Vault.FileNotFound", "File not found.");
+        if (vaultFile is null || vaultFile.ProjectId != request.ProjectId) return Error.NotFound("Vault.FileNotFound", "File not found.");
 
         var fullPath = fileStorage.GetFullPath(vaultFile.StoredFileName);
         return new VaultFileDownload(vaultFile.FileName, vaultFile.ContentType, fullPath);

@@ -22,6 +22,9 @@ internal sealed class CreateVaultDocumentCommandHandler(
         if (!await permissions.HasProjectRoleAsync(request.ProjectId, currentUser.UserId, ProjectMemberRole.Member, ct))
             return Error.Forbidden("Vault.Forbidden", "Members and above can create documents.");
 
+        if (string.IsNullOrWhiteSpace(request.Title) || request.Title.Length > 200)
+            return Error.Validation("Vault.InvalidDocumentTitle", "Document title must be between 1 and 200 characters.");
+
         var doc = VaultDocument.Create(
             request.Title, request.ProjectId, request.FolderId,
             currentUser.UserId, currentUser.FullName);

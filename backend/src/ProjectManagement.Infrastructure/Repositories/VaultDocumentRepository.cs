@@ -14,9 +14,9 @@ public class VaultDocumentRepository(ApplicationDbContext context)
             .OrderByDescending(d => d.UpdatedAt ?? d.CreatedAt)
             .ToListAsync(ct);
 
-    public async Task<IReadOnlyList<VaultDocument>> GetByFolderAsync(Guid folderId, CancellationToken ct = default)
+    public async Task<IReadOnlyList<VaultDocument>> GetByFolderAsync(Guid folderId, Guid projectId, CancellationToken ct = default)
         => await context.VaultDocuments
-            .Where(d => d.FolderId == folderId)
+            .Where(d => d.FolderId == folderId && d.ProjectId == projectId)
             .OrderByDescending(d => d.UpdatedAt ?? d.CreatedAt)
             .ToListAsync(ct);
 }

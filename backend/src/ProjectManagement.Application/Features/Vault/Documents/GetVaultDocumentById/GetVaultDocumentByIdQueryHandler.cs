@@ -20,7 +20,7 @@ internal sealed class GetVaultDocumentByIdQueryHandler(
             return Error.Forbidden("Vault.Forbidden", "You must be a project member.");
 
         var doc = await repository.GetByIdAsync(request.DocumentId, ct);
-        if (doc is null) return Error.NotFound("Vault.DocumentNotFound", "Document not found.");
+        if (doc is null || doc.ProjectId != request.ProjectId) return Error.NotFound("Vault.DocumentNotFound", "Document not found.");
 
         return mapper.Map<VaultDocumentDetailDto>(doc);
     }

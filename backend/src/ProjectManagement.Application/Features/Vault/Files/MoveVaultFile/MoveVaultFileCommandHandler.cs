@@ -22,7 +22,7 @@ internal sealed class MoveVaultFileCommandHandler(
             return Error.Forbidden("Vault.Forbidden", "Members and above can move files.");
 
         var vaultFile = await repository.GetByIdAsync(request.FileId, ct);
-        if (vaultFile is null) return Error.NotFound("Vault.FileNotFound", "File not found.");
+        if (vaultFile is null || vaultFile.ProjectId != request.ProjectId) return Error.NotFound("Vault.FileNotFound", "File not found.");
 
         vaultFile.Move(request.FolderId);
         await unitOfWork.SaveChangesAsync(ct);

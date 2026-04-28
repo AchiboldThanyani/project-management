@@ -22,6 +22,9 @@ internal sealed class CreateVaultFolderCommandHandler(
         if (!await permissions.HasProjectRoleAsync(request.ProjectId, currentUser.UserId, ProjectMemberRole.Manager, ct))
             return Error.Forbidden("Vault.Forbidden", "Only Managers and above can create folders.");
 
+        if (string.IsNullOrWhiteSpace(request.Name) || request.Name.Length > 100)
+            return Error.Validation("Vault.InvalidFolderName", "Folder name must be between 1 and 100 characters.");
+
         var folder = VaultFolder.Create(request.Name, request.ProjectId, currentUser.UserId);
         await repository.AddAsync(folder, ct);
         await unitOfWork.SaveChangesAsync(ct);

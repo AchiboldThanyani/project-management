@@ -254,12 +254,18 @@ export class VaultTabComponent implements OnInit {
 
   private load(): void {
     this.loading.set(true);
-    this.vaultService.getFolders(this.projectId).subscribe(f => this.folders.set(f));
-    this.vaultService.getDocuments(this.projectId).subscribe(d => {
-      this.documents.set(d);
-      this.loading.set(false);
+    this.vaultService.getFolders(this.projectId).subscribe({
+      next: f => this.folders.set(f),
+      error: () => this.toast('Failed to load folders', true),
     });
-    this.vaultService.getFiles(this.projectId).subscribe(f => this.files.set(f));
+    this.vaultService.getDocuments(this.projectId).subscribe({
+      next: d => { this.documents.set(d); this.loading.set(false); },
+      error: () => { this.loading.set(false); this.toast('Failed to load documents', true); },
+    });
+    this.vaultService.getFiles(this.projectId).subscribe({
+      next: f => this.files.set(f),
+      error: () => this.toast('Failed to load files', true),
+    });
   }
 
   visibleDocuments(): VaultDocument[] {

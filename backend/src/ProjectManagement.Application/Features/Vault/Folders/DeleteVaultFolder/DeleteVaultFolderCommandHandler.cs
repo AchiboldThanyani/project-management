@@ -21,10 +21,10 @@ internal sealed class DeleteVaultFolderCommandHandler(
             return Error.Forbidden("Vault.Forbidden", "Only Managers and above can delete folders.");
 
         var folder = await folders.GetByIdAsync(request.FolderId, ct);
-        if (folder is null) return Error.NotFound("Vault.FolderNotFound", "Folder not found.");
+        if (folder is null || folder.ProjectId != request.ProjectId) return Error.NotFound("Vault.FolderNotFound", "Folder not found.");
 
-        var folderDocs = await documents.GetByFolderAsync(request.FolderId, ct);
-        var folderFiles = await files.GetByFolderAsync(request.FolderId, ct);
+        var folderDocs = await documents.GetByFolderAsync(request.FolderId, request.ProjectId, ct);
+        var folderFiles = await files.GetByFolderAsync(request.FolderId, request.ProjectId, ct);
         int movedCount = folderDocs.Count + folderFiles.Count;
 
         foreach (var doc in folderDocs) doc.Move(null);

@@ -122,7 +122,7 @@ export class VaultDocumentEditorComponent implements AfterViewInit, OnDestroy {
         TableRow, TableHeader, TableCell,
         Image,
       ],
-      content: this.document.contentJson ? JSON.parse(this.document.contentJson) : '',
+      content: (() => { try { return this.document.contentJson ? JSON.parse(this.document.contentJson) : ''; } catch { return ''; } })(),
       editable: !this.readonly,
       onUpdate: () => {
         if (!this.readonly) {
