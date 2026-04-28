@@ -22,7 +22,8 @@ internal sealed class CloseIssueCommandHandler(
         issue.Close();
 
         var log = ActivityLog.Create(currentUser.UserId, currentUser.FullName,
-            $"closed issue \"{issue.Title}\"", "Issue", issue.Id, issue.Title);
+            $"closed issue \"{issue.Title}\"", "Issue", issue.Id, issue.Title,
+            projectId: issue.ProjectId);
         await activityRepository.AddAsync(log, cancellationToken);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);

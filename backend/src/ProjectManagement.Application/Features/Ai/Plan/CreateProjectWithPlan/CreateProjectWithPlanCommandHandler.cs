@@ -28,7 +28,8 @@ internal sealed class CreateProjectWithPlanCommandHandler(
         await projectRepository.AddAsync(project, ct);
 
         var projectLog = ActivityLog.Create(currentUser.UserId, currentUser.FullName,
-            $"created project \"{req.Name}\" from AI plan", "Project", project.Id, req.Name);
+            $"created project \"{req.Name}\" from AI plan", "Project", project.Id, req.Name,
+            projectId: project.Id);
         await activityRepository.AddAsync(projectLog, ct);
 
         // Per-task activity logging is intentionally omitted to avoid flooding the feed

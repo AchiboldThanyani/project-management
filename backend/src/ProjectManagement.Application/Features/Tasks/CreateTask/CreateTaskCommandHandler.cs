@@ -40,7 +40,8 @@ internal sealed class CreateTaskCommandHandler(
         await repository.AddAsync(task, cancellationToken);
 
         var log = ActivityLog.Create(currentUser.UserId, currentUser.FullName,
-            $"created task \"{request.Title}\"", "Task", task.Id, request.Title);
+            $"created task \"{request.Title}\"", "Task", task.Id, request.Title,
+            projectId: request.ProjectId);
         await activityRepository.AddAsync(log, cancellationToken);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);

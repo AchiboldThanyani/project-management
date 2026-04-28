@@ -29,7 +29,8 @@ internal sealed class CreateProjectCommandHandler(
         await repository.AddAsync(project, cancellationToken);
 
         var log = ActivityLog.Create(currentUser.UserId, currentUser.FullName,
-            $"created project \"{request.Name}\"", "Project", project.Id, request.Name);
+            $"created project \"{request.Name}\"", "Project", project.Id, request.Name,
+            projectId: project.Id);
         await activityRepository.AddAsync(log, cancellationToken);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);

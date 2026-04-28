@@ -15,5 +15,7 @@ public class ActivityLogConfiguration : IEntityTypeConfiguration<ActivityLog>
         builder.Property(a => a.EntityType).IsRequired().HasMaxLength(100);
         builder.Property(a => a.EntityName).IsRequired().HasMaxLength(500);
         builder.HasIndex(a => a.CreatedAt);
+        builder.Property(a => a.ProjectId);
+        builder.HasIndex(a => new { a.ProjectId, a.UserId, a.CreatedAt });
     }
 }

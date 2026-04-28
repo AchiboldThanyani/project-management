@@ -10,6 +10,7 @@ public class ActivityLog : BaseEntity
     public string EntityType { get; private set; } = string.Empty;
     public Guid? EntityId { get; private set; }
     public string EntityName { get; private set; } = string.Empty;
+    public Guid? ProjectId { get; private set; }
 
     private ActivityLog() { }
 
@@ -19,7 +20,8 @@ public class ActivityLog : BaseEntity
         string action,
         string entityType,
         Guid? entityId,
-        string entityName)
+        string entityName,
+        Guid? projectId = null)
     {
         return new ActivityLog
         {
@@ -29,6 +31,7 @@ public class ActivityLog : BaseEntity
             EntityType = entityType,
             EntityId = entityId,
             EntityName = entityName,
+            ProjectId = projectId,
         };
     }
 }

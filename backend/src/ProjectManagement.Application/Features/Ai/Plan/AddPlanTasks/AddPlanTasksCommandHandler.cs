@@ -44,7 +44,8 @@ internal sealed class AddPlanTasksCommandHandler(
         }
 
         var actLog = ActivityLog.Create(currentUser.UserId, currentUser.FullName,
-            $"added {created.Count} tasks from AI plan", "Project", req.ProjectId, project.Name);
+            $"added {created.Count} tasks from AI plan", "Project", req.ProjectId, project.Name,
+            projectId: req.ProjectId);
         await activityRepository.AddAsync(actLog, ct);
 
         await unitOfWork.SaveChangesAsync(ct);

@@ -31,7 +31,8 @@ internal sealed class CreateIssueCommandHandler(
         await issueRepository.AddAsync(issue, cancellationToken);
 
         var log = ActivityLog.Create(currentUser.UserId, currentUser.FullName,
-            $"opened issue \"{request.Title}\"", "Issue", issue.Id, request.Title);
+            $"opened issue \"{request.Title}\"", "Issue", issue.Id, request.Title,
+            projectId: request.ProjectId);
         await activityRepository.AddAsync(log, cancellationToken);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);

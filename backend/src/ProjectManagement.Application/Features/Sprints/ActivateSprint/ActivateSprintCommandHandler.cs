@@ -42,7 +42,8 @@ internal sealed class ActivateSprintCommandHandler(
         await repository.UpdateAsync(sprint, cancellationToken);
 
         var log = ActivityLog.Create(currentUser.UserId, currentUser.FullName,
-            $"activated sprint \"{sprint.Name}\"", "Sprint", sprint.Id, sprint.Name);
+            $"activated sprint \"{sprint.Name}\"", "Sprint", sprint.Id, sprint.Name,
+            projectId: sprint.ProjectId);
         await activityRepository.AddAsync(log, cancellationToken);
 
         // Stage notification entities for all project members except the activator

@@ -27,7 +27,8 @@ internal sealed class TaskStatusChangedEventHandler(
         var statusLabel = (int)e.NewStatus < StatusLabels.Length ? StatusLabels[(int)e.NewStatus] : e.NewStatus.ToString();
 
         var log = ActivityLog.Create(e.ChangedByUserId, userName,
-            $"moved \"{e.TaskTitle}\" to {statusLabel}", "Task", e.TaskId, e.TaskTitle);
+            $"moved \"{e.TaskTitle}\" to {statusLabel}", "Task", e.TaskId, e.TaskTitle,
+            projectId: e.ProjectId);
         await activityRepository.AddAsync(log, ct);
 
         if (e.NewStatus == TaskStatus.Blocked)

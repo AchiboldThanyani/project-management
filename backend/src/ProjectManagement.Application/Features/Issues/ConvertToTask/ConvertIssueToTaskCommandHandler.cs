@@ -38,7 +38,8 @@ internal sealed class ConvertIssueToTaskCommandHandler(
         issue.MarkConvertedToTask(task.Id);
 
         var log = ActivityLog.Create(currentUser.UserId, currentUser.FullName,
-            $"converted issue #{issue.Number} to a task", "Task", task.Id, task.Title);
+            $"converted issue #{issue.Number} to a task", "Task", task.Id, task.Title,
+            projectId: task.ProjectId);
         await activityRepository.AddAsync(log, cancellationToken);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);

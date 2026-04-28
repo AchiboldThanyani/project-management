@@ -69,7 +69,8 @@ internal sealed class CompleteSprintCommandHandler(
             : $"completed sprint \"{sprint.Name}\"";
 
         var log = ActivityLog.Create(currentUser.UserId, currentUser.FullName,
-            activityMsg, "Sprint", sprint.Id, sprint.Name);
+            activityMsg, "Sprint", sprint.Id, sprint.Name,
+            projectId: sprint.ProjectId);
         await activityRepository.AddAsync(log, cancellationToken);
 
         // Stage notification entities for all project members except the completer
