@@ -21,14 +21,18 @@ public class VaultFile : BaseEntity
         Guid projectId, Guid? folderId,
         string fileName, string storedFileName,
         string contentType, long sizeBytes,
-        string uploadedById, string uploadedByName) =>
-        new()
+<<<<<<< HEAD
+        string uploadedById, string uploadedByName)
+    {
+        if (sizeBytes <= 0) throw new ArgumentOutOfRangeException(nameof(sizeBytes), "SizeBytes must be positive.");
+        return new()
         {
             ProjectId = projectId, FolderId = folderId,
             FileName = fileName, StoredFileName = storedFileName,
             ContentType = contentType, SizeBytes = sizeBytes,
             UploadedById = uploadedById, UploadedByName = uploadedByName
         };
+    }
 
     public void Move(Guid? folderId) { FolderId = folderId; SetUpdated(); }
 }

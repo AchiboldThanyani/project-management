@@ -11,6 +11,7 @@ import { ProjectService, ProjectMemberService } from '@pm/projects/data-access';
 import { TaskService, CommentService, IssueService, LabelService, TaskDependencyService, TicketService, InviteService } from '@pm/tasks/data-access';
 import { AuthService, UserService } from '@pm/auth/data-access';
 import { BoardsTabComponent } from '@pm/boards/feature';
+import { VaultTabComponent } from '@pm/vault/feature';
 import {
   Project, Task, TaskStatus, TaskPriority, Sprint, Comment, User,
   Issue, IssueComment, IssueType,
@@ -36,7 +37,7 @@ const COLUMNS = [
   standalone: true,
   imports: [
     CommonModule, ReactiveFormsModule, FormsModule, DragDropModule,
-    MatSnackBarModule, MatDialogModule, BoardsTabComponent, MentionPipe,
+    MatSnackBarModule, MatDialogModule, BoardsTabComponent, MentionPipe, VaultTabComponent,
   ],
   template: `
     <div *ngIf="loading()" class="loading-wrap">
@@ -51,7 +52,7 @@ const COLUMNS = [
           <h1 class="page-title">{{ project()!.name }}</h1>
           <p class="page-sub" *ngIf="project()!.description">{{ project()!.description }}</p>
         </div>
-        <button class="btn-primary" *ngIf="activeTab !== 'issues'" (click)="showCreateTask.set(true)">
+        <button class="btn-primary" *ngIf="activeTab !== 'issues' && activeTab !== 'vault'" (click)="showCreateTask.set(true)">
           <span class="material-icons-round">add</span> Add Task
         </button>
         <button class="btn-primary" *ngIf="activeTab === 'issues'" (click)="showCreateIssue.set(true)">
@@ -87,6 +88,10 @@ const COLUMNS = [
         </button>
         <button class="tab" [class.active]="activeTab === 'brainstorm'" (click)="activeTab = 'brainstorm'">
           <span class="material-icons-round">brush</span> Brainstorm
+        </button>
+        <button class="tab" [class.active]="activeTab === 'vault'" (click)="activeTab = 'vault'">
+          <span class="material-icons-round">lock</span>
+          Vault
         </button>
       </div>
 
@@ -558,6 +563,11 @@ const COLUMNS = [
       <!-- ── Brainstorm tab ────────────────────────── -->
       <div *ngIf="activeTab === 'brainstorm' && project()" style="display:flex;flex-direction:column;height:calc(100vh - 160px);">
         <pm-boards-tab [projectId]="project()!.id" />
+      </div>
+
+      <!-- ── Vault tab ─────────────────────────────── -->
+      <div *ngIf="activeTab === 'vault'" style="display:flex;flex:1;min-height:0;">
+        <pm-vault-tab [projectId]="project()!.id" />
       </div>
 
     </div>
@@ -2607,7 +2617,7 @@ export class ProjectDetailComponent implements OnInit {
   editMode = signal(false);
   editingSprint = signal<Sprint | null>(null);
 
-  activeTab: 'board' | 'sprints' | 'issues' | 'timeline' | 'members' | 'tickets' | 'invites' | 'brainstorm' = 'board';
+  activeTab: 'board' | 'sprints' | 'issues' | 'timeline' | 'members' | 'tickets' | 'invites' | 'brainstorm' | 'vault' = 'board';
   openSprintMenuId: string | null = null;
 
   completingSprintId = signal<string | null>(null);

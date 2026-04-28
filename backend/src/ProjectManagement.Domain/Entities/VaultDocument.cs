@@ -23,7 +23,6 @@ public class VaultDocument : BaseEntity
         new()
         {
             Title = title, ProjectId = projectId, FolderId = folderId,
-            ContentJson = string.Empty,
             CreatedById = createdById, CreatedByName = createdByName
         };
 

@@ -48,6 +48,9 @@ public static class DependencyInjection
         services.AddScoped<ITimeLogRepository, TimeLogRepository>();
         services.AddScoped<ITaskAttachmentRepository, TaskAttachmentRepository>();
         services.AddScoped<IBoardRepository, BoardRepository>();
+        services.AddScoped<IVaultFolderRepository, VaultFolderRepository>();
+        services.AddScoped<IVaultDocumentRepository, VaultDocumentRepository>();
+        services.AddScoped<IVaultFileRepository, VaultFileRepository>();
 
         services.AddHostedService<ProjectManagement.Infrastructure.BackgroundServices.OverdueTaskScannerService>();
         services.AddHostedService<ProjectManagement.Infrastructure.BackgroundServices.TicketSlaBreachScannerService>();
