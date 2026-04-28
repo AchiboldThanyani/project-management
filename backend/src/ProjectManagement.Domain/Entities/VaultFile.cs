@@ -21,7 +21,6 @@ public class VaultFile : BaseEntity
         Guid projectId, Guid? folderId,
         string fileName, string storedFileName,
         string contentType, long sizeBytes,
-<<<<<<< HEAD
         string uploadedById, string uploadedByName)
     {
         if (sizeBytes <= 0) throw new ArgumentOutOfRangeException(nameof(sizeBytes), "SizeBytes must be positive.");
