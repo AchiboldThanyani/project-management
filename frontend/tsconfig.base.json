@@ -26,7 +26,9 @@
       "@pm/teams/feature": ["libs/teams/feature/src/index.ts"],
       "@pm/layout/feature": ["libs/layout/feature/src/index.ts"],
       "@pm/boards/data-access": ["libs/boards/data-access/src/index.ts"],
-      "@pm/boards/feature": ["libs/boards/feature/src/index.ts"]
+      "@pm/boards/feature": ["libs/boards/feature/src/index.ts"],
+      "@pm/vault/data-access": ["libs/vault/data-access/src/index.ts"],
+      "@pm/vault/feature": ["libs/vault/feature/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]
