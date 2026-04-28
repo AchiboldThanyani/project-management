@@ -1,7 +1,6 @@
 import {
   Component, Input, Output, EventEmitter,
   OnDestroy, AfterViewInit, ElementRef, ViewChild,
-  signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -31,7 +30,6 @@ import { VaultDocumentDetail } from '@pm/shared/models';
           [readonly]="readonly"
         />
       </div>
-
       <div *ngIf="!readonly" class="toolbar">
         <button class="tb-btn" (click)="cmd('toggleBold')" title="Bold"><b>B</b></button>
         <button class="tb-btn" (click)="cmd('toggleItalic')" title="Italic"><i>I</i></button>
@@ -48,15 +46,7 @@ import { VaultDocumentDetail } from '@pm/shared/models';
         <button class="tb-btn" (click)="insertTable()" title="Table">&#8862;</button>
         <button class="tb-btn" (click)="insertImage()" title="Image">Img</button>
       </div>
-
       <div #editorEl class="tiptap-content" [class.readonly]="readonly"></div>
-
-      <div class="save-status" *ngIf="!readonly">
-        <span *ngIf="saveStatus() === 'saving'">Saving...</span>
-        <span *ngIf="saveStatus() === 'saved'">
-          Saved - Last edited by {{ document.updatedByName || document.createdByName }}
-        </span>
-      </div>
     </div>
   `,
   styles: [`
@@ -81,7 +71,6 @@ import { VaultDocumentDetail } from '@pm/shared/models';
     .tb-sep { width: 1px; height: 16px; background: var(--border); margin: 0 4px; }
     .tiptap-content { flex: 1; outline: none; font-size: 14px; line-height: 1.7; color: var(--ink); min-height: 200px; }
     .tiptap-content.readonly { cursor: default; }
-    .save-status { font-size: 11px; color: var(--soft); margin-top: 8px; height: 16px; }
     :host ::ng-deep .tiptap-content h1 { font-size: 1.6em; font-weight: 700; margin: 16px 0 8px; }
     :host ::ng-deep .tiptap-content h2 { font-size: 1.3em; font-weight: 700; margin: 14px 0 6px; }
     :host ::ng-deep .tiptap-content h3 { font-size: 1.1em; font-weight: 600; margin: 12px 0 4px; }
@@ -104,8 +93,8 @@ export class VaultDocumentEditorComponent implements AfterViewInit, OnDestroy {
   @Input({ required: true }) document!: VaultDocumentDetail;
   @Input() readonly = false;
   @Output() save = new EventEmitter<{ title: string; contentJson: string }>();
+  @Output() saveStatusChange = new EventEmitter<'idle' | 'saving' | 'saved' | 'error'>();
 
-  saveStatus = signal<'idle' | 'saving' | 'saved'>('idle');
   titleValue = '';
 
   private editor: Editor | null = null;
@@ -126,7 +115,7 @@ export class VaultDocumentEditorComponent implements AfterViewInit, OnDestroy {
       editable: !this.readonly,
       onUpdate: () => {
         if (!this.readonly) {
-          this.saveStatus.set('saving');
+          this.saveStatusChange.emit('saving');
           this.save$.next();
         }
       },
@@ -136,7 +125,7 @@ export class VaultDocumentEditorComponent implements AfterViewInit, OnDestroy {
   onTitleInput(event: Event): void {
     this.titleValue = (event.target as HTMLInputElement).value;
     if (!this.readonly) {
-      this.saveStatus.set('saving');
+      this.saveStatusChange.emit('saving');
       this.save$.next();
     }
   }
@@ -161,7 +150,7 @@ export class VaultDocumentEditorComponent implements AfterViewInit, OnDestroy {
   private emitSave(): void {
     const contentJson = JSON.stringify(this.editor?.getJSON() ?? {});
     this.save.emit({ title: this.titleValue, contentJson });
-    this.saveStatus.set('saved');
+    this.saveStatusChange.emit('saved');
   }
 
   ngOnDestroy(): void {
