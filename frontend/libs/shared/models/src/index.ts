@@ -14,3 +14,4 @@ export * from './lib/ticket.model';
 export * from './lib/notification.model';
 export * from './lib/board.model';
 export * from './lib/vault.model';
+export * from './lib/standup.model';
