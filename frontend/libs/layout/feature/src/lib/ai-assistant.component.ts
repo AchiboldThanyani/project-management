@@ -120,7 +120,7 @@ const QUICK_PROMPTS: { icon: string; label: string }[] = [
                 <div class="msg" [class.user]="msg.role === 'user'" [class.assistant]="msg.role === 'assistant'">
                   @if (msg.role === 'assistant') {
                     <div class="msg-avatar" [class.pulsing]="msg.loading">
-                      <span class="material-icons-round">auto_awesome</span>
+                      <img src="bot.jpg" alt="bot" class="bot-img" />
                     </div>
                   }
                   <div class="msg-bubble" [class.thinking]="msg.loading">
@@ -202,7 +202,7 @@ const QUICK_PROMPTS: { icon: string; label: string }[] = [
                   <div class="msg" [class.user]="msg.role === 'user'" [class.assistant]="msg.role === 'assistant'">
                     @if (msg.role === 'assistant') {
                       <div class="msg-avatar" [class.pulsing]="$last && planLoading()">
-                        <span class="material-icons-round">auto_fix_high</span>
+                        <img src="bot.jpg" alt="bot" class="bot-img" />
                       </div>
                     }
                     <div class="msg-bubble" [class.thinking]="$last && planLoading() && msg.content === ''">
@@ -472,12 +472,11 @@ const QUICK_PROMPTS: { icon: string; label: string }[] = [
 
     .msg-avatar {
       width: 30px; height: 30px; border-radius: 10px; flex-shrink: 0;
-      background: linear-gradient(135deg, var(--violet), #818cf8);
-      display: flex; align-items: center; justify-content: center;
+      overflow: hidden;
       box-shadow: 0 2px 8px rgba(99,102,241,.3);
       margin-bottom: 2px;
     }
-    .msg-avatar .material-icons-round { font-size: 15px; color: #fff; }
+    .bot-img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
     .msg-bubble {
       max-width: 82%; padding: 11px 14px; border-radius: 16px;
