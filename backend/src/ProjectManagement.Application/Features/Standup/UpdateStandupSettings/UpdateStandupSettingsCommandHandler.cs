@@ -1,3 +1,4 @@
+using System.Globalization;
 using MediatR;
 using ProjectManagement.Application.Common;
 using ProjectManagement.Application.Features.Standup.DTOs;
@@ -20,7 +21,7 @@ internal sealed class UpdateStandupSettingsCommandHandler(
         if (!await permissions.HasProjectRoleAsync(request.ProjectId, currentUser.UserId, ProjectMemberRole.Manager, ct))
             return Error.Forbidden("Standup.Forbidden", "Only project managers can configure standup settings.");
 
-        if (!TimeOnly.TryParse(request.ScheduledTime, out var scheduledTime))
+        if (!TimeOnly.TryParseExact(request.ScheduledTime, "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var scheduledTime))
             return Error.Validation("Standup.InvalidTime", "ScheduledTime must be in HH:mm format.");
 
         var settings = await settingsRepo.GetByProjectAsync(request.ProjectId, ct);

@@ -19,7 +19,9 @@ internal sealed class GenerateStandupCommandHandler(
             return Error.Forbidden("Standup.Forbidden", "Only project managers can generate standup reports.");
 
         var report = await generator.GenerateAsync(request.ProjectId, isScheduled: false, currentUser.UserId, ct);
-        var members = JsonSerializer.Deserialize<List<StandupMemberSummaryDto>>(report.ReportJson) ?? [];
+        List<StandupMemberSummaryDto> members;
+        try { members = JsonSerializer.Deserialize<List<StandupMemberSummaryDto>>(report.ReportJson) ?? []; }
+        catch (JsonException) { members = []; }
 
         return new StandupReportDto(report.Id, report.ProjectId, report.GeneratedAt, report.IsScheduled, report.GeneratedById, members);
     }

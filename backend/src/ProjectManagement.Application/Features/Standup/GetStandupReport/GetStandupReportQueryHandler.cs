@@ -22,7 +22,9 @@ internal sealed class GetStandupReportQueryHandler(
         if (report == null || report.ProjectId != request.ProjectId)
             return Error.NotFound("Standup.ReportNotFound", "Report not found.");
 
-        var members = JsonSerializer.Deserialize<List<StandupMemberSummaryDto>>(report.ReportJson) ?? [];
+        List<StandupMemberSummaryDto> members;
+        try { members = JsonSerializer.Deserialize<List<StandupMemberSummaryDto>>(report.ReportJson) ?? []; }
+        catch (JsonException) { members = []; }
         return new StandupReportDto(report.Id, report.ProjectId, report.GeneratedAt, report.IsScheduled, report.GeneratedById, members);
     }
 }

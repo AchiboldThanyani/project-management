@@ -1,6 +1,6 @@
 namespace ProjectManagement.Application.Features.Standup.DTOs;
 
-public record StandupReportDto(
+public sealed record StandupReportDto(
     Guid Id,
     Guid ProjectId,
     DateTime GeneratedAt,
