@@ -12,6 +12,7 @@ import { TaskService, CommentService, IssueService, LabelService, TaskDependency
 import { AuthService, UserService } from '@pm/auth/data-access';
 import { BoardsTabComponent } from '@pm/boards/feature';
 import { VaultTabComponent } from '@pm/vault/feature';
+import { UpdatesTabComponent } from '../updates-tab/updates-tab.component';
 import {
   Project, Task, TaskStatus, TaskPriority, Sprint, Comment, User,
   Issue, IssueComment, IssueType,
@@ -37,7 +38,7 @@ const COLUMNS = [
   standalone: true,
   imports: [
     CommonModule, ReactiveFormsModule, FormsModule, DragDropModule,
-    MatSnackBarModule, MatDialogModule, BoardsTabComponent, MentionPipe, VaultTabComponent,
+    MatSnackBarModule, MatDialogModule, BoardsTabComponent, MentionPipe, VaultTabComponent, UpdatesTabComponent,
   ],
   template: `
     <div *ngIf="loading()" class="loading-wrap">
@@ -90,8 +91,10 @@ const COLUMNS = [
           <span class="material-icons-round">brush</span> Brainstorm
         </button>
         <button class="tab" [class.active]="activeTab === 'vault'" (click)="activeTab = 'vault'">
-          <span class="material-icons-round">lock</span>
-          Vault
+          <span class="material-icons-round">folder_open</span> Vault
+        </button>
+        <button class="tab" [class.active]="activeTab === 'updates'" (click)="activeTab = 'updates'">
+          <span class="material-icons-round">update</span> Updates
         </button>
       </div>
 
@@ -568,6 +571,11 @@ const COLUMNS = [
       <!-- ── Vault tab ─────────────────────────────── -->
       <div *ngIf="activeTab === 'vault'" style="display:flex;flex:1;min-height:0;">
         <pm-vault-tab [projectId]="project()!.id" />
+      </div>
+
+      <!-- ── Updates tab ───────────────────────────── -->
+      <div *ngIf="activeTab === 'updates'" style="display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;">
+        <pm-updates-tab [projectId]="project()!.id" />
       </div>
 
     </div>
@@ -2617,7 +2625,7 @@ export class ProjectDetailComponent implements OnInit {
   editMode = signal(false);
   editingSprint = signal<Sprint | null>(null);
 
-  activeTab: 'board' | 'sprints' | 'issues' | 'timeline' | 'members' | 'tickets' | 'invites' | 'brainstorm' | 'vault' = 'board';
+  activeTab: 'board' | 'sprints' | 'issues' | 'timeline' | 'members' | 'tickets' | 'invites' | 'brainstorm' | 'vault' | 'updates' = 'board';
   openSprintMenuId: string | null = null;
 
   completingSprintId = signal<string | null>(null);
