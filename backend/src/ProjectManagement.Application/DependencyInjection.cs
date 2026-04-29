@@ -2,6 +2,8 @@ using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using ProjectManagement.Application.Common.Behaviours;
+using ProjectManagement.Application.Interfaces;
+using ProjectManagement.Application.Services;
 
 namespace ProjectManagement.Application;
 
@@ -19,6 +21,8 @@ public static class DependencyInjection
             cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(LoggingBehaviour<,>));
             cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(ValidationBehaviour<,>));
         });
+
+        services.AddScoped<IStandupGeneratorService, StandupGeneratorService>();
 
         return services;
     }
