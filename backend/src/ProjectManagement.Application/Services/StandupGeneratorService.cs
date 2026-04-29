@@ -36,7 +36,14 @@ public class StandupGeneratorService(
             else
             {
                 var prompt = BuildPrompt(member.FullName, activity, timeLogs);
-                summary = await claudeService.AskAsync(prompt, ct);
+                try
+                {
+                    summary = await claudeService.AskAsync(prompt, ct);
+                }
+                catch (Exception)
+                {
+                    summary = "Summary unavailable — generation error.";
+                }
             }
 
             summaries.Add(new StandupMemberSummaryDto(member.UserId, member.FullName, summary));

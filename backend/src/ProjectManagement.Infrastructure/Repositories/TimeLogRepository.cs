@@ -14,6 +14,7 @@ public class TimeLogRepository(ApplicationDbContext db)
     public async Task<IReadOnlyList<TimeLog>> GetByProjectAndUserAsync(
         Guid projectId, string userId, DateOnly date, CancellationToken ct = default)
         => await db.TimeLogs
+            .Include(t => t.Task)
             .Where(t => t.UserId == userId && t.LoggedDate == date
                 && db.Tasks.Any(task => task.Id == t.TaskId && task.ProjectId == projectId))
             .ToListAsync(ct);
