@@ -56,6 +56,7 @@ public static class DependencyInjection
 
         services.AddHostedService<ProjectManagement.Infrastructure.BackgroundServices.OverdueTaskScannerService>();
         services.AddHostedService<ProjectManagement.Infrastructure.BackgroundServices.TicketSlaBreachScannerService>();
+        services.AddHostedService<ProjectManagement.Infrastructure.BackgroundServices.StandupSchedulerService>();
 
         // HTTP context / current user
         services.AddHttpContextAccessor();
