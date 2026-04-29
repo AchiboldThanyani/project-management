@@ -10,9 +10,12 @@ public class StandupReportRepository(ApplicationDbContext db)
 {
     public async Task<IReadOnlyList<StandupReport>> GetByProjectAsync(
         Guid projectId, int count, CancellationToken ct = default)
-        => await db.StandupReports
+    {
+        if (count <= 0) throw new ArgumentOutOfRangeException(nameof(count), "count must be greater than zero.");
+        return await db.StandupReports
             .Where(r => r.ProjectId == projectId)
             .OrderByDescending(r => r.GeneratedAt)
             .Take(count)
             .ToListAsync(ct);
+    }
 }
