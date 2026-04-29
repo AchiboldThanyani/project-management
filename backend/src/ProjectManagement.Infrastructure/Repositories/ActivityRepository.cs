@@ -15,4 +15,11 @@ public class ActivityRepository(ApplicationDbContext context)
             .OrderByDescending(a => a.CreatedAt)
             .Take(count)
             .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<ActivityLog>> GetByProjectAndUserAsync(
+        Guid projectId, string userId, DateTime since, CancellationToken ct = default)
+        => await _context.ActivityLogs
+            .Where(a => a.ProjectId == projectId && a.UserId == userId && a.CreatedAt >= since)
+            .OrderByDescending(a => a.CreatedAt)
+            .ToListAsync(ct);
 }

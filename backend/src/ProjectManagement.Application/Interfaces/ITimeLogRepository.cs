@@ -1,12 +1,13 @@
 using ProjectManagement.Domain.Entities;
+using ProjectManagement.Domain.Interfaces;
 
 namespace ProjectManagement.Application.Interfaces;
 
-public interface ITimeLogRepository
+public interface ITimeLogRepository : IRepository<TimeLog>
 {
-    Task<TimeLog?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<IReadOnlyList<TimeLog>> GetByTaskIdAsync(Guid taskId, CancellationToken ct = default);
-    Task AddAsync(TimeLog log, CancellationToken ct = default);
+    Task<IReadOnlyList<TimeLog>> GetByProjectAndUserAsync(
+        Guid projectId, string userId, DateOnly date, CancellationToken ct = default);
     void Remove(TimeLog log);
     Task SaveAsync(CancellationToken ct = default);
 }
