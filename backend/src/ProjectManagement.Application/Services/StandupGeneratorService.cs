@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using ProjectManagement.Application.Features.Standup.DTOs;
 using ProjectManagement.Application.Interfaces;
@@ -11,7 +12,6 @@ public class StandupGeneratorService(
     IActivityRepository activityRepo,
     ITimeLogRepository timeLogRepo,
     IStandupReportRepository reportRepo,
-    IClaudeService claudeService,
     IUnitOfWork unitOfWork) : IStandupGeneratorService
 {
     public async Task<StandupReport> GenerateAsync(
@@ -28,23 +28,9 @@ public class StandupGeneratorService(
             var activity = await activityRepo.GetByProjectAndUserAsync(projectId, member.UserId, since, ct);
             var timeLogs = await timeLogRepo.GetByProjectAndUserAsync(projectId, member.UserId, today, ct);
 
-            string summary;
-            if (activity.Count == 0 && timeLogs.Count == 0)
-            {
-                summary = "No activity recorded.";
-            }
-            else
-            {
-                var prompt = BuildPrompt(member.FullName, activity, timeLogs);
-                try
-                {
-                    summary = await claudeService.AskAsync(prompt, ct);
-                }
-                catch (Exception)
-                {
-                    summary = "Summary unavailable — generation error.";
-                }
-            }
+            var summary = activity.Count == 0 && timeLogs.Count == 0
+                ? "No activity recorded."
+                : BuildSummary(activity, timeLogs);
 
             summaries.Add(new StandupMemberSummaryDto(member.UserId, member.FullName, summary));
         }
@@ -56,29 +42,30 @@ public class StandupGeneratorService(
         return report;
     }
 
-    private static string BuildPrompt(
-        string name,
+    private static string BuildSummary(
         IReadOnlyList<ActivityLog> activity,
         IReadOnlyList<TimeLog> timeLogs)
     {
-        var actData = activity.Select(a => new { a.Action, a.EntityType, a.EntityName });
-        var timeData = timeLogs.Select(t => new { TaskName = t.Task?.Title ?? "Unknown task", t.Hours, t.Description });
+        var sb = new StringBuilder();
 
-        return $"""
-            Write a concise standup update for {name} based on the following activity from the last 24 hours.
+        if (timeLogs.Count > 0)
+        {
+            sb.AppendLine("✅ Time logged:");
+            foreach (var log in timeLogs)
+            {
+                var desc = string.IsNullOrWhiteSpace(log.Description) ? "" : $" – {log.Description}";
+                sb.AppendLine($"   • {log.Task?.Title ?? "Unknown task"} ({log.Hours}h){desc}");
+            }
+        }
 
-            Format your response exactly as:
-            ✅ Yesterday: [what they completed or worked on]
-            🔄 Today: [tasks currently In Progress or To Do]
-            ⚠️ Blocked: [any task or issue in Blocked status — omit this line if none]
+        if (activity.Count > 0)
+        {
+            if (sb.Length > 0) sb.AppendLine();
+            sb.AppendLine("🔄 Activity (last 24h):");
+            foreach (var a in activity.Take(10))
+                sb.AppendLine($"   • {a.Action} {a.EntityType}: {a.EntityName}");
+        }
 
-            Be brief. Use the task/issue names from the data. Do not invent information.
-
-            Activity:
-            {JsonSerializer.Serialize(actData)}
-
-            Time logged:
-            {JsonSerializer.Serialize(timeData)}
-            """;
+        return sb.ToString().TrimEnd();
     }
 }
