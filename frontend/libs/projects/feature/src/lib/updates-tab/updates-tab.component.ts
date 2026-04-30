@@ -238,9 +238,9 @@ interface SummarySection {
     }
     .member-avatar {
       width: 30px; height: 30px; border-radius: 50%;
-      background: linear-gradient(135deg, var(--violet), #818cf8);
+      background: var(--violet-mid); color: var(--violet);
       display: flex; align-items: center; justify-content: center;
-      font-size: 11px; color: #fff; font-weight: 700; flex-shrink: 0;
+      font-size: 11px; font-weight: 700; flex-shrink: 0;
     }
     .member-name { flex: 1; font-size: 13px; font-weight: 600; color: var(--ink); }
     .no-activity-icon { font-size: 16px; color: var(--soft); }
