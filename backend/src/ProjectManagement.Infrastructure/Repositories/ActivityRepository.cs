@@ -22,4 +22,11 @@ public class ActivityRepository(ApplicationDbContext context)
             .Where(a => a.ProjectId == projectId && a.UserId == userId && a.CreatedAt >= since)
             .OrderByDescending(a => a.CreatedAt)
             .ToListAsync(ct);
+
+    public async Task<IReadOnlyList<ActivityLog>> GetByProjectSinceAsync(
+        Guid projectId, DateTime since, CancellationToken ct = default)
+        => await _context.ActivityLogs
+            .Where(a => a.ProjectId == projectId && a.CreatedAt >= since)
+            .OrderByDescending(a => a.CreatedAt)
+            .ToListAsync(ct);
 }

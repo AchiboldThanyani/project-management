@@ -1,31 +1,24 @@
-export interface StandupSettings {
-  projectId: string;
-  isEnabled: boolean;
-  scheduledTime: string; // "HH:mm"
+export interface UpdatesTimeLog {
+  taskTitle: string;
+  hours: number;
+  description?: string;
 }
 
-export interface UpdateStandupSettingsRequest {
-  isEnabled: boolean;
-  scheduledTime: string;
+export interface UpdatesActivity {
+  action: string;
+  entityType: string;
+  entityName: string;
+  createdAt: string;
 }
 
-export interface StandupMemberSummary {
+export interface UpdatesFeedMember {
   userId: string;
   name: string;
-  summary: string;
+  timeLogs: UpdatesTimeLog[];
+  activity: UpdatesActivity[];
 }
 
-export interface StandupReport {
-  id: string;
-  projectId: string;
-  generatedAt: string;
-  isScheduled: boolean;
-  generatedById?: string;
-  members: StandupMemberSummary[];
-}
-
-export interface StandupReportSummary {
-  id: string;
-  generatedAt: string;
-  isScheduled: boolean;
+export interface UpdatesFeedDay {
+  date: string;
+  members: UpdatesFeedMember[];
 }

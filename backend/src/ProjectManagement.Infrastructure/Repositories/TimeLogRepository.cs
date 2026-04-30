@@ -19,6 +19,15 @@ public class TimeLogRepository(ApplicationDbContext db)
                 && db.Tasks.Any(task => task.Id == t.TaskId && task.ProjectId == projectId))
             .ToListAsync(ct);
 
+    public async Task<IReadOnlyList<TimeLog>> GetByProjectSinceAsync(
+        Guid projectId, DateOnly since, CancellationToken ct = default)
+        => await db.TimeLogs
+            .Include(t => t.Task)
+            .Where(t => t.LoggedDate >= since
+                && db.Tasks.Any(task => task.Id == t.TaskId && task.ProjectId == projectId))
+            .OrderByDescending(t => t.LoggedDate)
+            .ToListAsync(ct);
+
     public void Remove(TimeLog log)
         => db.TimeLogs.Remove(log);
 

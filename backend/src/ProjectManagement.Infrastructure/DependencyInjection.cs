@@ -51,12 +51,8 @@ public static class DependencyInjection
         services.AddScoped<IVaultFolderRepository, VaultFolderRepository>();
         services.AddScoped<IVaultDocumentRepository, VaultDocumentRepository>();
         services.AddScoped<IVaultFileRepository, VaultFileRepository>();
-        services.AddScoped<IStandupSettingsRepository, StandupSettingsRepository>();
-        services.AddScoped<IStandupReportRepository, StandupReportRepository>();
-
         services.AddHostedService<ProjectManagement.Infrastructure.BackgroundServices.OverdueTaskScannerService>();
         services.AddHostedService<ProjectManagement.Infrastructure.BackgroundServices.TicketSlaBreachScannerService>();
-        services.AddHostedService<ProjectManagement.Infrastructure.BackgroundServices.StandupSchedulerService>();
 
         // HTTP context / current user
         services.AddHttpContextAccessor();

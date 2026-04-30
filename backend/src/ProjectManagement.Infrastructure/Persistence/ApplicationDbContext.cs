@@ -37,8 +37,6 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<VaultFolder> VaultFolders => Set<VaultFolder>();
     public DbSet<VaultDocument> VaultDocuments => Set<VaultDocument>();
     public DbSet<VaultFile> VaultFiles => Set<VaultFile>();
-    public DbSet<StandupSettings> StandupSettings => Set<StandupSettings>();
-    public DbSet<StandupReport> StandupReports => Set<StandupReport>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
