@@ -790,9 +790,12 @@ const COLUMNS = [
               <span class="detail-label">Story Points</span>
               <span>{{ selectedTask()!.storyPoints }}</span>
             </div>
-            <div class="detail-item" *ngIf="selectedTask()!.assigneeId">
+            <div class="detail-item">
               <span class="detail-label">Assignee</span>
-              <span>{{ assigneeName(selectedTask()!.assigneeId) }}</span>
+              <select class="detail-select" [ngModel]="selectedTask()!.assigneeId ?? null" (ngModelChange)="changeAssignee($event)">
+                <option [ngValue]="null">— Unassigned —</option>
+                <option *ngFor="let m of members()" [value]="m.userId">{{ m.fullName }}</option>
+              </select>
             </div>
           </div>
 
@@ -3503,6 +3506,19 @@ export class ProjectDetailComponent implements OnInit {
     this.taskService.updateStatus(task.id, { status }).subscribe({
       next: updated => { this.tasks.update(all => all.map(t => t.id === updated.id ? updated : t)); this.selectedTask.set(updated); this.toast(`Moved to ${this.statusLabel(status)}`); },
       error: () => this.toast('Failed to update status', true),
+    });
+  }
+
+  changeAssignee(assigneeId: string | null) {
+    const task = this.selectedTask()!;
+    this.taskService.update(task.id, {
+      title: task.title, description: task.description,
+      priority: task.priority, dueDate: task.dueDate,
+      sprintId: task.sprintId, storyPoints: task.storyPoints,
+      assigneeId: assigneeId ?? undefined,
+    } as any).subscribe({
+      next: updated => { this.tasks.update(all => all.map(t => t.id === updated.id ? updated : t)); this.selectedTask.set(updated); },
+      error: () => this.toast('Failed to update assignee', true),
     });
   }
 
