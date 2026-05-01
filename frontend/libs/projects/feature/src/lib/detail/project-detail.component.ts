@@ -32,6 +32,7 @@ const COLUMNS = [
   { id: 'col-todo',       status: TaskStatus.Todo,       label: 'TO DO',       dot: 'var(--soft)' },
   { id: 'col-inprogress', status: TaskStatus.InProgress, label: 'IN PROGRESS', dot: 'var(--blue)' },
   { id: 'col-inreview',   status: TaskStatus.InReview,   label: 'IN REVIEW',   dot: 'var(--amber)' },
+  { id: 'col-blocked',    status: TaskStatus.Blocked,    label: 'BLOCKED',     dot: 'var(--rose)' },
   { id: 'col-done',       status: TaskStatus.Done,       label: 'DONE',        dot: 'var(--emerald)' },
 ];
 
@@ -161,7 +162,7 @@ const COLUMNS = [
 
         <!-- Kanban -->
         <div class="kanban-board" cdkDropListGroup>
-          <div class="kanban-col" *ngFor="let col of columns">
+          <div class="kanban-col {{ col.id }}" *ngFor="let col of columns">
             <div class="col-header">
               <div class="col-header-left">
                 <span class="col-dot" [style.background]="col.dot"></span>
@@ -770,6 +771,7 @@ const COLUMNS = [
                 <option [ngValue]="TaskStatus.Todo">To Do</option>
                 <option [ngValue]="TaskStatus.InProgress">In Progress</option>
                 <option [ngValue]="TaskStatus.InReview">In Review</option>
+                <option [ngValue]="TaskStatus.Blocked">Blocked</option>
                 <option [ngValue]="TaskStatus.Done">Done</option>
               </select>
             </div>
@@ -1808,6 +1810,13 @@ const COLUMNS = [
       min-height: 100px; transition: background 0.12s;
     }
     .task-list.cdk-drop-list-dragging { background: var(--violet-mid); }
+
+    /* Blocked column accent */
+    .col-blocked .col-header { background: var(--rose-c); border-color: rgba(244,63,94,0.2); }
+    .col-blocked .col-label  { color: var(--rose); }
+    .col-blocked .col-count  { background: rgba(244,63,94,0.15); color: var(--rose); }
+    .col-blocked .task-list  { background: rgba(244,63,94,0.04); border-color: rgba(244,63,94,0.15); }
+    .col-blocked .task-list.cdk-drop-list-dragging { background: rgba(244,63,94,0.1); }
 
     .task-card {
       background: var(--white); border: 1px solid var(--border);
