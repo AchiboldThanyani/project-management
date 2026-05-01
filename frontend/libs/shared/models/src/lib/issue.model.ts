@@ -1,16 +1,16 @@
 import { TaskPriority } from './task.model';
 
 export enum IssueType {
-  Bug = 0,
-  Feature = 1,
-  Question = 2,
-  Chore = 3,
+  Bug = 'Bug',
+  Feature = 'Feature',
+  Question = 'Question',
+  Chore = 'Chore',
 }
 
 export enum IssueStatus {
-  Open = 0,
-  InProgress = 1,
-  Closed = 2,
+  Open = 'Open',
+  InProgress = 'InProgress',
+  Closed = 'Closed',
 }
 
 export const ISSUE_TYPE_LABELS: Record<IssueType, string> = {

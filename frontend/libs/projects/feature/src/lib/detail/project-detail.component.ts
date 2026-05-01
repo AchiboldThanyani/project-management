@@ -17,7 +17,7 @@ import { MessagingComponent } from '@pm/teams/feature';
 import {
   Project, ProjectStatus, PROJECT_STATUS_LABELS,
   Task, TaskStatus, TaskPriority, Sprint, Comment, User,
-  Issue, IssueComment, IssueType,
+  Issue, IssueComment, IssueType, IssueStatus,
   ISSUE_TYPE_LABELS, ISSUE_TYPE_ICONS, ISSUE_TYPE_COLORS,
   TASK_STATUS_LABELS,
   Label, LABEL_COLORS,
@@ -310,10 +310,10 @@ const COLUMNS = [
           <div style="flex:1"></div>
           <select class="filter-select" [(ngModel)]="issueFilterType">
             <option [ngValue]="null">All Types</option>
-            <option [ngValue]="0">Bug</option>
-            <option [ngValue]="1">Feature</option>
-            <option [ngValue]="2">Question</option>
-            <option [ngValue]="3">Chore</option>
+            <option value="Bug">Bug</option>
+            <option value="Feature">Feature</option>
+            <option value="Question">Question</option>
+            <option value="Chore">Chore</option>
           </select>
           <select class="filter-select" [(ngModel)]="issueFilterAssignee">
             <option [ngValue]="null">Anyone</option>
@@ -670,14 +670,14 @@ const COLUMNS = [
 
             <!-- Action buttons -->
             <div class="issue-actions">
-              <button class="btn-ghost sm" *ngIf="issue.status !== 2" (click)="closeIssueItem(issue)">
+              <button class="btn-ghost sm" *ngIf="issue.status !== 'Closed'" (click)="closeIssueItem(issue)">
                 <span class="material-icons-round">check_circle_outline</span> Close Issue
               </button>
-              <button class="btn-ghost sm" *ngIf="issue.status === 2" (click)="reopenIssueItem(issue)">
+              <button class="btn-ghost sm" *ngIf="issue.status === 'Closed'" (click)="reopenIssueItem(issue)">
                 <span class="material-icons-round">radio_button_unchecked</span> Reopen
               </button>
               <button class="btn-primary sm"
-                      *ngIf="issue.status !== 2 && !issue.convertedToTaskId"
+                      *ngIf="issue.status !== 'Closed' && !issue.convertedToTaskId"
                       (click)="openConvert(issue)">
                 <span class="material-icons-round">move_to_inbox</span> Convert to Task
               </button>
@@ -1313,16 +1313,21 @@ const COLUMNS = [
             <textarea class="field-input" formControlName="description" rows="3"
                       placeholder="Steps to reproduce, expected vs actual…"></textarea>
           </div>
-          <div class="form-row">
-            <div class="field-group">
-              <label class="field-label">Type</label>
-              <select class="field-input" formControlName="type">
-                <option [ngValue]="0">🐛 Bug</option>
-                <option [ngValue]="1">✨ Feature</option>
-                <option [ngValue]="2">❓ Question</option>
-                <option [ngValue]="3">🔧 Chore</option>
-              </select>
+          <div class="field-group">
+            <label class="field-label">Type</label>
+            <div class="type-picker">
+              @for (t of issueTypes; track t.value) {
+                <button type="button"
+                  class="type-btn type-{{ t.color }}"
+                  [class.selected]="issueForm.get('type')!.value === t.value"
+                  (click)="issueForm.get('type')!.setValue(t.value)">
+                  <span class="material-icons-round">{{ t.icon }}</span>
+                  {{ t.label }}
+                </button>
+              }
             </div>
+          </div>
+          <div class="form-row">
             <div class="field-group">
               <label class="field-label">Priority</label>
               <select class="field-input" formControlName="priority">
@@ -2034,6 +2039,22 @@ const COLUMNS = [
     .form-row { display: flex; gap: 12px; }
     .form-row .field-group { flex: 1; }
     .form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+
+    /* Issue type picker */
+    .type-picker { display: flex; gap: 6px; flex-wrap: wrap; }
+    .type-btn {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 5px 12px; border-radius: var(--r-full);
+      border: 1.5px solid var(--border); background: var(--surface);
+      font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500;
+      color: var(--muted); cursor: pointer; transition: all 0.15s;
+    }
+    .type-btn .material-icons-round { font-size: 14px; }
+    .type-btn:hover { border-color: var(--soft); color: var(--ink); background: var(--white); }
+    .type-btn.type-rose.selected   { background: var(--rose-c);    border-color: var(--rose);    color: var(--rose); }
+    .type-btn.type-violet.selected { background: var(--violet-c);  border-color: var(--violet);  color: var(--violet); }
+    .type-btn.type-blue.selected   { background: var(--blue-c);    border-color: var(--blue);    color: var(--blue); }
+    .type-btn.type-amber.selected  { background: var(--amber-c);   border-color: var(--amber);   color: var(--amber); }
 
     /* ── Overlay dialogs ── */
     .overlay {
@@ -2859,20 +2880,20 @@ export class ProjectDetailComponent implements OnInit {
   convertingIssue = signal<Issue | null>(null);
 
   issueFilterStatus: 'open' | 'closed' = 'open';
-  issueFilterType: number | null = null;
+  issueFilterType: IssueType | null = null;
   issueFilterAssignee: string | null = null;
 
   filteredIssues(): Issue[] {
     return this.issues().filter(i => {
-      const isOpen = i.status !== 2;
+      const isOpen = i.status !== IssueStatus.Closed;
       const statusMatch = this.issueFilterStatus === 'open' ? isOpen : !isOpen;
       const typeMatch = this.issueFilterType === null || i.type === this.issueFilterType;
       const assigneeMatch = this.issueFilterAssignee === null || i.assigneeId === this.issueFilterAssignee;
       return statusMatch && typeMatch && assigneeMatch;
     });
   }
-  openIssueCount(): number { return this.issues().filter(i => i.status !== 2).length; }
-  closedIssueCount(): number { return this.issues().filter(i => i.status === 2).length; }
+  openIssueCount(): number { return this.issues().filter(i => i.status !== IssueStatus.Closed).length; }
+  closedIssueCount(): number { return this.issues().filter(i => i.status === IssueStatus.Closed).length; }
 
   readonly columns = COLUMNS;
   readonly columnIds = COLUMNS.map(c => c.id);
@@ -3135,6 +3156,13 @@ export class ProjectDetailComponent implements OnInit {
       error: () => this.toast('Failed to delete attachment', true),
     });
   }
+
+  readonly issueTypes = [
+    { value: IssueType.Bug,      label: 'Bug',      icon: 'bug_report',   color: 'rose'   },
+    { value: IssueType.Feature,  label: 'Feature',  icon: 'auto_awesome', color: 'violet' },
+    { value: IssueType.Question, label: 'Question', icon: 'help_outline', color: 'blue'   },
+    { value: IssueType.Chore,    label: 'Chore',    icon: 'build',        color: 'amber'  },
+  ];
 
   issueForm = this.fb.group({
     title: ['', Validators.required],
@@ -3942,11 +3970,15 @@ export class ProjectDetailComponent implements OnInit {
   }
 
   // Issue type/status helpers
-  issueTypeLabel(type: number): string { return ISSUE_TYPE_LABELS[type as IssueType] ?? 'Unknown'; }
-  issueTypeIcon(type: number): string { return ISSUE_TYPE_ICONS[type as IssueType] ?? 'help'; }
-  issueTypeColor(type: number): string { return ISSUE_TYPE_COLORS[type as IssueType] ?? 'blue'; }
-  issueStatusLabel(status: number): string { return ['Open', 'In Progress', 'Closed'][status] ?? 'Open'; }
-  issueStatusKey(status: number): string { return ['open', 'inprogress', 'closed'][status] ?? 'open'; }
+  issueTypeLabel(type: IssueType): string { return ISSUE_TYPE_LABELS[type] ?? 'Unknown'; }
+  issueTypeIcon(type: IssueType): string { return ISSUE_TYPE_ICONS[type] ?? 'help'; }
+  issueTypeColor(type: IssueType): string { return ISSUE_TYPE_COLORS[type] ?? 'blue'; }
+  issueStatusLabel(status: IssueStatus): string {
+    return { Open: 'Open', InProgress: 'In Progress', Closed: 'Closed' }[status] ?? 'Open';
+  }
+  issueStatusKey(status: IssueStatus): string {
+    return { Open: 'open', InProgress: 'inprogress', Closed: 'closed' }[status] ?? 'open';
+  }
 
   private toast(msg: string, isError = false) {
     this.snackBar.open(msg, 'Dismiss', { duration: 3000, panelClass: isError ? ['snack-error'] : ['snack-success'], horizontalPosition: 'right', verticalPosition: 'bottom' });
