@@ -1,8 +1,8 @@
 export enum ProjectMemberRole {
-  Viewer  = 0,
-  Member  = 1,
-  Lead    = 2,
-  Manager = 3,
+  Viewer  = 'Viewer',
+  Member  = 'Member',
+  Lead    = 'Lead',
+  Manager = 'Manager',
 }
 
 export const PROJECT_MEMBER_ROLE_LABELS: Record<ProjectMemberRole, string> = {

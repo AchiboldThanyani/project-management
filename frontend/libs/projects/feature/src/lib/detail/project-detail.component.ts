@@ -484,40 +484,42 @@ const COLUMNS = [
         <div *ngIf="!membersLoading() && members().length > 0" class="member-grid">
           <div *ngFor="let m of members()" class="member-card">
 
-            <!-- Avatar -->
-            <div class="member-avatar">{{ initials(m.fullName) }}</div>
-
-            <!-- Info -->
-            <div class="member-info">
-              <p class="member-name">{{ m.fullName }}</p>
-              <p class="member-email">{{ m.email }}</p>
-              <div class="member-meta">
-                <span class="member-role-badge role-{{ m.role }}">{{ roleLabel(m.role) }}</span>
-                <span class="member-tasks" [class.tasks-warn]="m.openTaskCount >= 5">
-                  <span class="material-icons-round">task_alt</span>
-                  {{ m.openTaskCount }} open {{ m.openTaskCount === 1 ? 'task' : 'tasks' }}
-                </span>
+            <!-- Top row: avatar + name/email + remove -->
+            <div class="member-top">
+              <div class="member-avatar">{{ initials(m.fullName) }}</div>
+              <div class="member-info">
+                <p class="member-name">{{ m.fullName }}</p>
+                <p class="member-email">{{ m.email }}</p>
               </div>
-            </div>
-
-            <!-- Actions -->
-            <div class="member-actions" *ngIf="canManageMembers()">
-              @if (m.systemRole === 1) {
-                <span class="pm-locked" title="Role locked — designated Project Manager">
-                  <span class="material-icons-round">lock</span> PM
-                </span>
-              } @else {
-                <select class="role-select" [ngModel]="m.role" (ngModelChange)="changeMemberRole(m, $event)">
-                  <option [value]="0">Viewer</option>
-                  <option [value]="1">Member</option>
-                  <option [value]="2">Lead</option>
-                  <option [value]="3">Manager</option>
-                </select>
-              }
-              <button class="icon-btn danger-icon" title="Remove from project" (click)="removeMember(m)">
+              <button *ngIf="canManageMembers()" class="icon-btn danger-icon remove-btn"
+                      title="Remove from project" (click)="removeMember(m)">
                 <span class="material-icons-round">person_remove</span>
               </button>
             </div>
+
+            <!-- Footer: task count + role -->
+            <div class="member-footer">
+              <span class="member-tasks" [class.tasks-warn]="m.openTaskCount >= 5">
+                <span class="material-icons-round">task_alt</span>
+                {{ m.openTaskCount }} open {{ m.openTaskCount === 1 ? 'task' : 'tasks' }}
+              </span>
+              <div class="member-role-wrap">
+                @if (!canManageMembers() || m.systemRole === 1) {
+                  <span class="member-role-badge role-{{ m.role }}">
+                    @if (m.systemRole === 1) { <span class="material-icons-round" style="font-size:11px">lock</span> }
+                    {{ roleLabel(m.role) }}
+                  </span>
+                } @else {
+                  <select class="role-select" [ngModel]="m.role" (ngModelChange)="changeMemberRole(m, $event)">
+                    <option value="Viewer">Viewer</option>
+                    <option value="Member">Member</option>
+                    <option value="Lead">Lead</option>
+                    <option value="Manager">Manager</option>
+                  </select>
+                }
+              </div>
+            </div>
+
           </div>
         </div>
 
@@ -1495,10 +1497,10 @@ const COLUMNS = [
           <div class="field-group">
             <label class="field-label">Role</label>
             <select class="field-input" formControlName="role">
-              <option [value]="0">Viewer</option>
-              <option [value]="1">Member</option>
-              <option [value]="2">Lead</option>
-              <option [value]="3">Manager</option>
+              <option value="Viewer">Viewer</option>
+              <option value="Member">Member</option>
+              <option value="Lead">Lead</option>
+              <option value="Manager">Manager</option>
             </select>
           </div>
           <div class="form-actions">
@@ -2376,53 +2378,59 @@ const COLUMNS = [
     }
 
     .member-card {
-      display: flex; align-items: flex-start; gap: 14px;
-      padding: 16px; border-radius: var(--r-md);
+      display: flex; flex-direction: column; gap: 12px;
+      padding: 16px; border-radius: var(--r-lg);
       border: 1px solid var(--border); background: var(--white);
-      transition: box-shadow 0.15s;
+      transition: box-shadow 0.15s, transform 0.15s;
     }
-    .member-card:hover { box-shadow: var(--shadow-sm); }
+    .member-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+
+    .member-top { display: flex; align-items: center; gap: 12px; }
 
     .member-avatar {
-      width: 42px; height: 42px; border-radius: var(--r-full); flex-shrink: 0;
+      width: 40px; height: 40px; border-radius: var(--r-full); flex-shrink: 0;
       background: var(--violet-mid); color: var(--violet);
       display: flex; align-items: center; justify-content: center;
-      font-size: 14px; font-weight: 700; letter-spacing: 0.5px;
+      font-size: 13px; font-weight: 700; letter-spacing: 0.5px;
     }
 
-    .member-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-    .member-name { margin: 0; font-size: 14px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .member-email { margin: 0; font-size: 11px; color: var(--soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .member-info { flex: 1; min-width: 0; }
+    .member-name { margin: 0; font-size: 13px; font-weight: 700; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .member-email { margin: 2px 0 0; font-size: 11px; color: var(--soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-    .member-meta { display: flex; align-items: center; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+    .remove-btn { opacity: 0; transition: opacity 0.15s; flex-shrink: 0; }
+    .member-card:hover .remove-btn { opacity: 1; }
 
-    .member-role-badge {
-      font-size: 10px; font-weight: 700; padding: 2px 7px;
-      border-radius: var(--r-full); border: 1px solid transparent;
+    .member-footer {
+      display: flex; align-items: center; justify-content: space-between;
+      padding-top: 10px; border-top: 1px solid var(--border);
     }
-    .role-0 { background: var(--surface); color: var(--soft); border-color: var(--border); }
-    .role-1 { background: var(--blue-c); color: var(--blue); border-color: var(--blue); }
-    .role-2 { background: var(--violet-mid); color: var(--violet); border-color: var(--violet-2); }
-    .role-3 { background: var(--amber-c); color: var(--amber); border-color: var(--amber); }
 
     .member-tasks {
-      display: flex; align-items: center; gap: 3px;
-      font-size: 11px; color: var(--soft);
+      display: flex; align-items: center; gap: 4px;
+      font-size: 11px; font-weight: 500; color: var(--soft);
     }
-    .member-tasks .material-icons-round { font-size: 12px; }
+    .member-tasks .material-icons-round { font-size: 13px; }
     .tasks-warn { color: var(--amber); }
 
-    .member-actions {
-      display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0;
+    .member-role-wrap { display: flex; align-items: center; }
+
+    .member-role-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 10px; font-weight: 700; padding: 3px 9px;
+      border-radius: var(--r-full); border: 1px solid transparent;
     }
+    .role-Viewer  { background: var(--surface);    color: var(--soft);    border-color: var(--border); }
+    .role-Member  { background: var(--blue-c);      color: var(--blue);    border-color: var(--blue); }
+    .role-Lead    { background: var(--violet-mid);  color: var(--violet);  border-color: var(--violet-2); }
+    .role-Manager { background: var(--amber-c);     color: var(--amber);   border-color: var(--amber); }
+
     .role-select {
-      font-size: 11px; padding: 3px 6px; border-radius: var(--r-sm);
+      font-size: 11px; font-weight: 600; padding: 4px 8px; border-radius: var(--r-full);
       border: 1px solid var(--border); background: var(--surface); color: var(--ink);
-      cursor: pointer;
+      cursor: pointer; font-family: 'DM Sans', sans-serif; transition: border-color 0.15s;
     }
     .role-select:focus { outline: none; border-color: var(--violet); }
-    .pm-locked { display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; color: var(--violet); background: var(--violet-c); border-radius: var(--r-full); padding: 4px 10px; }
-    .pm-locked .material-icons-round { font-size: 13px; }
 
     /* ── Labels ── */
     .label-chip {
@@ -2865,7 +2873,7 @@ export class ProjectDetailComponent implements OnInit {
 
   addMemberForm = this.fb.group({
     userId: ['', Validators.required],
-    role: [1 as ProjectMemberRole],
+    role: [ProjectMemberRole.Member],
   });
 
   // users already on this project (by userId set) — used to filter the add dropdown
@@ -3353,7 +3361,7 @@ export class ProjectDetailComponent implements OnInit {
     this.memberService.add(id, userId!, role as ProjectMemberRole).subscribe({
       next: m => {
         this.members.update(all => [...all, m]);
-        this.addMemberForm.reset({ userId: '', role: 1 });
+        this.addMemberForm.reset({ userId: '', role: ProjectMemberRole.Member });
         this.showAddMember.set(false);
         this.toast('Member added');
       },
@@ -3361,9 +3369,9 @@ export class ProjectDetailComponent implements OnInit {
     });
   }
 
-  changeMemberRole(member: ProjectMember, role: number) {
+  changeMemberRole(member: ProjectMember, role: ProjectMemberRole) {
     const id = this.route.snapshot.paramMap.get('id')!;
-    this.memberService.updateRole(id, member.userId, role as ProjectMemberRole).subscribe({
+    this.memberService.updateRole(id, member.userId, role).subscribe({
       next: updated => this.members.update(all => all.map(m => m.id === member.id ? updated : m)),
       error: () => this.toast('Failed to update role', true),
     });
