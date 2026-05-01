@@ -41,10 +41,7 @@ import { NotificationBellComponent } from './notification-bell.component';
           <a class="nav-item" routerLink="/teams" routerLinkActive="active">
             <span class="material-icons-round">group</span> Teams
           </a>
-          <a class="nav-item" routerLink="/messages" routerLinkActive="active">
-            <span class="material-icons-round">chat_bubble_outline</span> Messages
-          </a>
-          <a class="nav-item" routerLink="/sprint-board" routerLinkActive="active">
+<a class="nav-item" routerLink="/sprint-board" routerLinkActive="active">
             <span class="material-icons-round">checklist</span> My Work
           </a>
           <a class="nav-item admin-link" routerLink="/admin" routerLinkActive="active" *ngIf="auth.isAdmin()">

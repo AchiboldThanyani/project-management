@@ -4,5 +4,5 @@ using ProjectManagement.Infrastructure.Persistence;
 
 namespace ProjectManagement.Infrastructure.Repositories;
 
-public class TeamMessageRepository(ApplicationDbContext context)
-    : Repository<TeamMessage>(context), ITeamMessageRepository { }
+public class ProjectMessageRepository(ApplicationDbContext context)
+    : Repository<ProjectMessage>(context), IProjectMessageRepository { }

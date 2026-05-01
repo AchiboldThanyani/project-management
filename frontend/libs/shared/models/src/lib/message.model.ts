@@ -1,6 +1,6 @@
 export interface Message {
   id: string;
-  teamId: string;
+  projectId: string;
   authorId: string;
   authorName: string;
   content: string;

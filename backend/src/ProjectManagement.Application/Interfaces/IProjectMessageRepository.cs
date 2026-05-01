@@ -3,4 +3,4 @@ using ProjectManagement.Domain.Interfaces;
 
 namespace ProjectManagement.Application.Interfaces;
 
-public interface ITeamMessageRepository : IRepository<TeamMessage> { }
+public interface IProjectMessageRepository : IRepository<ProjectMessage> { }

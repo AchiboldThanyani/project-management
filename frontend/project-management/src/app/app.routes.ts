@@ -55,10 +55,6 @@ export const appRoutes: Route[] = [
         loadChildren: () => import('@pm/teams/feature').then((m) => m.teamsRoutes),
       },
       {
-        path: 'messages',
-        loadComponent: () => import('@pm/teams/feature').then((m) => m.MessagingComponent),
-      },
-      {
         path: 'sprint-board',
         loadComponent: () => import('./sprint-board.component').then((m) => m.SprintBoardComponent),
       },

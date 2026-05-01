@@ -13,6 +13,7 @@ import { AuthService, UserService } from '@pm/auth/data-access';
 import { BoardsTabComponent } from '@pm/boards/feature';
 import { VaultTabComponent } from '@pm/vault/feature';
 import { UpdatesTabComponent } from '../updates-tab/updates-tab.component';
+import { MessagingComponent } from '@pm/teams/feature';
 import {
   Project, Task, TaskStatus, TaskPriority, Sprint, Comment, User,
   Issue, IssueComment, IssueType,
@@ -38,7 +39,7 @@ const COLUMNS = [
   standalone: true,
   imports: [
     CommonModule, ReactiveFormsModule, FormsModule, DragDropModule,
-    MatSnackBarModule, MatDialogModule, BoardsTabComponent, MentionPipe, VaultTabComponent, UpdatesTabComponent,
+    MatSnackBarModule, MatDialogModule, BoardsTabComponent, MentionPipe, VaultTabComponent, UpdatesTabComponent, MessagingComponent,
   ],
   template: `
     <div *ngIf="loading()" class="loading-wrap">
@@ -53,7 +54,7 @@ const COLUMNS = [
           <h1 class="page-title">{{ project()!.name }}</h1>
           <p class="page-sub" *ngIf="project()!.description">{{ project()!.description }}</p>
         </div>
-        <button class="btn-primary" *ngIf="activeTab !== 'issues' && activeTab !== 'vault'" (click)="showCreateTask.set(true)">
+        <button class="btn-primary" *ngIf="activeTab !== 'issues' && activeTab !== 'vault' && activeTab !== 'messages'" (click)="showCreateTask.set(true)">
           <span class="material-icons-round">add</span> Add Task
         </button>
         <button class="btn-primary" *ngIf="activeTab === 'issues'" (click)="showCreateIssue.set(true)">
@@ -95,6 +96,9 @@ const COLUMNS = [
         </button>
         <button class="tab" [class.active]="activeTab === 'updates'" (click)="activeTab = 'updates'">
           <span class="material-icons-round">update</span> Updates
+        </button>
+        <button class="tab" [class.active]="activeTab === 'messages'" (click)="activeTab = 'messages'">
+          <span class="material-icons-round">chat_bubble_outline</span> Messages
         </button>
       </div>
 
@@ -576,6 +580,11 @@ const COLUMNS = [
       <!-- ── Updates tab ───────────────────────────── -->
       <div *ngIf="activeTab === 'updates'" style="display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;">
         <pm-updates-tab [projectId]="project()!.id" />
+      </div>
+
+      <!-- ── Messages tab ─────────────────────────── -->
+      <div *ngIf="activeTab === 'messages'" style="display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;">
+        <pm-messaging [projectId]="project()!.id" />
       </div>
 
     </div>
@@ -2625,7 +2634,7 @@ export class ProjectDetailComponent implements OnInit {
   editMode = signal(false);
   editingSprint = signal<Sprint | null>(null);
 
-  activeTab: 'board' | 'sprints' | 'issues' | 'timeline' | 'members' | 'tickets' | 'invites' | 'brainstorm' | 'vault' | 'updates' = 'board';
+  activeTab: 'board' | 'sprints' | 'issues' | 'timeline' | 'members' | 'tickets' | 'invites' | 'brainstorm' | 'vault' | 'updates' | 'messages' = 'board';
   openSprintMenuId: string | null = null;
 
   completingSprintId = signal<string | null>(null);

@@ -33,7 +33,7 @@ public static class DependencyInjection
         services.AddScoped<ICommentRepository, CommentRepository>();
         services.AddScoped<ITeamRepository, TeamRepository>();
         services.AddScoped<ITeamMemberRepository, TeamMemberRepository>();
-        services.AddScoped<ITeamMessageRepository, TeamMessageRepository>();
+        services.AddScoped<IProjectMessageRepository, ProjectMessageRepository>();
         services.AddScoped<IActivityRepository, ActivityRepository>();
         services.AddScoped<IIssueRepository, IssueRepository>();
         services.AddScoped<ILabelRepository, LabelRepository>();

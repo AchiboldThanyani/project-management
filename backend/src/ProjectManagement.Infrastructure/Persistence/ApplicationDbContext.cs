@@ -19,7 +19,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<ProjectTask> Tasks => Set<ProjectTask>();
     public DbSet<Comment> Comments => Set<Comment>();
     public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
-    public DbSet<TeamMessage> TeamMessages => Set<TeamMessage>();
+    public DbSet<ProjectMessage> ProjectMessages => Set<ProjectMessage>();
     public DbSet<Issue> Issues => Set<Issue>();
     public DbSet<IssueComment> IssueComments => Set<IssueComment>();
     public DbSet<Label> Labels => Set<Label>();
