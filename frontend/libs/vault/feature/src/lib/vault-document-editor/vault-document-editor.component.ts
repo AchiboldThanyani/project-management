@@ -199,8 +199,7 @@ const EDIT_ACTIONS = [
     .tb-sep { width: 1px; height: 18px; background: var(--border); margin: 0 4px; flex-shrink: 0; }
     .tb-ai-btn {
       display: flex; align-items: center; gap: 5px; padding: 5px 12px;
-      background: linear-gradient(135deg, #7c3aed, #6366f1);
-      color: #fff; border: none; border-radius: var(--r-md);
+      background: var(--violet); color: #fff; border: none; border-radius: var(--r-md);
       font-size: 12px; font-weight: 600; cursor: pointer; transition: opacity 0.15s;
       flex-shrink: 0;
     }
@@ -309,7 +308,7 @@ const EDIT_ACTIONS = [
     .spec-cancel:hover { background: var(--surface); }
     .spec-generate {
       display: flex; align-items: center; gap: 6px; padding: 7px 18px;
-      background: linear-gradient(135deg, #7c3aed, #6366f1); color: #fff;
+      background: var(--violet); color: #fff;
       border: none; border-radius: var(--r-md); font-size: 13px; font-weight: 600;
       cursor: pointer; transition: opacity 0.15s;
     }
