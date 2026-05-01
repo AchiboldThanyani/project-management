@@ -50,6 +50,6 @@ internal sealed class GetPortalTicketsQueryHandler(
             };
         }).ToList();
 
-        return Result.Success<IReadOnlyList<TicketDto>>(dtos);
+        return dtos;
     }
 }
