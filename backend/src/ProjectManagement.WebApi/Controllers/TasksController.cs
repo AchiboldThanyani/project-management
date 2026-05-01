@@ -51,7 +51,8 @@ public class TasksController(IMediator mediator) : ControllerBase
     {
         var result = await mediator.Send(new CreateTaskCommand(
             request.Title, request.Description, request.Priority, request.DueDate,
-            request.StoryPoints, request.ProjectId, request.SprintId, request.AssigneeId, CurrentUserId), ct);
+            request.StoryPoints, request.ProjectId, request.SprintId,
+            request.AssigneeIds ?? [], CurrentUserId), ct);
 
         if (!result.IsSuccess) return result.ToActionResult(this);
         return CreatedAtAction(nameof(GetById), new { id = result.Value!.Id }, result.Value);
@@ -60,7 +61,8 @@ public class TasksController(IMediator mediator) : ControllerBase
     [HttpPut("{id:guid}")]
     public async Task<ActionResult<TaskDto>> Update(Guid id, [FromBody] UpdateTaskRequest request, CancellationToken ct)
         => (await mediator.Send(new UpdateTaskCommand(id, request.Title, request.Description,
-            request.Priority, request.DueDate, request.SprintId, request.AssigneeId, request.StoryPoints, request.EstimatedHours), ct)).ToActionResult(this);
+            request.Priority, request.DueDate, request.SprintId,
+            request.AssigneeIds ?? [], request.StoryPoints, request.EstimatedHours), ct)).ToActionResult(this);
 
     [HttpPatch("{id:guid}/status")]
     public async Task<ActionResult<TaskDto>> UpdateStatus(Guid id, [FromBody] UpdateStatusRequest request, CancellationToken ct)
@@ -164,11 +166,12 @@ public class TasksController(IMediator mediator) : ControllerBase
 
 public record CreateTaskRequest(
     string Title, string? Description, TaskPriority Priority,
-    DateTime? DueDate, int? StoryPoints, Guid ProjectId, Guid? SprintId, string? AssigneeId);
+    DateTime? DueDate, int? StoryPoints, Guid ProjectId, Guid? SprintId,
+    List<string>? AssigneeIds = null);
 
 public record UpdateTaskRequest(
     string Title, string? Description, TaskPriority Priority,
-    DateTime? DueDate, Guid? SprintId, string? AssigneeId, int? StoryPoints,
+    DateTime? DueDate, Guid? SprintId, List<string>? AssigneeIds, int? StoryPoints,
     decimal? EstimatedHours = null);
 
 public record UpdateStatusRequest(TaskStatus Status);

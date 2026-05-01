@@ -89,10 +89,9 @@ internal sealed class AskAiQueryHandler(
         }
 
         var userIds = allTasks
-            .SelectMany(t => new[] { t.AssigneeId, t.ReporterId })
-            .Where(id => id != null)
+            .SelectMany(t => t.Assignees.Select(a => a.UserId).Append(t.ReporterId))
             .Distinct()
-            .ToList()!;
+            .ToList();
 
         var nameMap = userIds.Count > 0
             ? await users.GetNamesByIdsAsync(userIds!, ct)
@@ -130,22 +129,23 @@ internal sealed class AskAiQueryHandler(
             sb.AppendLine();
 
             // Per-person workload
-            var assigned = projectTasks.Where(t => t.AssigneeId != null).ToList();
-            if (assigned.Any())
+            var assignedPairs = projectTasks.SelectMany(t => t.Assignees.Select(a => (Task: t, UserId: a.UserId))).ToList();
+            if (assignedPairs.Any())
             {
                 sb.AppendLine("   Workload by Team Member:");
-                foreach (var group in assigned.GroupBy(t => t.AssigneeId!))
+                foreach (var group in assignedPairs.GroupBy(x => x.UserId))
                 {
                     var memberName = Name(group.Key);
-                    var inProgress = group.Count(t => t.Status == DomainTaskStatus.InProgress);
-                    var done = group.Count(t => t.Status == DomainTaskStatus.Done);
-                    var todo = group.Count(t => t.Status == DomainTaskStatus.Todo);
-                    var blocked = group.Count(t => t.Status == DomainTaskStatus.Blocked);
-                    var overdue = group.Count(t => t.DueDate.HasValue && t.DueDate < DateTime.UtcNow && t.Status != DomainTaskStatus.Done && t.Status != DomainTaskStatus.Cancelled);
+                    var taskList = group.Select(x => x.Task).ToList();
+                    var inProgress = taskList.Count(t => t.Status == DomainTaskStatus.InProgress);
+                    var done = taskList.Count(t => t.Status == DomainTaskStatus.Done);
+                    var todo = taskList.Count(t => t.Status == DomainTaskStatus.Todo);
+                    var blocked = taskList.Count(t => t.Status == DomainTaskStatus.Blocked);
+                    var overdue = taskList.Count(t => t.DueDate.HasValue && t.DueDate < DateTime.UtcNow && t.Status != DomainTaskStatus.Done && t.Status != DomainTaskStatus.Cancelled);
                     sb.AppendLine($"     {memberName}: {inProgress} in progress, {todo} todo, {done} done, {blocked} blocked{(overdue > 0 ? $", {overdue} OVERDUE" : "")}");
 
                     // List active tasks for this person
-                    foreach (var task in group.Where(t => t.Status is DomainTaskStatus.InProgress or DomainTaskStatus.Blocked).Take(5))
+                    foreach (var task in taskList.Where(t => t.Status is DomainTaskStatus.InProgress or DomainTaskStatus.Blocked).Take(5))
                         sb.AppendLine($"       - [{task.Status}] {task.Title} (Priority: {task.Priority}{(task.DueDate.HasValue ? $", Due: {task.DueDate:yyyy-MM-dd}" : "")})");
                 }
                 sb.AppendLine();
@@ -160,7 +160,10 @@ internal sealed class AskAiQueryHandler(
             {
                 sb.AppendLine($"   Overdue Tasks ({overdueTasks.Count}):");
                 foreach (var t in overdueTasks.Take(10))
-                    sb.AppendLine($"     - {t.Title} | Assigned: {Name(t.AssigneeId)} | Priority: {t.Priority} | Due: {t.DueDate:yyyy-MM-dd}");
+                {
+                    var assignees = t.Assignees.Any() ? string.Join(", ", t.Assignees.Select(a => a.FullName)) : "Unassigned";
+                    sb.AppendLine($"     - {t.Title} | Assigned: {assignees} | Priority: {t.Priority} | Due: {t.DueDate:yyyy-MM-dd}");
+                }
                 sb.AppendLine();
             }
 
@@ -170,7 +173,10 @@ internal sealed class AskAiQueryHandler(
             {
                 sb.AppendLine($"   Blocked Tasks ({blockedTasks.Count}):");
                 foreach (var t in blockedTasks)
-                    sb.AppendLine($"     - {t.Title} | Assigned: {Name(t.AssigneeId)}");
+                {
+                    var assignees = t.Assignees.Any() ? string.Join(", ", t.Assignees.Select(a => a.FullName)) : "Unassigned";
+                    sb.AppendLine($"     - {t.Title} | Assigned: {assignees}");
+                }
                 sb.AppendLine();
             }
 

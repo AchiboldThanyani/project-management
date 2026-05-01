@@ -11,6 +11,6 @@ public sealed record UpdateTaskCommand(
     TaskPriority Priority,
     DateTime? DueDate,
     Guid? SprintId,
-    string? AssigneeId,
+    IReadOnlyList<string> AssigneeIds,
     int? StoryPoints,
     decimal? EstimatedHours = null) : ICommand<TaskDto>;

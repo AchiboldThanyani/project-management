@@ -47,8 +47,10 @@ public class MappingProfile : Profile
             .ForMember(d => d.UserName, o => o.Ignore())
             .ForMember(d => d.SubTaskTitle, o => o.MapFrom(s => s.SubTask != null ? s.SubTask.Title : null));
 
+        CreateMap<TaskAssignee, TaskAssigneeDto>();
+
         CreateMap<ProjectTask, TaskDto>()
-            .ForMember(d => d.AssigneeName,      o => o.Ignore())
+            .ForMember(d => d.Assignees,         o => o.MapFrom(s => s.Assignees))
             .ForMember(d => d.Labels,            o => o.MapFrom(s => s.Labels))
             .ForMember(d => d.SubTasks,          o => o.MapFrom(s => s.SubTasks.OrderBy(st => st.Order)))
             .ForMember(d => d.TimeLogs,          o => o.MapFrom(s => s.TimeLogs.OrderByDescending(tl => tl.LoggedDate)))

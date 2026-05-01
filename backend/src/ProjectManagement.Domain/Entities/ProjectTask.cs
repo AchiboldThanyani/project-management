@@ -15,7 +15,6 @@ public class ProjectTask : BaseEntity
     public int? StoryPoints { get; private set; }
     public Guid ProjectId { get; private set; }
     public Guid? SprintId { get; private set; }
-    public string? AssigneeId { get; private set; }
     public string ReporterId { get; private set; } = string.Empty;
     public int TaskNumber { get; private set; }
 
@@ -28,6 +27,7 @@ public class ProjectTask : BaseEntity
     public ICollection<SubTask> SubTasks { get; set; } = [];
     public ICollection<TimeLog> TimeLogs { get; set; } = [];
     public ICollection<TaskAttachment> Attachments { get; set; } = [];
+    public ICollection<TaskAssignee> Assignees { get; set; } = [];
 
     // Dependencies where this task is the one being blocked
     public ICollection<TaskDependency> BlockedByDependencies { get; set; } = [];
@@ -39,7 +39,7 @@ public class ProjectTask : BaseEntity
     public static ProjectTask Create(string title, Guid projectId, string reporterId,
         int taskNumber,
         string? description = null, TaskPriority priority = TaskPriority.Medium,
-        DateTime? dueDate = null, Guid? sprintId = null, string? assigneeId = null,
+        DateTime? dueDate = null, Guid? sprintId = null,
         int? storyPoints = null, decimal? estimatedHours = null)
     {
         return new ProjectTask
@@ -52,30 +52,27 @@ public class ProjectTask : BaseEntity
             Priority = priority,
             DueDate = AsUtc(dueDate),
             SprintId = sprintId,
-            AssigneeId = assigneeId,
             StoryPoints = storyPoints,
             EstimatedHours = estimatedHours,
         };
     }
 
     public void Update(string title, string? description, TaskPriority priority,
-        DateTime? dueDate, Guid? sprintId, string? assigneeId, int? storyPoints,
+        DateTime? dueDate, Guid? sprintId, int? storyPoints,
         string updatedByUserId = "", decimal? estimatedHours = null)
     {
-        var previousAssignee = AssigneeId;
         Title = title;
         Description = description;
         Priority = priority;
         DueDate = AsUtc(dueDate);
         SprintId = sprintId;
-        AssigneeId = assigneeId;
         StoryPoints = storyPoints;
         EstimatedHours = estimatedHours;
         SetUpdated();
-
-        if (!string.IsNullOrEmpty(assigneeId) && assigneeId != previousAssignee)
-            RaiseDomainEvent(new TaskAssignedEvent(Id, Title, ProjectId, assigneeId, updatedByUserId));
     }
+
+    public void RaiseAssignedEvent(string assigneeId, string assignedByUserId) =>
+        RaiseDomainEvent(new TaskAssignedEvent(Id, Title, ProjectId, assigneeId, assignedByUserId));
 
     public void ChangeStatus(TaskStatus newStatus, string changedByUserId)
     {

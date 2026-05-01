@@ -12,5 +12,5 @@ public sealed record CreateTaskCommand(
     int? StoryPoints,
     Guid ProjectId,
     Guid? SprintId,
-    string? AssigneeId,
+    IReadOnlyList<string> AssigneeIds,
     string ReporterId) : ICommand<TaskDto>;

@@ -42,8 +42,9 @@ internal sealed class CreateCommentCommandHandler(
         // Collect recipients: assignee + prior comment authors, deduped, excluding the new commenter
         var recipients = new HashSet<string>();
 
-        if (task.AssigneeId is not null && task.AssigneeId != request.AuthorId)
-            recipients.Add(task.AssigneeId);
+        foreach (var a in task.Assignees)
+            if (a.UserId != request.AuthorId)
+                recipients.Add(a.UserId);
 
         var priorComments = await repository.FindAsync(
             c => c.TaskId == request.TaskId, cancellationToken);

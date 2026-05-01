@@ -31,8 +31,7 @@ internal sealed class ConvertIssueToTaskCommandHandler(
             issue.Description,
             request.Priority ?? issue.Priority,
             null,
-            request.SprintId,
-            issue.AssigneeId);
+            request.SprintId);
 
         await taskRepository.AddAsync(task, cancellationToken);
         issue.MarkConvertedToTask(task.Id);
@@ -54,7 +53,6 @@ internal sealed class ConvertIssueToTaskCommandHandler(
             Status = task.Status,
             ProjectId = task.ProjectId,
             SprintId = task.SprintId,
-            AssigneeId = task.AssigneeId,
             ReporterId = task.ReporterId,
             CreatedAt = task.CreatedAt,
         };

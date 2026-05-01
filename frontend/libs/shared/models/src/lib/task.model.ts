@@ -47,6 +47,11 @@ export interface TaskAttachment {
   createdAt: string;
 }
 
+export interface TaskAssignee {
+  userId: string;
+  fullName: string;
+}
+
 export interface Task {
   id: string;
   taskNumber: number;
@@ -60,8 +65,7 @@ export interface Task {
   totalLoggedHours: number;
   projectId: string;
   sprintId?: string;
-  assigneeId?: string;
-  assigneeName?: string;
+  assignees: TaskAssignee[];
   reporterId: string;
   createdAt: string;
   updatedAt?: string;
@@ -90,7 +94,7 @@ export interface CreateTaskRequest {
   storyPoints?: number;
   projectId: string;
   sprintId?: string;
-  assigneeId?: string;
+  assigneeIds?: string[];
 }
 
 export interface UpdateTaskStatusRequest {
@@ -103,7 +107,7 @@ export interface UpdateTaskRequest {
   priority: TaskPriority;
   dueDate?: string;
   sprintId?: string;
-  assigneeId?: string;
+  assigneeIds: string[];
   storyPoints?: number;
   estimatedHours?: number;
 }

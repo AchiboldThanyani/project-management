@@ -166,8 +166,8 @@ const PRIORITY_CLASS: Record<TaskPriority, string> = {
                       <span class="material-icons-round tag-ico">check_box</span>{{ subtasksDone(task) }}/{{ task.subTasks.length }}
                     </span>
                   </div>
-                  <div *ngIf="task.assigneeName" class="assignee-ava" [title]="task.assigneeName">
-                    {{ initials(task.assigneeName) }}
+                  <div *ngIf="task.assignees?.length" class="assignee-ava" [title]="task.assignees[0].fullName">
+                    {{ initials(task.assignees[0].fullName) }}
                   </div>
                 </div>
               </div>
@@ -228,11 +228,13 @@ const PRIORITY_CLASS: Record<TaskPriority, string> = {
                     <span class="detail-val">{{ priorityLabel(task.priority) }}</span>
                   </div>
                 </div>
-                <div class="detail-item" *ngIf="task.assigneeName">
-                  <span class="detail-label">Assignee</span>
-                  <div class="detail-row">
-                    <div class="assignee-ava sm">{{ initials(task.assigneeName) }}</div>
-                    <span class="detail-val">{{ task.assigneeName }}</span>
+                <div class="detail-item" *ngIf="task.assignees?.length">
+                  <span class="detail-label">Assignees</span>
+                  <div class="detail-row" style="flex-wrap:wrap;gap:6px;">
+                    <div *ngFor="let a of task.assignees" class="detail-row" style="gap:4px;">
+                      <div class="assignee-ava sm">{{ initials(a.fullName) }}</div>
+                      <span class="detail-val">{{ a.fullName }}</span>
+                    </div>
                   </div>
                 </div>
                 <div class="detail-item" *ngIf="task.storyPoints">
@@ -458,11 +460,11 @@ const PRIORITY_CLASS: Record<TaskPriority, string> = {
 
     .assignee-ava {
       width: 22px; height: 22px; border-radius: 50%;
-      background: linear-gradient(135deg, var(--violet), var(--teal));
+      background: var(--violet-mid); color: var(--violet);
       display: flex; align-items: center; justify-content: center;
-      font-size: 8px; font-weight: 700; color: #fff; flex-shrink: 0;
+      font-size: 8px; font-weight: 700; letter-spacing: 0.3px; flex-shrink: 0;
     }
-    .assignee-ava.sm { width: 20px; height: 20px; font-size: 8px; }
+    .assignee-ava.sm { width: 24px; height: 24px; font-size: 9px; }
 
     .col-empty {
       flex: 1; display: flex; flex-direction: column; align-items: center;
@@ -587,7 +589,7 @@ export class SprintBoardComponent implements OnInit {
 
   filteredTasks(board: ProjectBoard): Task[] {
     if (this.showAll()) return board.allTasks;
-    return board.allTasks.filter(t => t.assigneeId === this.currentUserId());
+    return board.allTasks.filter(t => t.assignees?.some(a => a.userId === this.currentUserId()));
   }
 
   subtasksDone(task: Task): number {

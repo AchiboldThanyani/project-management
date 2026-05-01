@@ -29,11 +29,13 @@ public class ProjectMemberRepository(ApplicationDbContext db)
                 Email       = x.u.Email ?? string.Empty,
                 Role        = x.m.Role,
                 SystemRole  = x.u.Role,
-                OpenTaskCount = db.Tasks.Count(t =>
-                    t.ProjectId == projectId &&
-                    t.AssigneeId == x.m.UserId &&
-                    t.Status != DomainTaskStatus.Done &&
-                    t.Status != DomainTaskStatus.Cancelled),
+                OpenTaskCount = db.TaskAssignees.Count(a =>
+                    a.UserId == x.m.UserId &&
+                    db.Tasks.Any(t =>
+                        t.Id == a.TaskId &&
+                        t.ProjectId == projectId &&
+                        t.Status != DomainTaskStatus.Done &&
+                        t.Status != DomainTaskStatus.Cancelled)),
                 JoinedAt    = x.m.CreatedAt,
             })
             .OrderBy(x => x.Role == ProjectMemberRole.Manager ? 0 : x.Role == ProjectMemberRole.Lead ? 1 : x.Role == ProjectMemberRole.Member ? 2 : 3)
@@ -58,11 +60,13 @@ public class ProjectMemberRepository(ApplicationDbContext db)
                 Email       = x.u.Email ?? string.Empty,
                 Role        = x.m.Role,
                 SystemRole  = x.u.Role,
-                OpenTaskCount = db.Tasks.Count(t =>
-                    t.ProjectId == x.m.ProjectId &&
-                    t.AssigneeId == x.m.UserId &&
-                    t.Status != DomainTaskStatus.Done &&
-                    t.Status != DomainTaskStatus.Cancelled),
+                OpenTaskCount = db.TaskAssignees.Count(a =>
+                    a.UserId == x.m.UserId &&
+                    db.Tasks.Any(t =>
+                        t.Id == a.TaskId &&
+                        t.ProjectId == x.m.ProjectId &&
+                        t.Status != DomainTaskStatus.Done &&
+                        t.Status != DomainTaskStatus.Cancelled)),
                 JoinedAt    = x.m.CreatedAt,
             })
             .FirstOrDefaultAsync(ct);

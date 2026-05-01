@@ -22,8 +22,7 @@ public record TaskDto
     public decimal TotalLoggedHours { get; init; }
     public Guid ProjectId { get; init; }
     public Guid? SprintId { get; init; }
-    public string? AssigneeId { get; init; }
-    public string? AssigneeName { get; init; }
+    public IReadOnlyList<TaskAssigneeDto> Assignees { get; init; } = [];
     public string ReporterId { get; init; } = default!;
     public DateTime CreatedAt { get; init; }
     public DateTime? UpdatedAt { get; init; }
@@ -38,6 +37,12 @@ public record TaskDto
     public bool IsBlocked => BlockedBy.Any(t =>
         t.Status != Domain.Enums.TaskStatus.Done &&
         t.Status != Domain.Enums.TaskStatus.Cancelled);
+}
+
+public record TaskAssigneeDto
+{
+    public string UserId { get; init; } = default!;
+    public string FullName { get; init; } = default!;
 }
 
 public record TaskCommentDto

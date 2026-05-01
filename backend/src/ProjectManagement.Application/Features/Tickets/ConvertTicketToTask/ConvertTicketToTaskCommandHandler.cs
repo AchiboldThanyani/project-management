@@ -34,8 +34,7 @@ internal sealed class ConvertTicketToTaskCommandHandler(
             req.Description  ?? ticket.Description,
             req.Priority     ?? ticket.Priority,
             dueDate: null,
-            req.SprintId,
-            req.AssigneeId);
+            req.SprintId);
 
         await tasks.AddAsync(task, ct);
 

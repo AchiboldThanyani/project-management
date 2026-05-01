@@ -14,6 +14,7 @@ internal sealed class CreateTaskCommandHandler(
     IActivityRepository activityRepository,
     ICurrentUserService currentUser,
     IProjectPermissionService permissions,
+    IProjectMemberRepository memberRepository,
     IUnitOfWork unitOfWork,
     IMapper mapper)
     : IRequestHandler<CreateTaskCommand, Result<TaskDto>>
@@ -34,8 +35,20 @@ internal sealed class CreateTaskCommandHandler(
             request.Priority,
             request.DueDate,
             request.SprintId,
-            request.AssigneeId,
             request.StoryPoints);
+
+        if (request.AssigneeIds.Count > 0)
+        {
+            var members = await memberRepository.GetByProjectAsync(request.ProjectId, cancellationToken);
+            var memberMap = members.ToDictionary(m => m.UserId, m => m.FullName);
+
+            foreach (var userId in request.AssigneeIds)
+            {
+                if (!memberMap.TryGetValue(userId, out var fullName)) continue;
+                task.Assignees.Add(TaskAssignee.Create(task.Id, userId, fullName));
+                task.RaiseAssignedEvent(userId, currentUser.UserId);
+            }
+        }
 
         await repository.AddAsync(task, cancellationToken);
 

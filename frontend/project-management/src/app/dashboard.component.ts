@@ -139,7 +139,7 @@ interface VelocityBar { name: string; done: number; pct: number; }
                   <div class="risk-right">
                     <span class="risk-chip blocked" *ngIf="t.status === TaskStatus.Blocked">Blocked</span>
                     <span class="risk-chip overdue" *ngIf="isOverdue(t) && t.status !== TaskStatus.Blocked">{{ daysOverdue(t.dueDate!) }}d overdue</span>
-                    <span class="risk-assignee" *ngIf="t.assigneeName">{{ initials(t.assigneeName) }}</span>
+                    <span class="risk-assignee" *ngIf="t.assignees?.length">{{ initials(t.assignees[0].fullName) }}</span>
                   </div>
                 </div>
               </div>
@@ -396,7 +396,7 @@ export class DashboardComponent implements OnInit {
     if (!me) return [];
     const order: Record<string, number> = { Critical: 0, High: 1, Medium: 2, Low: 3 };
     return this.allTasks()
-      .filter(t => t.assigneeId === me && t.status !== TaskStatus.Done && t.status !== TaskStatus.Cancelled)
+      .filter(t => t.assignees?.some(a => a.userId === me) && t.status !== TaskStatus.Done && t.status !== TaskStatus.Cancelled)
       .sort((a, b) => (order[a.priority] ?? 2) - (order[b.priority] ?? 2))
       .slice(0, 8);
   });

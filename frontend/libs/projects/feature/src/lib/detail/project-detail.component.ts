@@ -16,7 +16,7 @@ import { UpdatesTabComponent } from '../updates-tab/updates-tab.component';
 import { MessagingComponent } from '@pm/teams/feature';
 import {
   Project, ProjectStatus, PROJECT_STATUS_LABELS,
-  Task, TaskStatus, TaskPriority, Sprint, Comment, User,
+  Task, TaskAssignee, TaskStatus, TaskPriority, Sprint, Comment, User,
   Issue, IssueComment, IssueType, IssueStatus,
   ISSUE_TYPE_LABELS, ISSUE_TYPE_ICONS, ISSUE_TYPE_COLORS,
   TASK_STATUS_LABELS,
@@ -207,8 +207,15 @@ const COLUMNS = [
                       <span class="material-icons-round tag-ico">check_box</span>{{ doneSubtasks(task) }}/{{ task.subTasks.length }}
                     </span>
                   </div>
-                  <div *ngIf="task.assigneeName" class="assignee-ava" [title]="task.assigneeName">
-                    {{ nameInitials(task.assigneeName) }}
+                  <div class="assignee-avas" *ngIf="task.assignees?.length">
+                    <div *ngFor="let a of task.assignees.slice(0, 3)"
+                         class="assignee-ava card-ava" [title]="a.fullName"
+                         [ngStyle]="avatarStyle(a.userId)">
+                      {{ nameInitials(a.fullName) }}
+                    </div>
+                    <div *ngIf="task.assignees.length > 3" class="assignee-ava card-ava assignee-overflow">
+                      +{{ task.assignees.length - 3 }}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -790,12 +797,31 @@ const COLUMNS = [
               <span class="detail-label">Story Points</span>
               <span>{{ selectedTask()!.storyPoints }}</span>
             </div>
-            <div class="detail-item">
-              <span class="detail-label">Assignee</span>
-              <select class="detail-select" [ngModel]="selectedTask()!.assigneeId ?? null" (ngModelChange)="changeAssignee($event)">
-                <option [ngValue]="null">— Unassigned —</option>
-                <option *ngFor="let m of members()" [value]="m.userId">{{ m.fullName }}</option>
-              </select>
+            <div class="detail-item detail-assignees">
+              <span class="detail-label">Assignees</span>
+              <div class="assignees-inline" (click)="$event.stopPropagation()">
+                <div class="assignee-chips-row">
+                  <span *ngIf="!selectedTask()!.assignees?.length" class="unassigned-text">— Unassigned —</span>
+                  <span *ngFor="let a of selectedTask()!.assignees" class="assignee-chip-pill">
+                    <div class="assignee-ava sm">{{ nameInitials(a.fullName) }}</div>
+                    <span class="chip-name">{{ a.fullName }}</span>
+                    <button class="chip-x" (click)="removeAssignee(a.userId)">
+                      <span class="material-icons-round">close</span>
+                    </button>
+                  </span>
+                  <button class="add-assignee-btn" *ngIf="availableAssignees().length > 0" (click)="openAssigneeDrop($event)">
+                    <span class="material-icons-round">person_add</span>
+                  </button>
+                </div>
+                <div class="assignee-drop-backdrop" *ngIf="assigneeDropOpen" (click)="assigneeDropOpen = false"></div>
+                <div class="assignee-drop" *ngIf="assigneeDropOpen"
+                     [style.top.px]="assigneeDropTop" [style.right.px]="assigneeDropRight">
+                  <button *ngFor="let m of availableAssignees()" class="assignee-drop-item" (click)="addAssignee(m.userId)">
+                    <div class="assignee-ava sm">{{ nameInitials(m.fullName) }}</div>
+                    {{ m.fullName }}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1153,11 +1179,15 @@ const COLUMNS = [
               </div>
             </div>
             <div class="field-group" *ngIf="members().length > 0">
-              <label class="field-label">Assignee</label>
-              <select class="field-input" formControlName="assigneeId">
-                <option [ngValue]="null">— Unassigned —</option>
-                <option *ngFor="let m of assignableMembers()" [value]="m.userId">{{ m.fullName }}</option>
-              </select>
+              <label class="field-label">Assignees</label>
+              <div class="assignee-checklist">
+                <label *ngFor="let m of assignableMembers()" class="assignee-check-item">
+                  <input type="checkbox" [checked]="editTaskForm.value.assigneeIds?.includes(m.userId)"
+                         (change)="toggleFormAssignee(m.userId, editTaskForm.get('assigneeIds')!)" />
+                  <span class="assignee-ava sm">{{ nameInitials(m.fullName) }}</span>
+                  {{ m.fullName }}
+                </label>
+              </div>
             </div>
             <div class="form-actions">
               <button type="button" class="btn-ghost" (click)="editMode.set(false)">Cancel</button>
@@ -1215,11 +1245,15 @@ const COLUMNS = [
             </div>
           </div>
           <div class="field-group" *ngIf="members().length > 0">
-            <label class="field-label">Assignee</label>
-            <select class="field-input" formControlName="assigneeId">
-              <option [ngValue]="null">— Unassigned —</option>
-              <option *ngFor="let m of assignableMembers()" [value]="m.userId">{{ m.fullName }}</option>
-            </select>
+            <label class="field-label">Assignees</label>
+            <div class="assignee-checklist">
+              <label *ngFor="let m of assignableMembers()" class="assignee-check-item">
+                <input type="checkbox" [checked]="taskForm.value.assigneeIds?.includes(m.userId)"
+                       (change)="toggleFormAssignee(m.userId, taskForm.get('assigneeIds')!)" />
+                <span class="assignee-ava sm">{{ nameInitials(m.fullName) }}</span>
+                {{ m.fullName }}
+              </label>
+            </div>
           </div>
           <div class="form-actions">
             <button type="button" class="btn-ghost" (click)="showCreateTask.set(false)">Cancel</button>
@@ -1858,11 +1892,64 @@ const COLUMNS = [
     .tag-done { color: var(--emerald); border-color: var(--emerald-c); background: var(--emerald-c); }
 
     .assignee-ava {
-      width: 20px; height: 20px; border-radius: 50%;
-      background: linear-gradient(135deg, var(--violet), var(--teal));
+      width: 22px; height: 22px; border-radius: 50%;
+      background: var(--violet-mid); color: var(--violet);
       display: flex; align-items: center; justify-content: center;
-      font-size: 8px; font-weight: 700; color: #fff; flex-shrink: 0;
+      font-size: 8px; font-weight: 700; letter-spacing: 0.3px; flex-shrink: 0;
     }
+    .assignee-ava.sm { width: 26px; height: 26px; font-size: 9px; }
+    .assignee-avas { display: flex; align-items: center; }
+    .assignee-avas .assignee-ava { margin-left: -6px; border: 2px solid var(--white); }
+    .assignee-avas .assignee-ava:first-child { margin-left: 0; }
+    .card-ava { width: 24px; height: 24px; font-size: 9px; }
+    .assignee-overflow { background: var(--surface) !important; color: var(--muted) !important; border: 1px solid var(--border) !important; font-size: 8px; }
+
+    /* Inline assignee picker in detail panel */
+    .detail-assignees { align-items: flex-start; }
+    .assignees-inline { flex: 1; }
+    .assignee-chips-row { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+    .unassigned-text { font-size: 12px; color: var(--soft); }
+    .assignee-chip-pill {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--r-full); padding: 2px 6px 2px 3px;
+      font-size: 11px; color: var(--ink);
+    }
+    .chip-name { max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chip-x { background: none; border: none; cursor: pointer; color: var(--muted); padding: 0; display: flex; line-height: 1; }
+    .chip-x:hover { color: var(--rose); }
+    .chip-x .material-icons-round { font-size: 12px; }
+    .add-assignee-btn {
+      width: 24px; height: 24px; border-radius: 50%; border: 1.5px dashed var(--border);
+      background: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      color: var(--soft); transition: border-color 0.15s, color 0.15s; flex-shrink: 0;
+    }
+    .add-assignee-btn:hover { border-color: var(--violet); color: var(--violet); }
+    .add-assignee-btn .material-icons-round { font-size: 13px; }
+    .assignee-drop-backdrop { position: fixed; inset: 0; z-index: 1499; }
+    .assignee-drop {
+      position: fixed;
+      background: var(--white); border: 1px solid var(--border);
+      border-radius: var(--r-lg); box-shadow: var(--shadow-md);
+      min-width: 190px; z-index: 1500; overflow: hidden;
+    }
+    .assignee-drop-item {
+      display: flex; align-items: center; gap: 8px; width: 100%;
+      padding: 8px 12px; background: none; border: none; cursor: pointer;
+      font-size: 12px; color: var(--ink); text-align: left;
+    }
+    .assignee-drop-item:hover { background: var(--surface); }
+
+    /* Assignee checkbox list in forms */
+    .assignee-checklist {
+      display: flex; flex-direction: column; gap: 6px;
+      max-height: 140px; overflow-y: auto;
+    }
+    .assignee-check-item {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 12px; color: var(--ink); cursor: pointer; padding: 4px 0;
+    }
+    .assignee-check-item input[type=checkbox] { width: 14px; height: 14px; accent-color: var(--violet); cursor: pointer; }
 
     .col-empty {
       flex: 1; display: flex; flex-direction: column; align-items: center;
@@ -2779,6 +2866,25 @@ export class ProjectDetailComponent implements OnInit {
   filterAssigneeId: string | null = null;
   filterLabelId: string | null = null;
   filteredTasks = signal<Task[]>([]);
+  assigneeDropOpen = false;
+  assigneeDropTop = 0;
+  assigneeDropRight = 0;
+
+  openAssigneeDrop(event: MouseEvent) {
+    if (this.assigneeDropOpen) { this.assigneeDropOpen = false; return; }
+    const btn = event.currentTarget as HTMLElement;
+    const rect = btn.getBoundingClientRect();
+    this.assigneeDropTop = rect.bottom + 4;
+    this.assigneeDropRight = window.innerWidth - rect.right;
+    this.assigneeDropOpen = true;
+  }
+
+  availableAssignees = computed(() => {
+    const task = this.selectedTask();
+    if (!task) return this.members();
+    const assigned = new Set((task.assignees ?? []).map(a => a.userId));
+    return this.members().filter(m => !assigned.has(m.userId));
+  });
 
   // ── Labels ───────────────────────────────────────
   labels = signal<Label[]>([]);
@@ -2918,14 +3024,14 @@ export class ProjectDetailComponent implements OnInit {
     title: ['', Validators.required], description: [''],
     priority: [TaskPriority.Medium], storyPoints: [null as number | null],
     dueDate: [null as string | null], sprintId: [null as string | null],
-    assigneeId: [null as string | null],
+    assigneeIds: [[] as string[]],
   });
 
   editTaskForm = this.fb.group({
     title: ['', Validators.required], description: [''],
     priority: [TaskPriority.Medium], storyPoints: [null as number | null],
     dueDate: [null as string | null], sprintId: [null as string | null],
-    assigneeId: [null as string | null],
+    assigneeIds: [[] as string[]],
   });
 
   sprintForm = this.fb.group({
@@ -3409,8 +3515,8 @@ export class ProjectDetailComponent implements OnInit {
     if (this.filterSprintId === 'backlog') result = result.filter(t => !t.sprintId);
     else if (this.filterSprintId) result = result.filter(t => t.sprintId === this.filterSprintId);
     if (this.filterPriority !== null) result = result.filter(t => t.priority === this.filterPriority);
-    if (this.filterAssigneeId === 'unassigned') result = result.filter(t => !t.assigneeId);
-    else if (this.filterAssigneeId) result = result.filter(t => t.assigneeId === this.filterAssigneeId);
+    if (this.filterAssigneeId === 'unassigned') result = result.filter(t => !t.assignees?.length);
+    else if (this.filterAssigneeId) result = result.filter(t => t.assignees?.some(a => a.userId === this.filterAssigneeId));
     if (this.filterLabelId) result = result.filter(t => t.labels?.some(l => l.id === this.filterLabelId));
     this.filteredTasks.set(result);
   }
@@ -3480,7 +3586,7 @@ export class ProjectDetailComponent implements OnInit {
       title: t.title, description: t.description ?? '',
       priority: t.priority, storyPoints: t.storyPoints ?? null,
       dueDate: t.dueDate ? t.dueDate.substring(0, 10) : null,
-      sprintId: t.sprintId ?? null, assigneeId: t.assigneeId ?? null,
+      sprintId: t.sprintId ?? null, assigneeIds: (t.assignees ?? []).map(a => a.userId),
     });
     this.editMode.set(true);
   }
@@ -3494,9 +3600,9 @@ export class ProjectDetailComponent implements OnInit {
       priority: v.priority ?? TaskPriority.Medium,
       dueDate: v.dueDate ? new Date(v.dueDate).toISOString() : undefined,
       sprintId: v.sprintId ?? undefined, storyPoints: v.storyPoints ?? undefined,
-      assigneeId: v.assigneeId ?? undefined,
-    } as any).subscribe({
-      next: updated => { this.tasks.update(all => all.map(t => t.id === updated.id ? updated : t)); this.selectedTask.set(updated); this.editMode.set(false); this.toast('Task updated'); },
+      assigneeIds: v.assigneeIds ?? [],
+    }).subscribe({
+      next: updated => { const sync = (all: Task[]) => all.map(t => t.id === updated.id ? updated : t); this.tasks.update(sync); this.filteredTasks.update(sync); this.selectedTask.set(updated); this.editMode.set(false); this.toast('Task updated'); },
       error: () => this.toast('Failed to update task', true),
     });
   }
@@ -3504,22 +3610,43 @@ export class ProjectDetailComponent implements OnInit {
   changeStatus(status: TaskStatus) {
     const task = this.selectedTask()!;
     this.taskService.updateStatus(task.id, { status }).subscribe({
-      next: updated => { this.tasks.update(all => all.map(t => t.id === updated.id ? updated : t)); this.selectedTask.set(updated); this.toast(`Moved to ${this.statusLabel(status)}`); },
+      next: updated => { const sync = (all: Task[]) => all.map(t => t.id === updated.id ? updated : t); this.tasks.update(sync); this.filteredTasks.update(sync); this.selectedTask.set(updated); this.toast(`Moved to ${this.statusLabel(status)}`); },
       error: () => this.toast('Failed to update status', true),
     });
   }
 
-  changeAssignee(assigneeId: string | null) {
+  addAssignee(userId: string) {
     const task = this.selectedTask()!;
+    const newIds = [...(task.assignees ?? []).map(a => a.userId), userId];
     this.taskService.update(task.id, {
       title: task.title, description: task.description,
       priority: task.priority, dueDate: task.dueDate,
       sprintId: task.sprintId, storyPoints: task.storyPoints,
-      assigneeId: assigneeId ?? undefined,
-    } as any).subscribe({
-      next: updated => { this.tasks.update(all => all.map(t => t.id === updated.id ? updated : t)); this.selectedTask.set(updated); },
-      error: () => this.toast('Failed to update assignee', true),
+      assigneeIds: newIds,
+    }).subscribe({
+      next: updated => { const sync = (all: Task[]) => all.map(t => t.id === updated.id ? updated : t); this.tasks.update(sync); this.filteredTasks.update(sync); this.selectedTask.set(updated); this.assigneeDropOpen = false; },
+      error: () => this.toast('Failed to update assignees', true),
     });
+  }
+
+  removeAssignee(userId: string) {
+    const task = this.selectedTask()!;
+    const newIds = (task.assignees ?? []).map(a => a.userId).filter(id => id !== userId);
+    this.taskService.update(task.id, {
+      title: task.title, description: task.description,
+      priority: task.priority, dueDate: task.dueDate,
+      sprintId: task.sprintId, storyPoints: task.storyPoints,
+      assigneeIds: newIds,
+    }).subscribe({
+      next: updated => { const sync = (all: Task[]) => all.map(t => t.id === updated.id ? updated : t); this.tasks.update(sync); this.filteredTasks.update(sync); this.selectedTask.set(updated); },
+      error: () => this.toast('Failed to update assignees', true),
+    });
+  }
+
+  toggleFormAssignee(userId: string, ctrl: import('@angular/forms').AbstractControl) {
+    const current: string[] = ctrl.value ?? [];
+    const idx = current.indexOf(userId);
+    ctrl.setValue(idx >= 0 ? current.filter(id => id !== userId) : [...current, userId]);
   }
 
   addComment() {
@@ -3615,8 +3742,8 @@ export class ProjectDetailComponent implements OnInit {
       priority: v.priority ?? TaskPriority.Medium, projectId,
       dueDate: v.dueDate ? new Date(v.dueDate).toISOString() : undefined,
       storyPoints: v.storyPoints ?? undefined, sprintId: v.sprintId ?? undefined,
-      assigneeId: v.assigneeId ?? undefined,
-    } as any).subscribe({
+      assigneeIds: v.assigneeIds ?? [],
+    }).subscribe({
       next: t => { this.tasks.update(prev => [...prev, t]); this.applyFilters(); this.showCreateTask.set(false); this.taskForm.reset({ priority: TaskPriority.Medium }); this.toast('Task created'); },
       error: () => this.toast('Failed to create task', true),
     });
@@ -3760,6 +3887,23 @@ export class ProjectDetailComponent implements OnInit {
   nameInitials(name: string): string {
     const parts = name.trim().split(' ');
     return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase();
+  }
+
+  private readonly AVATAR_PALETTES = [
+    { background: '#ede9fe', color: '#6d28d9' },
+    { background: '#fce7f3', color: '#be185d' },
+    { background: '#d1fae5', color: '#065f46' },
+    { background: '#fef3c7', color: '#b45309' },
+    { background: '#dbeafe', color: '#1d4ed8' },
+    { background: '#ccfbf1', color: '#0f766e' },
+    { background: '#fee2e2', color: '#b91c1c' },
+    { background: '#e0e7ff', color: '#3730a3' },
+  ];
+
+  avatarStyle(userId: string): { background: string; color: string } {
+    let h = 0;
+    for (let i = 0; i < userId.length; i++) h = (h * 31 + userId.charCodeAt(i)) >>> 0;
+    return this.AVATAR_PALETTES[h % this.AVATAR_PALETTES.length];
   }
 
   mentionHtml(content: string | null | undefined): string {
