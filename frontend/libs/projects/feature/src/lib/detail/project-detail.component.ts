@@ -1811,12 +1811,8 @@ const COLUMNS = [
     }
     .task-list.cdk-drop-list-dragging { background: var(--violet-mid); }
 
-    /* Blocked column accent */
-    .col-blocked .col-header { background: var(--rose-c); border-color: rgba(244,63,94,0.2); }
-    .col-blocked .col-label  { color: var(--rose); }
-    .col-blocked .col-count  { background: rgba(244,63,94,0.15); color: var(--rose); }
-    .col-blocked .task-list  { background: rgba(244,63,94,0.04); border-color: rgba(244,63,94,0.15); }
-    .col-blocked .task-list.cdk-drop-list-dragging { background: rgba(244,63,94,0.1); }
+    /* Blocked column — only the dot is red, label and count match other columns */
+    .col-blocked .col-count { background: rgba(244,63,94,0.15); color: var(--rose); }
 
     .task-card {
       background: var(--white); border: 1px solid var(--border);
