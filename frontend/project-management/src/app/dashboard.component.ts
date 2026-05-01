@@ -6,8 +6,7 @@ import { ProjectService } from '@pm/projects/data-access';
 import { TeamService } from '@pm/teams/data-access';
 import { TaskService } from '@pm/tasks/data-access';
 import { AuthService } from '@pm/auth/data-access';
-import { ActivityService } from '@pm/shared/util';
-import { Project, Activity, Task, Sprint, TaskStatus } from '@pm/shared/models';
+import { Task, Sprint, TaskStatus } from '@pm/shared/models';
 
 interface EnrichedTask extends Task { projectName: string; }
 interface EnrichedSprint extends Sprint { projectName: string; }
@@ -176,61 +175,6 @@ interface VelocityBar { name: string; done: number; pct: number; }
 
         </div>
 
-        <!-- Lower two-col -->
-        <div class="dash-cols">
-
-          <!-- Recent projects -->
-          <div *ngIf="recentProjects().length > 0">
-            <div class="sec-hdr">
-              <div class="sec-title">Recent Projects</div>
-              <a class="see-all" routerLink="/projects">See all <span class="material-icons-round">arrow_forward</span></a>
-            </div>
-            <div class="project-list">
-              <div class="proj-card" *ngFor="let p of recentProjects()" [routerLink]="['/projects', p.id]">
-                <div class="proj-color" [style.background]="projectColor(p.id)">
-                  {{ p.name[0]?.toUpperCase() }}
-                </div>
-                <div>
-                  <div class="proj-name">{{ p.name }}</div>
-                  <div class="proj-desc">{{ p.description || 'No description' }}</div>
-                </div>
-                <div class="proj-meta">
-                  <span class="ph-badge" [class]="statusClass(p.status)">{{ statusLabel(p.status) }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Activity feed -->
-          <div>
-            <div class="sec-hdr">
-              <div class="sec-title">Recent Activity</div>
-              <a class="see-all" routerLink="/activity">See all <span class="material-icons-round">arrow_forward</span></a>
-            </div>
-            <div class="act-card">
-              <div *ngIf="activityLoading()" class="act-loading">
-                <div class="spinner"></div>
-              </div>
-              <div *ngIf="!activityLoading() && recentActivity().length === 0" class="act-empty">
-                No activity yet
-              </div>
-              <div class="activity-list" *ngIf="!activityLoading() && recentActivity().length > 0">
-                <div class="act-item" *ngFor="let item of recentActivity()">
-                  <div class="act-ava" [style.background]="avatarColor(item.userName)">
-                    {{ initials(item.userName) }}
-                  </div>
-                  <div class="act-text">
-                    <strong>{{ item.userName.split(' ')[0] }}</strong>
-                    {{ item.action }}
-                    <span class="act-chip">{{ item.entityName }}</span>
-                  </div>
-                  <div class="act-time" [title]="item.createdAt | date:'medium'">{{ timeAgo(item.createdAt) }}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-        </div>
       </div>
     </div>
   `,
@@ -301,50 +245,6 @@ interface VelocityBar { name: string; done: number; pct: number; }
     .sc-link.emerald { color: var(--emerald); }
     .sc-link .material-icons-round { font-size: 13px; }
 
-    /* Two-col */
-    .dash-cols { display: grid; grid-template-columns: 1fr 380px; gap: 16px; }
-    @media (max-width: 900px) { .dash-cols { grid-template-columns: 1fr; } }
-
-    .sec-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-    .sec-title { font-size: 14px; font-weight: 700; letter-spacing: -0.2px; }
-    .see-all { font-size: 12px; font-weight: 600; color: var(--violet); text-decoration: none; display: flex; align-items: center; gap: 3px; }
-    .see-all .material-icons-round { font-size: 14px; }
-
-    /* Project list */
-    .project-list { display: flex; flex-direction: column; gap: 8px; }
-    .proj-card {
-      background: var(--white); border: 1px solid var(--border);
-      border-radius: var(--r-lg); padding: 14px 16px;
-      display: flex; align-items: center; gap: 12px;
-      cursor: pointer; transition: box-shadow 0.15s, border-color 0.15s;
-      text-decoration: none; color: inherit;
-    }
-    .proj-card:hover { box-shadow: var(--shadow-sm); border-color: #d8d8e8; }
-    .proj-color {
-      width: 36px; height: 36px; border-radius: 9px;
-      background: var(--violet-c); color: var(--violet);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 15px; font-weight: 700; flex-shrink: 0;
-    }
-    .proj-name { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
-    .proj-desc { font-size: 11px; color: var(--muted); }
-    .proj-meta { margin-left: auto; }
-
-    /* Activity */
-    .act-card { background: var(--white); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 14px 16px; }
-    .act-loading { display: flex; justify-content: center; padding: 20px 0; }
-    .act-empty { color: var(--soft); font-size: 12px; padding: 16px 0; }
-    .spinner { width: 24px; height: 24px; border: 2px solid var(--border); border-top-color: var(--violet); border-radius: 50%; animation: spin 0.7s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    .activity-list { display: flex; flex-direction: column; }
-    .act-item { display: flex; align-items: flex-start; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); }
-    .act-item:last-child { border-bottom: none; }
-    .act-ava { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #fff; flex-shrink: 0; }
-    .act-text { flex: 1; font-size: 12px; color: var(--ink-4); line-height: 1.5; }
-    .act-text strong { color: var(--ink); font-weight: 600; }
-    .act-chip { display: inline-flex; padding: 1px 7px; border-radius: var(--r-full); font-size: 10px; font-weight: 600; background: var(--violet-c); color: var(--violet); margin-left: 3px; }
-    .act-time { font-size: 10px; color: var(--soft); white-space: nowrap; flex-shrink: 0; margin-top: 2px; }
 
     /* ── Widgets row ────────────────────────────── */
     .widgets-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 22px; }
@@ -414,25 +314,17 @@ export class DashboardComponent implements OnInit {
   private projectService = inject(ProjectService);
   private teamService = inject(TeamService);
   private taskService = inject(TaskService);
-  private activityService = inject(ActivityService);
 
   projectCount      = signal(0);
   teamCount         = signal(0);
   openTaskCount     = signal(0);
   doneTaskCount     = signal(0);
   activeSprintCount = signal(0);
-  recentProjects    = signal<Project[]>([]);
-  recentActivity    = signal<Activity[]>([]);
-  activityLoading   = signal(true);
   allTasks          = signal<EnrichedTask[]>([]);
   allSprints        = signal<EnrichedSprint[]>([]);
 
   readonly today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
   readonly TaskStatus = TaskStatus;
-
-  private readonly COLORS = ['#ede9ff','#e0faf7','#fef3c7','#dbeafe','#d1fae5','#ffe4e6'];
-  private readonly STATUS_CLASSES = ['planning','active','on-hold','completed','archived'];
-  private readonly STATUS_LABELS  = ['Planning','Active','On Hold','Completed','Archived'];
 
   // ── Widget computed signals ────────────────────────
   atRiskTasks = computed<EnrichedTask[]>(() => {
@@ -479,7 +371,6 @@ export class DashboardComponent implements OnInit {
   ngOnInit() {
     this.projectService.getAll().subscribe(projects => {
       this.projectCount.set(projects.length);
-      this.recentProjects.set(projects.slice(0, 5));
       if (projects.length === 0) return;
 
       forkJoin(projects.map(p =>
@@ -501,33 +392,10 @@ export class DashboardComponent implements OnInit {
     });
 
     this.teamService.getMyTeams().subscribe(t => this.teamCount.set(t.length));
-    this.activityService.getRecent(8).subscribe({
-      next: items => { this.recentActivity.set(items); this.activityLoading.set(false); },
-      error: () => this.activityLoading.set(false),
-    });
   }
-
-  projectColor(id: string): string { return this.COLORS[id.charCodeAt(0) % this.COLORS.length]; }
-  statusClass(status: number): string { return this.STATUS_CLASSES[status] ?? 'planning'; }
-  statusLabel(status: number): string { return this.STATUS_LABELS[status] ?? 'Planning'; }
 
   initials(name: string): string {
     return name.split(' ').map(p => p[0] ?? '').join('').slice(0, 2).toUpperCase();
-  }
-
-  avatarColor(name: string): string {
-    const colors = ['#6644dd','#00b8a0','#f59e0b','#3b82f6','#10b981','#f43f5e'];
-    let h = 0;
-    for (const c of name) h = (h * 31 + c.charCodeAt(0)) & 0xffffffff;
-    return colors[Math.abs(h) % colors.length];
-  }
-
-  timeAgo(dateStr: string): string {
-    const s = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
-    if (s < 60) return 'just now';
-    if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-    if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-    return `${Math.floor(s / 86400)}d ago`;
   }
 
   isOverdue(t: EnrichedTask): boolean {
