@@ -16,9 +16,7 @@ import { NotificationBellComponent } from './notification-bell.component';
       <!-- ─── SIDEBAR ────────────────────────────────── -->
       <aside class="sidebar">
         <div class="sb-brand">
-          <div class="brand-ico">
-            <span class="material-icons-round">hub</span>
-          </div>
+          <img class="brand-logo" src="logo-icon.png" alt="ProjectHub" />
           <span class="brand-name">ProjectHub</span>
           <pm-notification-bell class="sb-bell" />
         </div>
@@ -122,14 +120,7 @@ import { NotificationBellComponent } from './notification-bell.component';
       text-decoration: none;
     }
 
-    .brand-ico {
-      width: 30px; height: 30px; border-radius: 8px;
-      background: var(--violet);
-      display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 4px 12px rgba(58,138,69,0.4);
-      flex-shrink: 0;
-    }
-    .brand-ico .material-icons-round { font-size: 16px; color: #fff; }
+    .brand-logo { width: 30px; height: 30px; border-radius: 8px; object-fit: contain; flex-shrink: 0; }
     .brand-name { font-size: 14px; font-weight: 700; color: #fff; letter-spacing: -0.2px; flex: 1; }
     .sb-bell { margin-left: auto; }
 
