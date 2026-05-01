@@ -108,7 +108,7 @@ import { ConfirmDialogComponent } from '@pm/shared/util';
     </div>
   `,
   styles: [`
-    .page-wrap { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+    .page-wrap { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
 
     /* Topbar */
     .topbar {
@@ -229,9 +229,10 @@ export class ProjectListComponent implements OnInit {
   @HostListener('document:click')
   closeMenu() { this.menuOpen = null; }
 
-  private readonly ACCENT_COUNT = 6;
-  private readonly STATUS_CLASSES = ['planning', 'active', 'on-hold', 'completed', 'archived'];
-  private readonly STATUS_LABELS = ['Planning', 'Active', 'On Hold', 'Completed', 'Archived'];
+  private readonly STATUS_CLASSES: Record<string, string> = {
+    Planning: 'planning', Active: 'active', OnHold: 'on-hold',
+    Completed: 'completed', Archived: 'archived',
+  };
 
   form = this.fb.group({ name: ['', Validators.required], description: [''] });
 
@@ -242,12 +243,8 @@ export class ProjectListComponent implements OnInit {
     });
   }
 
-  accentClass(id: string): string {
-    return `accent-${id.charCodeAt(0) % this.ACCENT_COUNT}`;
-  }
-
-  statusClass(status: number): string { return this.STATUS_CLASSES[status] ?? 'planning'; }
-  statusLabel(status: number): string { return this.STATUS_LABELS[status] ?? 'Planning'; }
+  statusClass(status: ProjectStatus): string { return this.STATUS_CLASSES[status] ?? 'planning'; }
+  statusLabel(status: ProjectStatus): string { return PROJECT_STATUS_LABELS[status] ?? 'Planning'; }
 
   openCreate() { this.editingProject.set(null); this.form.reset(); this.showForm.set(true); }
   openEdit(p: Project) { this.editingProject.set(p); this.form.patchValue({ name: p.name, description: p.description ?? '' }); this.showForm.set(true); }

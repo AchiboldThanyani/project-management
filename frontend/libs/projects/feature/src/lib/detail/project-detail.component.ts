@@ -15,7 +15,8 @@ import { VaultTabComponent } from '@pm/vault/feature';
 import { UpdatesTabComponent } from '../updates-tab/updates-tab.component';
 import { MessagingComponent } from '@pm/teams/feature';
 import {
-  Project, Task, TaskStatus, TaskPriority, Sprint, Comment, User,
+  Project, ProjectStatus, PROJECT_STATUS_LABELS,
+  Task, TaskStatus, TaskPriority, Sprint, Comment, User,
   Issue, IssueComment, IssueType,
   ISSUE_TYPE_LABELS, ISSUE_TYPE_ICONS, ISSUE_TYPE_COLORS,
   TASK_STATUS_LABELS,
@@ -50,9 +51,34 @@ const COLUMNS = [
 
       <!-- ── Topbar ─────────────────────────────── -->
       <div class="topbar">
-        <div>
+        <div class="topbar-left">
           <h1 class="page-title">{{ project()!.name }}</h1>
-          <p class="page-sub" *ngIf="project()!.description">{{ project()!.description }}</p>
+          <div class="topbar-meta">
+            <div class="status-wrap">
+              @if (statusMenuOpen) {
+                <div class="status-backdrop" (click)="statusMenuOpen = false"></div>
+              }
+              <button class="status-chip status-{{ project()!.status }}" (click)="statusMenuOpen = !statusMenuOpen">
+                <span class="status-dot"></span>
+                {{ projectStatusLabel(project()!.status) }}
+                <span class="material-icons-round status-chevron">expand_more</span>
+              </button>
+              @if (statusMenuOpen) {
+                <div class="status-menu">
+                  @for (s of allStatuses; track s.value) {
+                    <button class="status-option" [class.active]="project()!.status === s.value" (click)="changeProjectStatus(s.value)">
+                      <span class="status-dot status-dot-{{ s.value }}"></span>
+                      {{ s.label }}
+                      @if (project()!.status === s.value) {
+                        <span class="material-icons-round check-ico">check</span>
+                      }
+                    </button>
+                  }
+                </div>
+              }
+            </div>
+            <p class="page-sub" *ngIf="project()!.description">{{ project()!.description }}</p>
+          </div>
         </div>
         <button class="btn-primary" *ngIf="activeTab !== 'issues' && activeTab !== 'vault' && activeTab !== 'messages'" (click)="showCreateTask.set(true)">
           <span class="material-icons-round">add</span> Add Task
@@ -1611,9 +1637,59 @@ const COLUMNS = [
     }
 
     /* ── Topbar ── */
-    .topbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-    .page-title { margin: 0 0 2px; font-size: 20px; font-weight: 700; color: var(--ink); }
-    .page-sub   { margin: 0; font-size: 13px; color: var(--muted); }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .topbar-left { display: flex; flex-direction: column; gap: 6px; }
+    .topbar-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .page-title { margin: 0; font-size: 20px; font-weight: 700; color: var(--ink); }
+    .page-sub   { margin: 0; font-size: 13px; color: var(--soft); }
+
+    /* Status chip */
+    .status-wrap { position: relative; }
+    .status-chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 3px 10px 3px 8px; border-radius: var(--r-full);
+      border: 1px solid; font-size: 12px; font-weight: 600; cursor: pointer;
+      transition: opacity .15s; background: transparent;
+    }
+    .status-chip:hover { opacity: .8; }
+    .status-chevron { font-size: 14px !important; }
+
+    /* per-status colours */
+    .status-chip.status-Planning  { background: var(--surface);  color: var(--soft);    border-color: var(--border); }
+    .status-chip.status-Active    { background: #d1fae5;         color: #059669;        border-color: #6ee7b7; }
+    .status-chip.status-OnHold    { background: #fef3c7;         color: #d97706;        border-color: #fcd34d; }
+    .status-chip.status-Completed { background: #dbeafe;         color: #2563eb;        border-color: #93c5fd; }
+    .status-chip.status-Archived  { background: var(--surface);  color: var(--soft);    border-color: var(--border); }
+
+    .status-dot {
+      width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+      background: currentColor; opacity: .7;
+    }
+
+    .status-backdrop { position: fixed; inset: 0; z-index: 199; }
+
+    /* Status dropdown */
+    .status-menu {
+      position: absolute; top: calc(100% + 6px); left: 0; z-index: 200;
+      background: var(--white); border: 1px solid var(--border);
+      border-radius: var(--r-md); padding: 4px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.1);
+      min-width: 180px; display: flex; flex-direction: column; gap: 1px;
+    }
+    .status-option {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 10px; border-radius: 6px; border: none;
+      background: transparent; cursor: pointer; font-size: 13px; color: var(--ink);
+      text-align: left; width: 100%; transition: background .1s;
+    }
+    .status-option:hover  { background: var(--surface); }
+    .status-option.active { background: var(--violet-mid); color: var(--violet); }
+    .status-option .check-ico { font-size: 15px !important; margin-left: auto; }
+    .status-dot-0 { background: var(--soft); }
+    .status-dot-1 { background: #059669; }
+    .status-dot-2 { background: #d97706; }
+    .status-dot-3 { background: #2563eb; }
+    .status-dot-4 { background: var(--soft); opacity: .4; }
 
     /* ── Tabs ── */
     .tab-bar {
@@ -2636,6 +2712,15 @@ export class ProjectDetailComponent implements OnInit {
 
   activeTab: 'board' | 'sprints' | 'issues' | 'timeline' | 'members' | 'tickets' | 'invites' | 'brainstorm' | 'vault' | 'updates' | 'messages' = 'board';
   openSprintMenuId: string | null = null;
+  statusMenuOpen = false;
+
+  readonly allStatuses = [
+    { value: ProjectStatus.Planning,  label: PROJECT_STATUS_LABELS[ProjectStatus.Planning]  },
+    { value: ProjectStatus.Active,    label: PROJECT_STATUS_LABELS[ProjectStatus.Active]    },
+    { value: ProjectStatus.OnHold,    label: PROJECT_STATUS_LABELS[ProjectStatus.OnHold]    },
+    { value: ProjectStatus.Completed, label: PROJECT_STATUS_LABELS[ProjectStatus.Completed] },
+    { value: ProjectStatus.Archived,  label: PROJECT_STATUS_LABELS[ProjectStatus.Archived]  },
+  ];
 
   completingSprintId = signal<string | null>(null);
   completingSprintRetroNotes = '';
@@ -3588,6 +3673,28 @@ export class ProjectDetailComponent implements OnInit {
     return { [TaskPriority.Low]: 'Low', [TaskPriority.Medium]: 'Medium', [TaskPriority.High]: 'High', [TaskPriority.Critical]: 'Critical' }[p] ?? '';
   }
   statusLabel(s: TaskStatus): string { return TASK_STATUS_LABELS[s] ?? String(s); }
+
+  projectStatusLabel(s: ProjectStatus): string { return PROJECT_STATUS_LABELS[s] ?? String(s); }
+
+  changeProjectStatus(newStatus: ProjectStatus) {
+    const p = this.project();
+    if (!p || p.status === newStatus) { this.statusMenuOpen = false; return; }
+    const prev = p.status;
+    this.project.update(x => x ? { ...x, status: newStatus } : x);
+    this.statusMenuOpen = false;
+    this.projectService.update(p.id, {
+      name: p.name,
+      description: p.description,
+      status: newStatus,
+      startDate: p.startDate,
+      endDate: p.endDate,
+    }).subscribe({
+      error: () => {
+        this.project.update(x => x ? { ...x, status: prev } : x);
+        this.toast('Failed to update status');
+      },
+    });
+  }
   isOverdue(date: string | null | undefined): boolean { return !!date && new Date(date) < new Date(); }
   assigneeName(userId: string | null | undefined): string {
     if (!userId) return '';

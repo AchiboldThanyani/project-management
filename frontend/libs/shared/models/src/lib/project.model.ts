@@ -1,9 +1,9 @@
 export enum ProjectStatus {
-  Planning = 0,
-  Active = 1,
-  OnHold = 2,
-  Completed = 3,
-  Archived = 4,
+  Planning = 'Planning',
+  Active = 'Active',
+  OnHold = 'OnHold',
+  Completed = 'Completed',
+  Archived = 'Archived',
 }
 
 export interface Project {

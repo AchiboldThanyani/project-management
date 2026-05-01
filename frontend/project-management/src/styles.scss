@@ -190,11 +190,11 @@ mat-progress-spinner circle { stroke: var(--violet) !important; }
   padding: 2px 9px; border-radius: var(--r-full);
   font-size: 10px; font-weight: 600;
 }
-.ph-badge.planning { background: var(--blue-c);    color: var(--blue); }
-.ph-badge.active   { background: var(--teal-c);    color: var(--teal); }
-.ph-badge.on-hold  { background: var(--amber-c);   color: var(--amber); }
-.ph-badge.completed{ background: var(--emerald-c); color: var(--emerald); }
-.ph-badge.archived { background: var(--surface);   color: var(--muted); }
+.ph-badge.planning  { background: var(--surface); color: var(--soft); }
+.ph-badge.active    { background: #d1fae5; color: #059669; }
+.ph-badge.on-hold   { background: #fef3c7; color: #d97706; }
+.ph-badge.completed { background: #dbeafe; color: #2563eb; }
+.ph-badge.archived  { background: var(--surface); color: var(--soft); opacity: .7; }
 
 .ph-priority {
   width: 18px; height: 18px; border-radius: 5px;
