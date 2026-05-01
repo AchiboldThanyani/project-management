@@ -107,10 +107,10 @@ interface ActiveStates {
           </button>
         </div>
 
-        <!-- Selection chip -->
-        <div *ngIf="aiMode() === 'edit' && selectionWords() > 0" class="selection-chip">
+        <!-- Selection chip (persists after clicking input) -->
+        <div *ngIf="aiMode() === 'edit' && (selectionWords() > 0 || savedSelWords() > 0)" class="selection-chip">
           <span class="material-icons-round chip-icon">text_fields</span>
-          {{ selectionWords() }}w selected
+          {{ selectionWords() > 0 ? selectionWords() : savedSelWords() }}w selected
         </div>
 
         <!-- Input -->
@@ -129,8 +129,11 @@ interface ActiveStates {
           </span>
         </button>
 
+        <!-- Error -->
+        <span *ngIf="aiError()" class="ai-error">{{ aiError() }}</span>
+
         <!-- Word count -->
-        <span class="bar-word-count">{{ wordCount() }}w</span>
+        <span *ngIf="!aiError()" class="bar-word-count">{{ wordCount() }}w</span>
       </div>
     </div>
   `,
@@ -140,7 +143,7 @@ interface ActiveStates {
     .editor-wrap { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; position: relative; }
 
     /* ── Title ── */
-    .title-row { padding: 28px 48px 0; flex-shrink: 0; }
+    .title-row { padding: 28px 48px 16px; flex-shrink: 0; border-bottom: 1px solid var(--border); }
     .doc-title {
       width: 100%; border: none; outline: none;
       font-size: 28px; font-weight: 700; letter-spacing: -0.3px;
@@ -150,25 +153,25 @@ interface ActiveStates {
 
     /* ── Toolbar ── */
     .toolbar {
-      display: flex; align-items: center; gap: 2px; flex-wrap: wrap;
-      padding: 6px 48px; margin: 12px 0 0;
-      border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+      padding: 0 12px; min-height: 44px;
+      border-bottom: 1px solid var(--border);
       background: var(--white); flex-shrink: 0; position: sticky; top: 0; z-index: 10;
     }
-    .tb-group { display: flex; align-items: center; gap: 1px; }
+    .tb-group { display: flex; align-items: center; gap: 2px; }
     .tb-btn {
-      width: 30px; height: 30px; border: none; background: transparent;
+      width: 32px; height: 32px; border: none; background: transparent;
       border-radius: var(--r-sm); cursor: pointer; color: var(--ink-4);
       display: flex; align-items: center; justify-content: center; transition: background 0.1s, color 0.1s;
     }
-    .tb-btn .material-icons-round { font-size: 18px; }
+    .tb-btn .material-icons-round { font-size: 16px; }
     .tb-btn:hover { background: var(--surface); color: var(--ink); }
     .tb-btn.active { background: var(--violet-mid); color: var(--violet); }
-    .tb-sep { width: 1px; height: 18px; background: var(--border); margin: 0 4px; flex-shrink: 0; }
+    .tb-sep { width: 1px; height: 16px; background: var(--border); margin: 0 2px; flex-shrink: 0; }
 
     /* ── Link bar ── */
     .link-bar {
-      display: flex; align-items: center; gap: 6px; padding: 6px 48px;
+      display: flex; align-items: center; gap: 6px; padding: 6px 12px;
       border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0;
     }
     .link-bar-icon { font-size: 16px; color: var(--muted); }
@@ -248,6 +251,7 @@ interface ActiveStates {
     .ai-send.loading { opacity: 0.7; }
 
     .bar-word-count { font-size: 11px; color: var(--muted); flex-shrink: 0; white-space: nowrap; padding: 0 4px; }
+    .ai-error { font-size: 11px; color: #ef4444; flex-shrink: 0; white-space: nowrap; padding: 0 4px; font-weight: 500; }
 
     /* ── ProseMirror ── */
     :host ::ng-deep .tiptap-content .ProseMirror { outline: none; min-height: 300px; }
@@ -305,9 +309,14 @@ export class VaultDocumentEditorComponent implements AfterViewInit, OnDestroy {
     link: false,
   });
 
+  aiError        = signal('');
+
+  // Preserved across editor blur — public so template can read it
+  savedSelWords  = signal(0);
+
   aiPlaceholder = () => this.aiMode() === 'spec'
     ? 'Describe what to spec out…'
-    : this.selectionWords() > 0
+    : this.savedSelWords() > 0
       ? 'Improve, shorten, rewrite, change tone…'
       : 'Ask AI to write, add, or edit content…';
 
@@ -316,6 +325,8 @@ export class VaultDocumentEditorComponent implements AfterViewInit, OnDestroy {
   private saveSub = this.save$.pipe(debounceTime(2000)).subscribe(() => this.emitSave());
   private selFrom = 0;
   private selTo   = 0;
+  private savedSelFrom = 0;
+  private savedSelTo   = 0;
 
   ngAfterViewInit(): void {
     this.titleValue = this.document.title;
@@ -363,9 +374,15 @@ export class VaultDocumentEditorComponent implements AfterViewInit, OnDestroy {
       this.selFrom = from; this.selTo = to;
       if (from !== to) {
         const text = this.editor!.state.doc.textBetween(from, to, ' ');
-        this.selectionWords.set(text.trim().split(/\s+/).filter(w => w).length);
+        const words = text.trim().split(/\s+/).filter(w => w).length;
+        this.selectionWords.set(words);
+        // Persist non-empty selection so clicking the AI input doesn't lose it
+        this.savedSelFrom = from;
+        this.savedSelTo   = to;
+        this.savedSelWords.set(words);
       } else {
         this.selectionWords.set(0);
+        // Don't clear savedSel* — keep the last real selection for the AI call
       }
       const cc = (this.editor!.storage as any)['characterCount'];
       if (cc) { this.wordCount.set(cc.words?.() ?? 0); this.charCount.set(cc.characters?.() ?? 0); }
@@ -377,29 +394,31 @@ export class VaultDocumentEditorComponent implements AfterViewInit, OnDestroy {
   submitAi(): void {
     if (!this.aiPrompt.trim() || this.aiLoading()) return;
     this.aiLoading.set(true);
+    this.aiError.set('');
     const prompt = this.aiPrompt;
     this.aiPrompt = '';
 
     if (this.aiMode() === 'spec') {
       this.vaultAi.generateSpec(prompt, this.document.projectId).subscribe({
-        next: html  => this.insertHtml(html),
-        error: ()   => this.aiLoading.set(false),
+        next: html  => this.zone.run(() => this.insertHtml(html)),
+        error: err  => this.zone.run(() => this.showAiError(err)),
       });
-    } else if (this.selectionWords() > 0) {
-      const text = this.editor!.state.doc.textBetween(this.selFrom, this.selTo, ' ');
-      const from = this.selFrom, to = this.selTo;
+    } else if (this.savedSelWords() > 0) {
+      const text = this.editor!.state.doc.textBetween(this.savedSelFrom, this.savedSelTo, ' ');
+      const from = this.savedSelFrom, to = this.savedSelTo;
       this.vaultAi.editSelection(text, prompt).subscribe({
-        next: result => {
+        next: result => this.zone.run(() => {
           this.editor?.chain().focus().setTextSelection({ from, to }).insertContent(result).run();
+          this.savedSelFrom = 0; this.savedSelTo = 0; this.savedSelWords.set(0);
           this.aiLoading.set(false);
           this.triggerSave();
-        },
-        error: () => this.aiLoading.set(false),
+        }),
+        error: err => this.zone.run(() => this.showAiError(err)),
       });
     } else {
       this.vaultAi.documentCommand(prompt, this.document.projectId).subscribe({
-        next: html  => this.insertHtml(html),
-        error: ()   => this.aiLoading.set(false),
+        next: html  => this.zone.run(() => this.insertHtml(html)),
+        error: err  => this.zone.run(() => this.showAiError(err)),
       });
     }
   }
@@ -408,6 +427,13 @@ export class VaultDocumentEditorComponent implements AfterViewInit, OnDestroy {
     this.editor?.chain().focus().insertContent(html).run();
     this.aiLoading.set(false);
     this.triggerSave();
+  }
+
+  private showAiError(err: unknown): void {
+    this.aiLoading.set(false);
+    const status = (err as any)?.status;
+    this.aiError.set(status === 403 ? 'Not authorised' : status === 0 ? 'Cannot reach server' : 'AI error — try again');
+    setTimeout(() => this.zone.run(() => this.aiError.set('')), 4000);
   }
 
   private triggerSave(): void { this.saveStatusChange.emit('saving'); this.save$.next(); }
