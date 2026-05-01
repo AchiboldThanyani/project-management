@@ -1,82 +1,180 @@
 import { Component, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { AuthService } from '@pm/auth/data-access';
 
 @Component({
   selector: 'pm-profile',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   template: `
-    <div class="profile-page">
-      <div class="topbar">
-        <h1 class="page-title">My Profile</h1>
-        <p class="page-sub">Manage your account details</p>
-      </div>
+    @if (auth.user(); as user) {
+      <div class="profile-page">
 
-      <div *ngIf="auth.user() as user" class="profile-card">
-        <div class="avatar-wrap">
+        <!-- Header -->
+        <div class="profile-header">
           <div class="avatar">{{ initials(user.firstName, user.lastName) }}</div>
-          <div class="avatar-glow"></div>
+          <div class="header-info">
+            <h1 class="display-name">{{ user.firstName }} {{ user.lastName }}</h1>
+            <span class="role-badge role-{{ user.role.toLowerCase() }}">{{ roleLabel(user.role) }}</span>
+          </div>
         </div>
-        <div class="user-info">
-          <h2 class="user-name">{{ user.firstName }} {{ user.lastName }}</h2>
-          <p class="user-email">
-            <span class="material-icons-round email-ico">email</span>
-            {{ user.email }}
-          </p>
+
+        <!-- Account details -->
+        <div class="section-card">
+          <div class="section-title">Account details</div>
+          <div class="field-list">
+            <div class="field-row">
+              <span class="field-ico"><span class="material-icons-round">person</span></span>
+              <div class="field-body">
+                <span class="field-label">Full name</span>
+                <span class="field-value">{{ user.firstName }} {{ user.lastName }}</span>
+              </div>
+            </div>
+            <div class="field-row">
+              <span class="field-ico"><span class="material-icons-round">email</span></span>
+              <div class="field-body">
+                <span class="field-label">Email</span>
+                <span class="field-value">{{ user.email }}</span>
+              </div>
+            </div>
+            <div class="field-row">
+              <span class="field-ico"><span class="material-icons-round">badge</span></span>
+              <div class="field-body">
+                <span class="field-label">Role</span>
+                <span class="field-value">{{ roleLabel(user.role) }}</span>
+              </div>
+            </div>
+          </div>
         </div>
+
       </div>
-    </div>
+    }
   `,
   styles: [`
     .profile-page {
-      padding: 28px 32px;
-      max-width: 600px;
-      display: flex; flex-direction: column; gap: 24px;
+      padding: 32px;
+      max-width: 560px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
     }
 
-    .topbar {}
-    .page-title { margin: 0 0 2px; font-size: 20px; font-weight: 700; color: var(--ink); }
-    .page-sub   { margin: 0; font-size: 13px; color: var(--muted); }
+    /* ── Header ── */
+    .profile-header {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
 
-    .profile-card {
+    .avatar {
+      width: 64px;
+      height: 64px;
+      border-radius: var(--r-full);
+      background: var(--violet-mid);
+      color: var(--violet);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      flex-shrink: 0;
+    }
+
+    .header-info {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .display-name {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--ink);
+      line-height: 1.2;
+    }
+
+    .role-badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: var(--r-full);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      width: fit-content;
+    }
+    .role-admin          { background: var(--violet-mid); color: var(--violet); }
+    .role-projectmanager { background: #dbeafe; color: #2563eb; }
+    .role-staff          { background: var(--surface); color: var(--soft); }
+    .role-client         { background: #fef3c7; color: #d97706; }
+
+    /* ── Section card ── */
+    .section-card {
       background: var(--white);
       border: 1px solid var(--border);
-      border-radius: var(--r-lg);
-      padding: 28px 32px;
-      display: flex; align-items: center; gap: 24px;
-      box-shadow: var(--shadow-sm);
+      border-radius: var(--r-md);
+      overflow: hidden;
     }
 
-    .avatar-wrap { position: relative; flex-shrink: 0; }
-    .avatar {
-      width: 72px; height: 72px; border-radius: 50%;
-      background: linear-gradient(135deg, var(--violet), var(--teal));
-      display: flex; align-items: center; justify-content: center;
-      font-size: 24px; font-weight: 700; color: #fff;
-      position: relative; z-index: 1;
-    }
-    .avatar-glow {
-      position: absolute; inset: -4px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, rgba(58,138,69,0.3), rgba(0,184,160,0.3));
-      filter: blur(8px);
-      z-index: 0;
+    .section-title {
+      padding: 12px 20px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--soft);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
     }
 
-    .user-info { display: flex; flex-direction: column; gap: 6px; }
-    .user-name { margin: 0; font-size: 20px; font-weight: 700; color: var(--ink); }
-    .user-email {
-      margin: 0; display: flex; align-items: center; gap: 6px;
-      font-size: 13px; color: var(--muted);
+    .field-list { display: flex; flex-direction: column; }
+
+    .field-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
     }
-    .email-ico { font-size: 15px; color: var(--soft); }
+    .field-row:last-child { border-bottom: none; }
+
+    .field-ico {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--r-md);
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .field-ico .material-icons-round { font-size: 16px; color: var(--soft); }
+
+    .field-body {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      min-width: 0;
+    }
+    .field-label { font-size: 11px; color: var(--soft); }
+    .field-value { font-size: 13px; color: var(--ink); font-weight: 500; }
   `],
 })
 export class ProfileComponent {
   readonly auth = inject(AuthService);
 
   initials(first: string, last: string): string {
-    return `${first[0] ?? ''}${last[0] ?? ''}`.toUpperCase();
+    return `${first?.[0] ?? ''}${last?.[0] ?? ''}`.toUpperCase();
+  }
+
+  roleLabel(role: string): string {
+    const map: Record<string, string> = {
+      Admin: 'Admin',
+      ProjectManager: 'Project Manager',
+      Staff: 'Staff',
+      Client: 'Client',
+    };
+    return map[role] ?? role;
   }
 }
