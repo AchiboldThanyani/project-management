@@ -27,13 +27,6 @@ interface ActiveStates {
   link: boolean;
 }
 
-const EDIT_ACTIONS = [
-  { label: 'Improve',      icon: 'auto_fix_high',    instruction: 'Rewrite to be clearer, more professional, and more impactful' },
-  { label: 'Shorten',      icon: 'compress',         instruction: 'Make more concise, removing unnecessary words while keeping all key information' },
-  { label: 'Expand',       icon: 'expand_content',   instruction: 'Expand with more detail, context, and explanation while keeping the same tone' },
-  { label: 'Fix grammar',  icon: 'spellcheck',       instruction: 'Fix all grammar, spelling, and punctuation errors' },
-] as const;
-
 @Component({
   selector: 'pm-vault-document-editor',
   standalone: true,
@@ -50,49 +43,39 @@ const EDIT_ACTIONS = [
       <!-- Toolbar -->
       <div *ngIf="!readonly" class="toolbar">
         <div class="tb-group">
-          <button class="tb-btn" (click)="cmd('undo')" title="Undo">
-            <span class="material-icons-round">undo</span>
-          </button>
-          <button class="tb-btn" (click)="cmd('redo')" title="Redo">
-            <span class="material-icons-round">redo</span>
-          </button>
+          <button class="tb-btn" (click)="cmd('undo')" title="Undo"><span class="material-icons-round">undo</span></button>
+          <button class="tb-btn" (click)="cmd('redo')" title="Redo"><span class="material-icons-round">redo</span></button>
         </div>
         <span class="tb-sep"></span>
         <div class="tb-group">
-          <button class="tb-btn" [class.active]="active().bold"        (click)="cmd('toggleBold')"         title="Bold"><span class="material-icons-round">format_bold</span></button>
-          <button class="tb-btn" [class.active]="active().italic"      (click)="cmd('toggleItalic')"       title="Italic"><span class="material-icons-round">format_italic</span></button>
-          <button class="tb-btn" [class.active]="active().underline"   (click)="cmd('toggleUnderline')"    title="Underline"><span class="material-icons-round">format_underlined</span></button>
-          <button class="tb-btn" [class.active]="active().strike"      (click)="cmd('toggleStrike')"       title="Strikethrough"><span class="material-icons-round">strikethrough_s</span></button>
+          <button class="tb-btn" [class.active]="active().bold"        (click)="cmd('toggleBold')"        title="Bold">        <span class="material-icons-round">format_bold</span></button>
+          <button class="tb-btn" [class.active]="active().italic"      (click)="cmd('toggleItalic')"      title="Italic">      <span class="material-icons-round">format_italic</span></button>
+          <button class="tb-btn" [class.active]="active().underline"   (click)="cmd('toggleUnderline')"   title="Underline">   <span class="material-icons-round">format_underlined</span></button>
+          <button class="tb-btn" [class.active]="active().strike"      (click)="cmd('toggleStrike')"      title="Strike">      <span class="material-icons-round">strikethrough_s</span></button>
         </div>
         <span class="tb-sep"></span>
         <div class="tb-group">
-          <button class="tb-btn" [class.active]="active().h1" (click)="cmdH(1)" title="Heading 1"><span class="material-icons-round">looks_one</span></button>
-          <button class="tb-btn" [class.active]="active().h2" (click)="cmdH(2)" title="Heading 2"><span class="material-icons-round">looks_two</span></button>
-          <button class="tb-btn" [class.active]="active().h3" (click)="cmdH(3)" title="Heading 3"><span class="material-icons-round">looks_3</span></button>
+          <button class="tb-btn" [class.active]="active().h1" (click)="cmdH(1)" title="H1"><span class="material-icons-round">looks_one</span></button>
+          <button class="tb-btn" [class.active]="active().h2" (click)="cmdH(2)" title="H2"><span class="material-icons-round">looks_two</span></button>
+          <button class="tb-btn" [class.active]="active().h3" (click)="cmdH(3)" title="H3"><span class="material-icons-round">looks_3</span></button>
         </div>
         <span class="tb-sep"></span>
         <div class="tb-group">
-          <button class="tb-btn" [class.active]="active().bulletList"  (click)="cmd('toggleBulletList')"   title="Bullet list"><span class="material-icons-round">format_list_bulleted</span></button>
-          <button class="tb-btn" [class.active]="active().orderedList" (click)="cmd('toggleOrderedList')"  title="Numbered list"><span class="material-icons-round">format_list_numbered</span></button>
-          <button class="tb-btn" [class.active]="active().blockquote"  (click)="cmd('toggleBlockquote')"   title="Quote"><span class="material-icons-round">format_quote</span></button>
+          <button class="tb-btn" [class.active]="active().bulletList"  (click)="cmd('toggleBulletList')"  title="Bullet list"> <span class="material-icons-round">format_list_bulleted</span></button>
+          <button class="tb-btn" [class.active]="active().orderedList" (click)="cmd('toggleOrderedList')" title="Num list">    <span class="material-icons-round">format_list_numbered</span></button>
+          <button class="tb-btn" [class.active]="active().blockquote"  (click)="cmd('toggleBlockquote')"  title="Quote">       <span class="material-icons-round">format_quote</span></button>
         </div>
         <span class="tb-sep"></span>
         <div class="tb-group">
-          <button class="tb-btn" [class.active]="active().codeBlock"   (click)="cmd('toggleCodeBlock')"    title="Code block"><span class="material-icons-round">code</span></button>
-          <button class="tb-btn"                                        (click)="insertHr()"                title="Divider"><span class="material-icons-round">horizontal_rule</span></button>
+          <button class="tb-btn" [class.active]="active().codeBlock"   (click)="cmd('toggleCodeBlock')"   title="Code block">  <span class="material-icons-round">code</span></button>
+          <button class="tb-btn"                                        (click)="insertHr()"               title="Divider">     <span class="material-icons-round">horizontal_rule</span></button>
         </div>
         <span class="tb-sep"></span>
         <div class="tb-group">
-          <button class="tb-btn" [class.active]="active().link"        (click)="toggleLinkInput()"         title="Link"><span class="material-icons-round">link</span></button>
-          <button class="tb-btn"                                        (click)="insertTable()"             title="Table"><span class="material-icons-round">table_chart</span></button>
-          <button class="tb-btn"                                        (click)="insertImage()"             title="Image"><span class="material-icons-round">image</span></button>
+          <button class="tb-btn" [class.active]="active().link"        (click)="toggleLinkInput()"        title="Link">        <span class="material-icons-round">link</span></button>
+          <button class="tb-btn"                                        (click)="insertTable()"            title="Table">       <span class="material-icons-round">table_chart</span></button>
+          <button class="tb-btn"                                        (click)="insertImage()"            title="Image">       <span class="material-icons-round">image</span></button>
         </div>
-        <div class="tb-spacer"></div>
-        <!-- AI button -->
-        <button class="tb-ai-btn" (click)="openSpecDialog()" title="AI Spec Generator">
-          <span class="material-icons-round">auto_awesome</span>
-          <span class="tb-ai-label">AI Spec</span>
-        </button>
       </div>
 
       <!-- Link bar -->
@@ -100,73 +83,61 @@ const EDIT_ACTIONS = [
         <span class="material-icons-round link-bar-icon">link</span>
         <input class="link-input" [(ngModel)]="linkUrl" placeholder="https://..."
                (keydown.enter)="applyLink()" (keydown.escape)="closeLinkInput()" />
-        <button class="link-bar-btn apply" (click)="applyLink()" title="Apply"><span class="material-icons-round">check</span></button>
-        <button *ngIf="active().link" class="link-bar-btn remove" (click)="removeLink()" title="Remove link"><span class="material-icons-round">link_off</span></button>
-        <button class="link-bar-btn" (click)="closeLinkInput()" title="Cancel"><span class="material-icons-round">close</span></button>
+        <button class="link-bar-btn apply"  (click)="applyLink()"  title="Apply">  <span class="material-icons-round">check</span></button>
+        <button *ngIf="active().link" class="link-bar-btn remove" (click)="removeLink()" title="Remove"><span class="material-icons-round">link_off</span></button>
+        <button class="link-bar-btn"        (click)="closeLinkInput()" title="Cancel"><span class="material-icons-round">close</span></button>
       </div>
 
       <!-- Editor -->
       <div #editorEl class="tiptap-content" [class.readonly]="readonly"></div>
+
+      <!-- AI bar -->
+      <div *ngIf="!readonly" class="ai-bar">
+        <!-- Mode toggle -->
+        <div class="ai-mode">
+          <button class="ai-mode-btn" [class.active]="aiMode() === 'edit'"
+                  (click)="setMode('edit')" title="Edit / write">
+            <span class="material-icons-round">edit</span>
+            <span class="mode-label">Edit</span>
+          </button>
+          <button class="ai-mode-btn" [class.active]="aiMode() === 'spec'"
+                  (click)="setMode('spec')" title="Generate a spec">
+            <span class="material-icons-round">auto_awesome</span>
+            <span class="mode-label">Spec</span>
+          </button>
+        </div>
+
+        <!-- Selection chip -->
+        <div *ngIf="aiMode() === 'edit' && selectionWords() > 0" class="selection-chip">
+          <span class="material-icons-round chip-icon">text_fields</span>
+          {{ selectionWords() }}w selected
+        </div>
+
+        <!-- Input -->
+        <input #aiInput class="ai-input"
+               [(ngModel)]="aiPrompt"
+               [placeholder]="aiPlaceholder()"
+               (keydown.enter)="submitAi()"
+               (keydown.escape)="aiPrompt = ''" />
+
+        <!-- Send -->
+        <button class="ai-send" [class.loading]="aiLoading()"
+                [disabled]="aiLoading() || !aiPrompt.trim()"
+                (click)="submitAi()" title="Send">
+          <span class="material-icons-round">
+            {{ aiLoading() ? 'hourglass_top' : 'send' }}
+          </span>
+        </button>
+      </div>
 
       <!-- Footer -->
       <div class="editor-footer">
         <span class="word-count">{{ wordCount() }} words · {{ charCount() }} characters</span>
       </div>
     </div>
-
-    <!-- ── Floating AI selection toolbar (fixed, outside wrap) ── -->
-    <div *ngIf="showAiFloat() && !readonly" class="ai-float"
-         [style.top.px]="aiFloatY()" [style.left.px]="aiFloatX()">
-      <ng-container *ngFor="let action of editActions">
-        <button class="float-btn" [class.loading]="aiFloatAction() === action.label"
-                [disabled]="!!aiFloatAction()"
-                (click)="editSelection(action.label, action.instruction)"
-                [title]="action.label">
-          <span class="material-icons-round float-icon">
-            {{ aiFloatAction() === action.label ? 'hourglass_top' : action.icon }}
-          </span>
-          <span class="float-label">{{ action.label }}</span>
-        </button>
-      </ng-container>
-    </div>
-
-    <!-- ── Spec generation dialog ── -->
-    <div *ngIf="showSpecDialog()" class="spec-overlay" (click)="onOverlayClick($event)">
-      <div class="spec-dialog">
-        <div class="spec-dialog-header">
-          <span class="material-icons-round spec-icon">auto_awesome</span>
-          <div>
-            <h3 class="spec-title">AI Spec Generator</h3>
-            <p class="spec-sub">Describe what to spec — Claude will write the full document.</p>
-          </div>
-          <button class="spec-close" (click)="closeSpecDialog()">
-            <span class="material-icons-round">close</span>
-          </button>
-        </div>
-        <div class="spec-dialog-body">
-          <label class="spec-label">Brief</label>
-          <textarea class="spec-textarea" [(ngModel)]="specBrief"
-                    placeholder="e.g. Authentication module using JWT with refresh tokens, covering API endpoints, data model, and security requirements…"
-                    rows="4"
-                    (keydown.escape)="closeSpecDialog()"></textarea>
-          <div *ngIf="specError()" class="spec-error">
-            <span class="material-icons-round" style="font-size:14px">error_outline</span>
-            {{ specError() }}
-          </div>
-        </div>
-        <div class="spec-dialog-footer">
-          <button class="spec-cancel" (click)="closeSpecDialog()">Cancel</button>
-          <button class="spec-generate" (click)="generateSpec()"
-                  [disabled]="specLoading() || !specBrief.trim()">
-            <span class="material-icons-round">{{ specLoading() ? 'hourglass_top' : 'auto_awesome' }}</span>
-            {{ specLoading() ? 'Generating…' : 'Generate Spec' }}
-          </button>
-        </div>
-      </div>
-    </div>
   `,
   styles: [`
-    :host { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; position: relative; }
+    :host { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
 
     .editor-wrap { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
 
@@ -187,7 +158,6 @@ const EDIT_ACTIONS = [
       background: var(--white); flex-shrink: 0; position: sticky; top: 0; z-index: 10;
     }
     .tb-group { display: flex; align-items: center; gap: 1px; }
-    .tb-spacer { flex: 1; }
     .tb-btn {
       width: 30px; height: 30px; border: none; background: transparent;
       border-radius: var(--r-sm); cursor: pointer; color: var(--ink-4);
@@ -197,15 +167,6 @@ const EDIT_ACTIONS = [
     .tb-btn:hover { background: var(--surface); color: var(--ink); }
     .tb-btn.active { background: var(--violet-mid); color: var(--violet); }
     .tb-sep { width: 1px; height: 18px; background: var(--border); margin: 0 4px; flex-shrink: 0; }
-    .tb-ai-btn {
-      display: flex; align-items: center; gap: 5px; padding: 5px 12px;
-      background: var(--violet); color: #fff; border: none; border-radius: var(--r-md);
-      font-size: 12px; font-weight: 600; cursor: pointer; transition: opacity 0.15s;
-      flex-shrink: 0;
-    }
-    .tb-ai-btn:hover { opacity: 0.88; }
-    .tb-ai-btn .material-icons-round { font-size: 15px; }
-    .tb-ai-label { white-space: nowrap; }
 
     /* ── Link bar ── */
     .link-bar {
@@ -230,93 +191,65 @@ const EDIT_ACTIONS = [
     .link-bar-btn.remove { color: #ef4444; }
     .link-bar-btn.remove:hover { background: #fef2f2; }
 
-    /* ── Editor content area ── */
-    .tiptap-content { flex: 1; overflow-y: auto; padding: 24px 48px; outline: none; font-size: 15px; line-height: 1.75; color: var(--ink); }
+    /* ── Editor ── */
+    .tiptap-content {
+      flex: 1; overflow-y: auto; padding: 24px 48px;
+      outline: none; font-size: 15px; line-height: 1.75; color: var(--ink);
+    }
     .tiptap-content.readonly { cursor: default; }
 
+    /* ── AI bar ── */
+    .ai-bar {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 16px; border-top: 1px solid var(--border);
+      background: var(--surface); flex-shrink: 0;
+    }
+
+    .ai-mode {
+      display: flex; border: 1px solid var(--border); border-radius: var(--r-md);
+      overflow: hidden; flex-shrink: 0;
+    }
+    .ai-mode-btn {
+      display: flex; align-items: center; gap: 4px; padding: 5px 10px;
+      border: none; background: transparent; cursor: pointer;
+      font-size: 12px; font-weight: 500; color: var(--muted);
+      transition: background 0.12s, color 0.12s;
+    }
+    .ai-mode-btn .material-icons-round { font-size: 14px; }
+    .ai-mode-btn:hover { background: var(--border); color: var(--ink); }
+    .ai-mode-btn.active { background: var(--violet); color: #fff; }
+    .mode-label { white-space: nowrap; }
+
+    .selection-chip {
+      display: flex; align-items: center; gap: 4px; padding: 3px 8px;
+      background: var(--violet-mid); color: var(--violet);
+      border-radius: 99px; font-size: 11px; font-weight: 600; flex-shrink: 0;
+    }
+    .chip-icon { font-size: 13px; }
+
+    .ai-input {
+      flex: 1; border: 1px solid var(--border); border-radius: var(--r-md);
+      padding: 7px 12px; font-size: 13px; background: var(--white); color: var(--ink);
+      outline: none; transition: border-color 0.15s; font-family: inherit;
+    }
+    .ai-input:focus { border-color: var(--violet); }
+
+    .ai-send {
+      width: 32px; height: 32px; border: none; border-radius: var(--r-md);
+      background: var(--violet); color: #fff; cursor: pointer; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      transition: opacity 0.15s;
+    }
+    .ai-send .material-icons-round { font-size: 16px; }
+    .ai-send:hover:not(:disabled) { opacity: 0.85; }
+    .ai-send:disabled { opacity: 0.45; cursor: not-allowed; }
+    .ai-send.loading { opacity: 0.7; }
+
     /* ── Footer ── */
-    .editor-footer { padding: 6px 48px; border-top: 1px solid var(--border); background: var(--white); flex-shrink: 0; }
+    .editor-footer { padding: 4px 48px; border-top: 1px solid var(--border); background: var(--white); flex-shrink: 0; }
     .word-count { font-size: 11px; color: var(--muted); }
 
-    /* ── Floating AI toolbar ── */
-    .ai-float {
-      position: fixed; z-index: 9000; transform: translateX(-50%);
-      display: flex; align-items: center; gap: 2px;
-      background: var(--ink); border-radius: 8px;
-      padding: 4px 6px;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.25);
-    }
-    .float-btn {
-      display: flex; align-items: center; gap: 4px; padding: 4px 8px;
-      background: transparent; border: none; border-radius: 5px;
-      color: #fff; cursor: pointer; font-size: 12px; font-weight: 500;
-      transition: background 0.1s; white-space: nowrap;
-    }
-    .float-btn:hover:not(:disabled) { background: rgba(255,255,255,0.15); }
-    .float-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .float-btn.loading { color: #a78bfa; }
-    .float-icon { font-size: 14px; }
-    .float-label { font-size: 11px; }
-
-    /* ── Spec dialog ── */
-    .spec-overlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 9500;
-      display: flex; align-items: center; justify-content: center;
-      backdrop-filter: blur(2px);
-    }
-    .spec-dialog {
-      background: var(--white); border-radius: var(--r-xl);
-      width: 520px; max-width: calc(100vw - 32px);
-      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
-      display: flex; flex-direction: column;
-    }
-    .spec-dialog-header {
-      display: flex; align-items: flex-start; gap: 12px;
-      padding: 20px 20px 0;
-    }
-    .spec-icon { font-size: 22px; color: var(--violet); margin-top: 2px; }
-    .spec-title { font-size: 15px; font-weight: 700; color: var(--ink); margin: 0 0 2px; }
-    .spec-sub { font-size: 12px; color: var(--muted); margin: 0; }
-    .spec-close {
-      margin-left: auto; width: 28px; height: 28px; border: none;
-      background: transparent; cursor: pointer; border-radius: var(--r-sm);
-      display: flex; align-items: center; justify-content: center; color: var(--muted);
-    }
-    .spec-close:hover { background: var(--surface); color: var(--ink); }
-    .spec-close .material-icons-round { font-size: 18px; }
-    .spec-dialog-body { padding: 16px 20px; }
-    .spec-label { font-size: 11px; font-weight: 700; color: var(--ink-4); text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 6px; }
-    .spec-textarea {
-      width: 100%; border: 1px solid var(--border); border-radius: var(--r-md);
-      padding: 10px 12px; font-size: 13px; line-height: 1.6;
-      color: var(--ink); background: var(--surface); resize: vertical;
-      font-family: inherit; outline: none; box-sizing: border-box;
-    }
-    .spec-textarea:focus { border-color: var(--violet); background: var(--white); }
-    .spec-error {
-      display: flex; align-items: center; gap: 6px; margin-top: 8px;
-      font-size: 12px; color: #ef4444;
-    }
-    .spec-dialog-footer {
-      display: flex; justify-content: flex-end; gap: 8px;
-      padding: 12px 20px 16px; border-top: 1px solid var(--border);
-    }
-    .spec-cancel {
-      padding: 7px 16px; border: 1px solid var(--border); border-radius: var(--r-md);
-      background: var(--white); color: var(--ink-4); font-size: 13px; cursor: pointer;
-    }
-    .spec-cancel:hover { background: var(--surface); }
-    .spec-generate {
-      display: flex; align-items: center; gap: 6px; padding: 7px 18px;
-      background: var(--violet); color: #fff;
-      border: none; border-radius: var(--r-md); font-size: 13px; font-weight: 600;
-      cursor: pointer; transition: opacity 0.15s;
-    }
-    .spec-generate:hover:not(:disabled) { opacity: 0.88; }
-    .spec-generate:disabled { opacity: 0.55; cursor: not-allowed; }
-    .spec-generate .material-icons-round { font-size: 16px; }
-
-    /* ── ProseMirror content styles ── */
+    /* ── ProseMirror ── */
     :host ::ng-deep .tiptap-content .ProseMirror { outline: none; min-height: 300px; }
     :host ::ng-deep .tiptap-content p.is-editor-empty:first-child::before {
       content: attr(data-placeholder); color: var(--soft); pointer-events: none; float: left; height: 0;
@@ -353,35 +286,36 @@ export class VaultDocumentEditorComponent implements AfterViewInit, OnDestroy {
   @Output() saveStatusChange = new EventEmitter<'idle' | 'saving' | 'saved' | 'error'>();
 
   private vaultAi = inject(VaultAiService);
-  private zone = inject(NgZone);
+  private zone    = inject(NgZone);
 
-  titleValue = '';
-  linkUrl = '';
-  specBrief = '';
-  readonly editActions = EDIT_ACTIONS;
+  titleValue  = '';
+  linkUrl     = '';
+  aiPrompt    = '';
 
-  showLinkInput   = signal(false);
-  showSpecDialog  = signal(false);
-  specLoading     = signal(false);
-  specError       = signal<string | null>(null);
-  showAiFloat     = signal(false);
-  aiFloatX        = signal(0);
-  aiFloatY        = signal(0);
-  aiFloatAction   = signal<string | null>(null);
-  wordCount       = signal(0);
-  charCount       = signal(0);
-  active          = signal<ActiveStates>({
+  showLinkInput  = signal(false);
+  aiMode         = signal<'edit' | 'spec'>('edit');
+  aiLoading      = signal(false);
+  selectionWords = signal(0);
+  wordCount      = signal(0);
+  charCount      = signal(0);
+  active         = signal<ActiveStates>({
     bold: false, italic: false, underline: false, strike: false,
     h1: false, h2: false, h3: false,
     bulletList: false, orderedList: false, blockquote: false, codeBlock: false,
     link: false,
   });
 
+  aiPlaceholder = () => this.aiMode() === 'spec'
+    ? 'Describe what to spec out…'
+    : this.selectionWords() > 0
+      ? 'Improve, shorten, rewrite, change tone…'
+      : 'Ask AI to write, add, or edit content…';
+
   private editor: Editor | null = null;
   private save$ = new Subject<void>();
   private saveSub = this.save$.pipe(debounceTime(2000)).subscribe(() => this.emitSave());
-  private selectionFrom = 0;
-  private selectionTo   = 0;
+  private selFrom = 0;
+  private selTo   = 0;
 
   ngAfterViewInit(): void {
     this.titleValue = this.document.title;
@@ -402,14 +336,8 @@ export class VaultDocumentEditorComponent implements AfterViewInit, OnDestroy {
         catch { return ''; }
       })(),
       editable: !this.readonly,
-      onUpdate: () => {
-        this.refreshState();
-        if (!this.readonly) { this.saveStatusChange.emit('saving'); this.save$.next(); }
-      },
-      onSelectionUpdate: () => {
-        this.refreshState();
-        this.updateFloat();
-      },
+      onUpdate:         () => { this.refreshState(); if (!this.readonly) { this.saveStatusChange.emit('saving'); this.save$.next(); } },
+      onSelectionUpdate: () => this.refreshState(),
     });
     this.refreshState();
   }
@@ -431,31 +359,60 @@ export class VaultDocumentEditorComponent implements AfterViewInit, OnDestroy {
         codeBlock:   this.editor!.isActive('codeBlock'),
         link:        this.editor!.isActive('link'),
       });
+      const { from, to } = this.editor!.state.selection;
+      this.selFrom = from; this.selTo = to;
+      if (from !== to) {
+        const text = this.editor!.state.doc.textBetween(from, to, ' ');
+        this.selectionWords.set(text.trim().split(/\s+/).filter(w => w).length);
+      } else {
+        this.selectionWords.set(0);
+      }
       const cc = (this.editor!.storage as any)['characterCount'];
       if (cc) { this.wordCount.set(cc.words?.() ?? 0); this.charCount.set(cc.characters?.() ?? 0); }
     });
   }
 
-  private updateFloat(): void {
-    if (!this.editor || this.readonly) return;
-    const { from, to } = this.editor.state.selection;
-    this.selectionFrom = from;
-    this.selectionTo   = to;
-    if (from === to) { this.zone.run(() => this.showAiFloat.set(false)); return; }
+  setMode(mode: 'edit' | 'spec'): void { this.aiMode.set(mode); }
 
-    const startCoords = this.editor.view.coordsAtPos(from);
-    const y = startCoords.top - 48;
-    const x = startCoords.left + (this.editor.view.coordsAtPos(to).right - startCoords.left) / 2;
+  submitAi(): void {
+    if (!this.aiPrompt.trim() || this.aiLoading()) return;
+    this.aiLoading.set(true);
+    const prompt = this.aiPrompt;
+    this.aiPrompt = '';
 
-    this.zone.run(() => {
-      this.aiFloatX.set(x);
-      this.aiFloatY.set(y < 10 ? startCoords.bottom + 8 : y);
-      this.showAiFloat.set(true);
-    });
+    if (this.aiMode() === 'spec') {
+      this.vaultAi.generateSpec(prompt, this.document.projectId).subscribe({
+        next: html  => this.insertHtml(html),
+        error: ()   => this.aiLoading.set(false),
+      });
+    } else if (this.selectionWords() > 0) {
+      const text = this.editor!.state.doc.textBetween(this.selFrom, this.selTo, ' ');
+      const from = this.selFrom, to = this.selTo;
+      this.vaultAi.editSelection(text, prompt).subscribe({
+        next: result => {
+          this.editor?.chain().focus().setTextSelection({ from, to }).insertContent(result).run();
+          this.aiLoading.set(false);
+          this.triggerSave();
+        },
+        error: () => this.aiLoading.set(false),
+      });
+    } else {
+      this.vaultAi.documentCommand(prompt, this.document.projectId).subscribe({
+        next: html  => this.insertHtml(html),
+        error: ()   => this.aiLoading.set(false),
+      });
+    }
   }
 
-  // ── Toolbar commands ────────────────────────────────────────────
+  private insertHtml(html: string): void {
+    this.editor?.chain().focus().insertContent(html).run();
+    this.aiLoading.set(false);
+    this.triggerSave();
+  }
 
+  private triggerSave(): void { this.saveStatusChange.emit('saving'); this.save$.next(); }
+
+  // ── Toolbar ─────────────────────────────────────────────────────
   cmd(command: string): void { (this.editor?.chain().focus() as any)[command]?.().run(); }
   cmdH(level: 1 | 2 | 3): void { this.editor?.chain().focus().toggleHeading({ level }).run(); }
   insertHr(): void { this.editor?.chain().focus().setHorizontalRule().run(); }
@@ -463,8 +420,7 @@ export class VaultDocumentEditorComponent implements AfterViewInit, OnDestroy {
   insertImage(): void { const src = prompt('Image URL:'); if (src) this.editor?.chain().focus().setImage({ src }).run(); }
 
   toggleLinkInput(): void {
-    if (this.active().link) { this.linkUrl = this.editor?.getAttributes('link')?.['href'] ?? ''; }
-    else { this.linkUrl = ''; }
+    this.linkUrl = this.active().link ? (this.editor?.getAttributes('link')?.['href'] ?? '') : '';
     this.showLinkInput.update(v => !v);
   }
   applyLink(): void {
@@ -481,57 +437,6 @@ export class VaultDocumentEditorComponent implements AfterViewInit, OnDestroy {
     this.titleValue = (event.target as HTMLInputElement).value;
     if (!this.readonly) { this.saveStatusChange.emit('saving'); this.save$.next(); }
   }
-
-  // ── Floating selection AI ───────────────────────────────────────
-
-  editSelection(label: string, instruction: string): void {
-    if (!this.editor || this.aiFloatAction()) return;
-    const from = this.selectionFrom;
-    const to   = this.selectionTo;
-    const text = this.editor.state.doc.textBetween(from, to, ' ');
-    if (!text.trim()) return;
-
-    this.aiFloatAction.set(label);
-    this.vaultAi.editText(text, instruction).subscribe({
-      next: result => {
-        this.editor?.chain().focus().setTextSelection({ from, to }).insertContent(result).run();
-        this.aiFloatAction.set(null);
-        this.showAiFloat.set(false);
-      },
-      error: () => this.aiFloatAction.set(null),
-    });
-  }
-
-  // ── Spec dialog ─────────────────────────────────────────────────
-
-  openSpecDialog(): void { this.specBrief = ''; this.specError.set(null); this.showSpecDialog.set(true); }
-  closeSpecDialog(): void { this.showSpecDialog.set(false); this.specBrief = ''; this.specError.set(null); }
-
-  onOverlayClick(event: MouseEvent): void {
-    if ((event.target as HTMLElement).classList.contains('spec-overlay')) this.closeSpecDialog();
-  }
-
-  generateSpec(): void {
-    if (!this.specBrief.trim() || this.specLoading()) return;
-    this.specLoading.set(true);
-    this.specError.set(null);
-
-    this.vaultAi.generateSpec(this.specBrief, this.document.projectId).subscribe({
-      next: html => {
-        this.editor?.chain().focus().insertContent(html).run();
-        this.specLoading.set(false);
-        this.closeSpecDialog();
-        this.saveStatusChange.emit('saving');
-        this.save$.next();
-      },
-      error: () => {
-        this.specLoading.set(false);
-        this.specError.set('Generation failed. Please try again.');
-      },
-    });
-  }
-
-  // ── Lifecycle ────────────────────────────────────────────────────
 
   private emitSave(): void {
     const contentJson = JSON.stringify(this.editor?.getJSON() ?? {});
