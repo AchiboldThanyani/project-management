@@ -19,6 +19,7 @@ export interface Ticket {
   id: string;
   number: number;
   projectId: string;
+  projectName?: string;
   submittedById: string;
   submittedByName: string;
   subject: string;

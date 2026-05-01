@@ -10,4 +10,5 @@ public interface ITicketRepository : IRepository<Ticket>
     Task<IReadOnlyList<Ticket>> GetByProjectAsync(Guid projectId, TicketStatus? status, CancellationToken ct = default);
     Task<IReadOnlyList<Ticket>> GetBySubmitterAsync(string userId, Guid? projectId, CancellationToken ct = default);
     Task<IReadOnlyList<Ticket>> GetOpenTicketsAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<Ticket>> GetAllWithProjectAsync(CancellationToken ct = default);
 }

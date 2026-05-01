@@ -66,6 +66,10 @@ export const appRoutes: Route[] = [
         path: 'profile',
         loadComponent: () => import('@pm/auth/feature').then((m) => m.ProfileComponent),
       },
+      {
+        path: 'support',
+        loadComponent: () => import('./customer-portal-page.component').then((m) => m.CustomerPortalPageComponent),
+      },
     ],
   },
   { path: '**', redirectTo: 'dashboard' },

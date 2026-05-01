@@ -36,6 +36,11 @@ export class TicketService {
     return this.http.post(`${this.base}/projects/${projectId}/tickets/${ticketId}/convert`, body ?? {});
   }
 
+  // Admin / PM portal overview
+  getAdminPortalTickets() {
+    return this.http.get<Ticket[]>(`${this.base}/admin/portal/tickets`);
+  }
+
   // Customer portal endpoints
   getMyProjects() {
     return this.http.get<Project[]>(`${this.base}/portal/projects`);

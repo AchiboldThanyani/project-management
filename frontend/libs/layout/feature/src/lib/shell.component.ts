@@ -44,6 +44,9 @@ import { NotificationBellComponent } from './notification-bell.component';
 <a class="nav-item" routerLink="/sprint-board" routerLinkActive="active">
             <span class="material-icons-round">checklist</span> My Work
           </a>
+          <a class="nav-item" routerLink="/support" routerLinkActive="active" *ngIf="auth.isAdmin() || auth.isProjectManager()">
+            <span class="material-icons-round">support_agent</span> Customer Portal
+          </a>
           <a class="nav-item admin-link" routerLink="/admin" routerLinkActive="active" *ngIf="auth.isAdmin()">
             <span class="material-icons-round">admin_panel_settings</span> Admin
           </a>

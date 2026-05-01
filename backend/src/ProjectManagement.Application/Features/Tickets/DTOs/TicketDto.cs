@@ -8,6 +8,7 @@ public record TicketDto
     public Guid          Id                   { get; init; }
     public int           Number               { get; init; }
     public Guid          ProjectId            { get; init; }
+    public string?       ProjectName          { get; init; }
     public string        SubmittedById        { get; init; } = default!;
     public string        SubmittedByName      { get; init; } = default!;
     public string        Subject              { get; init; } = default!;
