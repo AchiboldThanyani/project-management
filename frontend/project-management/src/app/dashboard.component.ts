@@ -6,7 +6,7 @@ import { ProjectService } from '@pm/projects/data-access';
 import { TeamService } from '@pm/teams/data-access';
 import { TaskService } from '@pm/tasks/data-access';
 import { AuthService } from '@pm/auth/data-access';
-import { Task, Sprint, TaskStatus } from '@pm/shared/models';
+import { Task, Sprint, TaskStatus, TaskPriority } from '@pm/shared/models';
 
 interface EnrichedTask extends Task { projectName: string; }
 interface EnrichedSprint extends Sprint { projectName: string; }
@@ -37,7 +37,7 @@ interface VelocityBar { name: string; done: number; pct: number; }
       <!-- Content -->
       <div class="content">
         <div class="dash-greeting">
-          <h1>Welcome back, {{ auth.user()?.firstName }}!</h1>
+          <h1>{{ greeting }}, {{ auth.user()?.firstName }}!</h1>
           <p>{{ today }} · Here's your project overview</p>
         </div>
 
@@ -90,29 +90,57 @@ interface VelocityBar { name: string; done: number; pct: number; }
         <!-- ── Widgets row ── -->
         <div class="widgets-row">
 
+          <!-- My Tasks -->
+          <div class="widget-card">
+            <div class="widget-hdr">
+              <div class="widget-title-row">
+                <div class="widget-ico-wrap blue"><span class="material-icons-round">task_alt</span></div>
+                <span class="widget-title">My Tasks</span>
+                <span class="widget-count blue" *ngIf="myTasks().length > 0">{{ myTasks().length }}</span>
+              </div>
+            </div>
+            <div class="widget-body">
+              <div *ngIf="myTasks().length === 0" class="widget-empty">No tasks assigned to you</div>
+              <div class="my-task-list" *ngIf="myTasks().length > 0">
+                <div class="my-task-row" *ngFor="let t of myTasks()">
+                  <span class="task-prio-dot prio-{{ t.priority.toLowerCase() }}"></span>
+                  <div class="my-task-info">
+                    <div class="my-task-title">{{ t.title }}</div>
+                    <div class="my-task-meta">{{ t.projectName }}</div>
+                  </div>
+                  <span *ngIf="t.dueDate" class="my-task-due" [class.overdue]="isOverdue(t)">
+                    {{ t.dueDate | date:'MMM d' }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- At-Risk Tasks -->
           <div class="widget-card">
             <div class="widget-hdr">
               <div class="widget-title-row">
-                <span class="material-icons-round widget-ico rose">warning_amber</span>
+                <div class="widget-ico-wrap rose"><span class="material-icons-round">warning_amber</span></div>
                 <span class="widget-title">At-Risk Tasks</span>
                 <span class="widget-count rose" *ngIf="atRiskTasks().length > 0">{{ atRiskTasks().length }}</span>
               </div>
             </div>
-            <div *ngIf="atRiskTasks().length === 0" class="widget-empty">No at-risk tasks right now</div>
-            <div class="risk-list" *ngIf="atRiskTasks().length > 0">
-              <div class="risk-row" *ngFor="let t of atRiskTasks()">
-                <div class="risk-left">
-                  <span class="risk-status-dot" [class.blocked]="t.status === TaskStatus.Blocked" [class.overdue]="isOverdue(t) && t.status !== TaskStatus.Blocked"></span>
-                  <div>
-                    <div class="risk-title">{{ t.title }}</div>
-                    <div class="risk-meta">{{ t.projectName }}</div>
+            <div class="widget-body">
+              <div *ngIf="atRiskTasks().length === 0" class="widget-empty">No at-risk tasks right now</div>
+              <div class="risk-list" *ngIf="atRiskTasks().length > 0">
+                <div class="risk-row" *ngFor="let t of atRiskTasks()">
+                  <div class="risk-left">
+                    <span class="risk-status-dot" [class.blocked]="t.status === TaskStatus.Blocked" [class.overdue]="isOverdue(t) && t.status !== TaskStatus.Blocked"></span>
+                    <div>
+                      <div class="risk-title">{{ t.title }}</div>
+                      <div class="risk-meta">{{ t.projectName }}</div>
+                    </div>
                   </div>
-                </div>
-                <div class="risk-right">
-                  <span class="risk-chip blocked" *ngIf="t.status === TaskStatus.Blocked">Blocked</span>
-                  <span class="risk-chip overdue" *ngIf="isOverdue(t) && t.status !== TaskStatus.Blocked">{{ daysOverdue(t.dueDate!) }}d overdue</span>
-                  <span class="risk-assignee" *ngIf="t.assigneeName">{{ initials(t.assigneeName) }}</span>
+                  <div class="risk-right">
+                    <span class="risk-chip blocked" *ngIf="t.status === TaskStatus.Blocked">Blocked</span>
+                    <span class="risk-chip overdue" *ngIf="isOverdue(t) && t.status !== TaskStatus.Blocked">{{ daysOverdue(t.dueDate!) }}d overdue</span>
+                    <span class="risk-assignee" *ngIf="t.assigneeName">{{ initials(t.assigneeName) }}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -122,27 +150,29 @@ interface VelocityBar { name: string; done: number; pct: number; }
           <div class="widget-card">
             <div class="widget-hdr">
               <div class="widget-title-row">
-                <span class="material-icons-round widget-ico teal">sprint</span>
+                <div class="widget-ico-wrap teal"><span class="material-icons-round">sprint</span></div>
                 <span class="widget-title">Active Sprints</span>
               </div>
             </div>
-            <div *ngIf="sprintProgress().length === 0" class="widget-empty">No active sprints</div>
-            <div class="sprint-prog-list" *ngIf="sprintProgress().length > 0">
-              <div class="sprint-prog-row" *ngFor="let s of sprintProgress()">
-                <div class="sp-header">
-                  <div>
-                    <div class="sp-name">{{ s.name }}</div>
-                    <div class="sp-project">{{ s.projectName }}</div>
+            <div class="widget-body">
+              <div *ngIf="sprintProgress().length === 0" class="widget-empty">No active sprints</div>
+              <div class="sprint-prog-list" *ngIf="sprintProgress().length > 0">
+                <div class="sprint-prog-row" *ngFor="let s of sprintProgress()">
+                  <div class="sp-header">
+                    <div>
+                      <div class="sp-name">{{ s.name }}</div>
+                      <div class="sp-project">{{ s.projectName }}</div>
+                    </div>
+                    <div class="sp-stats">
+                      <span class="sp-fraction">{{ s.done }}/{{ s.total }}</span>
+                      <span class="sp-days" [class.urgent]="sprintDaysLeft(s.endDate) <= 2">{{ sprintDaysLeft(s.endDate) }}d left</span>
+                    </div>
                   </div>
-                  <div class="sp-stats">
-                    <span class="sp-fraction">{{ s.done }}/{{ s.total }}</span>
-                    <span class="sp-days" [class.urgent]="sprintDaysLeft(s.endDate) <= 2">{{ sprintDaysLeft(s.endDate) }}d left</span>
+                  <div class="sp-bar-track">
+                    <div class="sp-bar-fill" [style.width.%]="s.total > 0 ? (s.done / s.total * 100) : 0"></div>
                   </div>
+                  <div class="sp-pct">{{ s.total > 0 ? (s.done / s.total * 100 | number:'1.0-0') : 0 }}% complete</div>
                 </div>
-                <div class="sp-bar-track">
-                  <div class="sp-bar-fill" [style.width.%]="s.total > 0 ? (s.done / s.total * 100) : 0"></div>
-                </div>
-                <div class="sp-pct">{{ s.total > 0 ? (s.done / s.total * 100 | number:'1.0-0') : 0 }}% complete</div>
               </div>
             </div>
           </div>
@@ -151,23 +181,25 @@ interface VelocityBar { name: string; done: number; pct: number; }
           <div class="widget-card">
             <div class="widget-hdr">
               <div class="widget-title-row">
-                <span class="material-icons-round widget-ico violet">trending_up</span>
+                <div class="widget-ico-wrap violet"><span class="material-icons-round">trending_up</span></div>
                 <span class="widget-title">Sprint Velocity</span>
                 <span class="widget-sub">Last {{ velocityBars().length }} sprints</span>
               </div>
             </div>
-            <div *ngIf="velocityBars().length === 0" class="widget-empty">No completed sprints yet</div>
-            <div class="velocity-chart" *ngIf="velocityBars().length > 0">
-              <div class="vel-bars">
-                <div class="vel-bar-col" *ngFor="let b of velocityBars()">
-                  <div class="vel-bar-wrap">
-                    <span class="vel-count">{{ b.done }}</span>
-                    <div class="vel-bar" [style.height.%]="b.pct"></div>
+            <div class="widget-body">
+              <div *ngIf="velocityBars().length === 0" class="widget-empty">No completed sprints yet</div>
+              <div class="velocity-chart" *ngIf="velocityBars().length > 0">
+                <div class="vel-bars">
+                  <div class="vel-bar-col" *ngFor="let b of velocityBars()">
+                    <div class="vel-bar-wrap">
+                      <span class="vel-count">{{ b.done }}</span>
+                      <div class="vel-bar" [style.height.%]="b.pct"></div>
+                    </div>
+                    <div class="vel-label" [title]="b.name">{{ b.name | slice:0:8 }}</div>
                   </div>
-                  <div class="vel-label" [title]="b.name">{{ b.name | slice:0:8 }}</div>
                 </div>
+                <div class="vel-axis-label">tasks completed per sprint</div>
               </div>
-              <div class="vel-axis-label">tasks completed per sprint</div>
             </div>
           </div>
 
@@ -177,7 +209,7 @@ interface VelocityBar { name: string; done: number; pct: number; }
     </div>
   `,
   styles: [`
-    .page-wrap { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+    .page-wrap { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
 
     /* Topbar */
     .topbar {
@@ -248,27 +280,58 @@ interface VelocityBar { name: string; done: number; pct: number; }
 
 
     /* ── Widgets row ────────────────────────────── */
-    .widgets-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 22px; }
-    @media (max-width: 1100px) { .widgets-row { grid-template-columns: 1fr 1fr; } }
-    @media (max-width: 700px)  { .widgets-row { grid-template-columns: 1fr; } }
+    .widgets-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 22px; }
+    @media (max-width: 700px) { .widgets-row { grid-template-columns: 1fr; } }
 
     .widget-card {
       background: var(--white); border: 1px solid var(--border);
-      border-radius: var(--r-lg); padding: 16px;
-      display: flex; flex-direction: column; gap: 12px;
-      min-height: 180px;
+      border-radius: var(--r-lg); overflow: hidden;
+      display: flex; flex-direction: column;
+      min-height: 200px; transition: box-shadow 0.15s;
     }
-    .widget-hdr { flex-shrink: 0; }
-    .widget-title-row { display: flex; align-items: center; gap: 8px; }
-    .widget-ico { font-size: 18px; }
-    .widget-ico.rose   { color: var(--rose); }
-    .widget-ico.teal   { color: var(--teal); }
-    .widget-ico.violet { color: var(--violet); }
+    .widget-card:hover { box-shadow: var(--shadow-md); }
+
+    .widget-hdr {
+      padding: 14px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+    }
+    .widget-body { padding: 12px 16px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+
+    .widget-title-row { display: flex; align-items: center; gap: 10px; }
+    .widget-ico-wrap {
+      width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .widget-ico-wrap .material-icons-round { font-size: 16px; }
+    .widget-ico-wrap.rose   { background: var(--rose-c);    color: var(--rose); }
+    .widget-ico-wrap.teal   { background: var(--teal-c);    color: var(--teal); }
+    .widget-ico-wrap.violet { background: var(--violet-mid); color: var(--violet); }
+    .widget-ico-wrap.blue   { background: var(--blue-c);    color: var(--blue); }
+
     .widget-title { font-size: 13px; font-weight: 700; color: var(--ink); flex: 1; }
     .widget-sub   { font-size: 11px; color: var(--soft); }
     .widget-count { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: var(--r-full); }
     .widget-count.rose { background: var(--rose-c); color: var(--rose); }
+    .widget-count.blue { background: var(--blue-c); color: var(--blue); }
     .widget-empty { font-size: 12px; color: var(--soft); text-align: center; padding: 20px 0; flex: 1; display: flex; align-items: center; justify-content: center; }
+
+    /* My Tasks */
+    .my-task-list { display: flex; flex-direction: column; gap: 2px; }
+    .my-task-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 7px 10px; border-radius: var(--r-md);
+      transition: background 0.12s;
+    }
+    .my-task-row:hover { background: var(--surface); }
+    .task-prio-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .prio-low      { background: var(--emerald); }
+    .prio-medium   { background: var(--amber); }
+    .prio-high     { background: var(--rose); }
+    .prio-critical { background: var(--rose); box-shadow: 0 0 0 2px var(--rose-c); }
+    .my-task-info  { flex: 1; min-width: 0; }
+    .my-task-title { font-size: 12px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .my-task-meta  { font-size: 10px; color: var(--soft); }
+    .my-task-due   { font-size: 10px; font-weight: 600; color: var(--soft); flex-shrink: 0; }
+    .my-task-due.overdue { color: var(--rose); }
 
     /* At-risk */
     .risk-list { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; max-height: 220px; }
@@ -305,7 +368,7 @@ interface VelocityBar { name: string; done: number; pct: number; }
     .vel-bar-col { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; height: 100%; }
     .vel-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 3px; width: 100%; }
     .vel-count { font-size: 10px; font-weight: 700; color: var(--violet); }
-    .vel-bar { width: 100%; max-width: 32px; background: linear-gradient(180deg, var(--violet) 0%, #818cf8 100%); border-radius: 4px 4px 0 0; min-height: 4px; transition: height 0.4s ease; }
+    .vel-bar { width: 100%; max-width: 32px; background: linear-gradient(180deg, var(--violet) 0%, var(--violet-2) 100%); border-radius: 4px 4px 0 0; min-height: 4px; transition: height 0.4s ease; }
     .vel-label { font-size: 9px; color: var(--soft); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
     .vel-axis-label { font-size: 10px; color: var(--soft); text-align: center; }
   `],
@@ -326,6 +389,17 @@ export class DashboardComponent implements OnInit {
 
   readonly today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
   readonly TaskStatus = TaskStatus;
+  readonly greeting = (() => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'; })();
+
+  myTasks = computed<EnrichedTask[]>(() => {
+    const me = this.auth.user()?.userId;
+    if (!me) return [];
+    const order: Record<string, number> = { Critical: 0, High: 1, Medium: 2, Low: 3 };
+    return this.allTasks()
+      .filter(t => t.assigneeId === me && t.status !== TaskStatus.Done && t.status !== TaskStatus.Cancelled)
+      .sort((a, b) => (order[a.priority] ?? 2) - (order[b.priority] ?? 2))
+      .slice(0, 8);
+  });
 
   // ── Widget computed signals ────────────────────────
   atRiskTasks = computed<EnrichedTask[]>(() => {
