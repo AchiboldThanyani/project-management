@@ -7,7 +7,7 @@ export interface AdminUser {
   email: string;
   firstName: string;
   lastName: string;
-  role: number; // 0=Staff, 1=ProjectManager, 2=Client, 3=Admin
+  role: 'Staff' | 'ProjectManager' | 'Client' | 'Admin';
   fullName: string;
 }
 
@@ -21,7 +21,7 @@ export class AdminService {
     return this.http.get<AdminUser[]>(`${this.base}/users`);
   }
 
-  changeRole(userId: string, role: number) {
+  changeRole(userId: string, role: string) {
     return this.http.patch<void>(`${this.base}/users/${userId}/role`, { role });
   }
 }

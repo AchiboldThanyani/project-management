@@ -13,11 +13,6 @@ export const appRoutes: Route[] = [
     loadComponent: () => import('./join-project.component').then((m) => m.JoinProjectComponent),
   },
   {
-    path: 'admin',
-    canActivate: [adminGuard],
-    loadComponent: () => import('./admin/admin-panel.component').then(m => m.AdminPanelComponent),
-  },
-  {
     path: 'portal',
     canActivate: [clientGuard],
     loadComponent: () => import('./portal/portal-shell.component').then((m) => m.PortalShellComponent),
@@ -69,6 +64,11 @@ export const appRoutes: Route[] = [
       {
         path: 'support',
         loadComponent: () => import('./customer-portal-page.component').then((m) => m.CustomerPortalPageComponent),
+      },
+      {
+        path: 'admin',
+        canActivate: [adminGuard],
+        loadComponent: () => import('./admin/admin-panel.component').then(m => m.AdminPanelComponent),
       },
     ],
   },
