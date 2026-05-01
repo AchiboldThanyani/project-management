@@ -43,49 +43,47 @@ interface VelocityBar { name: string; done: number; pct: number; }
 
         <!-- Stat cards -->
         <div class="stat-grid">
-          <div class="stat-card violet" routerLink="/projects">
-            <div class="sc-top">
-              <div class="sc-ico violet"><span class="material-icons-round">folder</span></div>
+          <div class="stat-card" routerLink="/projects">
+            <div class="stat-ico violet"><span class="material-icons-round">folder</span></div>
+            <div class="stat-body">
+              <span class="stat-num">{{ projectCount() }}</span>
+              <span class="stat-lbl">Projects</span>
             </div>
-            <div class="sc-num">{{ projectCount() }}</div>
-            <div class="sc-lbl">Projects</div>
-            <div class="sc-link violet">View all <span class="material-icons-round">arrow_forward</span></div>
+            <span class="material-icons-round stat-arrow violet">arrow_forward</span>
           </div>
 
-          <div class="stat-card teal" routerLink="/sprint-board">
-            <div class="sc-top">
-              <div class="sc-ico teal"><span class="material-icons-round">view_kanban</span></div>
+          <div class="stat-card" routerLink="/sprint-board">
+            <div class="stat-ico teal"><span class="material-icons-round">view_kanban</span></div>
+            <div class="stat-body">
+              <span class="stat-num">{{ activeSprintCount() }}</span>
+              <span class="stat-lbl">Active Sprints</span>
             </div>
-            <div class="sc-num">{{ activeSprintCount() }}</div>
-            <div class="sc-lbl">Active Sprints</div>
-            <div class="sc-link teal">Sprint Board <span class="material-icons-round">arrow_forward</span></div>
+            <span class="material-icons-round stat-arrow teal">arrow_forward</span>
           </div>
 
-          <div class="stat-card amber" routerLink="/teams">
-            <div class="sc-top">
-              <div class="sc-ico amber"><span class="material-icons-round">group</span></div>
+          <div class="stat-card" routerLink="/teams">
+            <div class="stat-ico amber"><span class="material-icons-round">group</span></div>
+            <div class="stat-body">
+              <span class="stat-num">{{ teamCount() }}</span>
+              <span class="stat-lbl">Teams</span>
             </div>
-            <div class="sc-num">{{ teamCount() }}</div>
-            <div class="sc-lbl">Teams</div>
-            <div class="sc-link amber">View all <span class="material-icons-round">arrow_forward</span></div>
+            <span class="material-icons-round stat-arrow amber">arrow_forward</span>
           </div>
 
-          <div class="stat-card rose">
-            <div class="sc-top">
-              <div class="sc-ico rose"><span class="material-icons-round">assignment</span></div>
+          <div class="stat-card">
+            <div class="stat-ico rose"><span class="material-icons-round">assignment</span></div>
+            <div class="stat-body">
+              <span class="stat-num">{{ openTaskCount() }}</span>
+              <span class="stat-lbl">Open Tasks</span>
             </div>
-            <div class="sc-num">{{ openTaskCount() }}</div>
-            <div class="sc-lbl">Open Tasks</div>
-            <div class="sc-link rose">View tasks <span class="material-icons-round">arrow_forward</span></div>
           </div>
 
-          <div class="stat-card emerald">
-            <div class="sc-top">
-              <div class="sc-ico emerald"><span class="material-icons-round">check_circle</span></div>
+          <div class="stat-card">
+            <div class="stat-ico emerald"><span class="material-icons-round">check_circle</span></div>
+            <div class="stat-body">
+              <span class="stat-num">{{ doneTaskCount() }}</span>
+              <span class="stat-lbl">Completed</span>
             </div>
-            <div class="sc-num">{{ doneTaskCount() }}</div>
-            <div class="sc-lbl">Completed</div>
-            <div class="sc-link emerald">See history <span class="material-icons-round">arrow_forward</span></div>
           </div>
         </div>
 
@@ -222,28 +220,31 @@ interface VelocityBar { name: string; done: number; pct: number; }
     .stat-card {
       background: var(--white); border: 1px solid var(--border);
       border-radius: var(--r-lg); padding: 16px;
+      display: flex; align-items: center; gap: 14px;
       cursor: pointer; transition: box-shadow 0.15s, transform 0.15s;
     }
     .stat-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
 
-    .sc-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-    .sc-ico { width: 32px; height: 32px; border-radius: 9px; display: flex; align-items: center; justify-content: center; }
-    .sc-ico .material-icons-round { font-size: 17px; }
-    .sc-ico.violet  { background: var(--violet-c);  } .sc-ico.violet  .material-icons-round { color: var(--violet); }
-    .sc-ico.teal    { background: var(--teal-c);    } .sc-ico.teal    .material-icons-round { color: var(--teal); }
-    .sc-ico.amber   { background: var(--amber-c);   } .sc-ico.amber   .material-icons-round { color: var(--amber); }
-    .sc-ico.rose    { background: var(--rose-c);    } .sc-ico.rose    .material-icons-round { color: var(--rose); }
-    .sc-ico.emerald { background: var(--emerald-c); } .sc-ico.emerald .material-icons-round { color: var(--emerald); }
+    .stat-ico {
+      width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .stat-ico .material-icons-round { font-size: 20px; }
+    .stat-ico.violet  { background: var(--violet-mid); color: var(--violet); }
+    .stat-ico.teal    { background: var(--teal-c);     color: var(--teal); }
+    .stat-ico.amber   { background: var(--amber-c);    color: var(--amber); }
+    .stat-ico.rose    { background: var(--rose-c);     color: var(--rose); }
+    .stat-ico.emerald { background: var(--emerald-c);  color: var(--emerald); }
 
-    .sc-num { font-size: 28px; font-weight: 700; letter-spacing: -1px; line-height: 1; margin-bottom: 3px; }
-    .sc-lbl { font-size: 11px; color: var(--muted); font-weight: 500; }
-    .sc-link { font-size: 11px; font-weight: 600; margin-top: 8px; display: flex; align-items: center; gap: 3px; cursor: pointer; }
-    .sc-link.violet  { color: var(--violet); }
-    .sc-link.teal    { color: var(--teal); }
-    .sc-link.amber   { color: var(--amber); }
-    .sc-link.rose    { color: var(--rose); }
-    .sc-link.emerald { color: var(--emerald); }
-    .sc-link .material-icons-round { font-size: 13px; }
+    .stat-body { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+    .stat-num  { font-size: 24px; font-weight: 700; color: var(--ink); line-height: 1; letter-spacing: -0.5px; }
+    .stat-lbl  { font-size: 10px; font-weight: 600; color: var(--soft); text-transform: uppercase; letter-spacing: .06em; }
+
+    .stat-arrow { font-size: 16px; flex-shrink: 0; opacity: 0; transition: opacity 0.15s; }
+    .stat-card:hover .stat-arrow { opacity: 1; }
+    .stat-arrow.violet  { color: var(--violet); }
+    .stat-arrow.teal    { color: var(--teal); }
+    .stat-arrow.amber   { color: var(--amber); }
 
 
     /* ── Widgets row ────────────────────────────── */
