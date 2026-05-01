@@ -90,8 +90,8 @@ interface VelocityBar { name: string; done: number; pct: number; }
         <!-- ── Widgets row ── -->
         <div class="widgets-row">
 
-          <!-- My Tasks -->
-          <div class="widget-card">
+          <!-- My Tasks — hidden for Admins and Project Managers -->
+          <div class="widget-card" *ngIf="!auth.isAdmin() && !auth.isProjectManager()">
             <div class="widget-hdr">
               <div class="widget-title-row">
                 <div class="widget-ico-wrap blue"><span class="material-icons-round">task_alt</span></div>
@@ -150,7 +150,7 @@ interface VelocityBar { name: string; done: number; pct: number; }
           <div class="widget-card">
             <div class="widget-hdr">
               <div class="widget-title-row">
-                <div class="widget-ico-wrap teal"><span class="material-icons-round">sprint</span></div>
+                <div class="widget-ico-wrap teal"><span class="material-icons-round">directions_run</span></div>
                 <span class="widget-title">Active Sprints</span>
               </div>
             </div>
