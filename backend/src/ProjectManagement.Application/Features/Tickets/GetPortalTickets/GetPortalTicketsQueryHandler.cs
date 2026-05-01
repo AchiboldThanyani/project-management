@@ -1,14 +1,15 @@
+using MediatR;
+using ProjectManagement.Application.Common;
 using ProjectManagement.Application.Features.Tickets.DTOs;
 using ProjectManagement.Application.Features.Tickets.Sla;
 using ProjectManagement.Application.Interfaces;
-using ProjectManagement.Domain.Common;
 
 namespace ProjectManagement.Application.Features.Tickets.GetPortalTickets;
 
 internal sealed class GetPortalTicketsQueryHandler(
     ITicketRepository tickets,
     IUserRepository users)
-    : IQueryHandler<GetPortalTicketsQuery, IReadOnlyList<TicketDto>>
+    : IRequestHandler<GetPortalTicketsQuery, Result<IReadOnlyList<TicketDto>>>
 {
     public async Task<Result<IReadOnlyList<TicketDto>>> Handle(
         GetPortalTicketsQuery request, CancellationToken ct)
