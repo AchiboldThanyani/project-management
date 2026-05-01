@@ -23,14 +23,6 @@ import { NotificationBellComponent } from './notification-bell.component';
           <pm-notification-bell class="sb-bell" />
         </div>
 
-        <div class="sb-user" *ngIf="auth.user() as user">
-          <div class="user-ava">{{ initials(user.firstName, user.lastName) }}</div>
-          <div>
-            <div class="user-name">{{ user.firstName }} {{ user.lastName }}</div>
-            <div class="user-role">{{ user.email }}</div>
-          </div>
-        </div>
-
         <nav class="sb-nav">
           <a class="nav-item" routerLink="/dashboard" routerLinkActive="active">
             <span class="material-icons-round">home</span> Dashboard
@@ -44,12 +36,16 @@ import { NotificationBellComponent } from './notification-bell.component';
 <a class="nav-item" routerLink="/sprint-board" routerLinkActive="active">
             <span class="material-icons-round">checklist</span> My Work
           </a>
-          <a class="nav-item" routerLink="/support" routerLinkActive="active" *ngIf="auth.isAdmin() || auth.isProjectManager()">
-            <span class="material-icons-round">support_agent</span> Customer Portal
-          </a>
-          <a class="nav-item admin-link" routerLink="/admin" routerLinkActive="active" *ngIf="auth.isAdmin()">
-            <span class="material-icons-round">admin_panel_settings</span> Admin
-          </a>
+          @if (auth.isAdmin() || auth.isProjectManager()) {
+            <a class="nav-item" routerLink="/support" routerLinkActive="active">
+              <span class="material-icons-round">support_agent</span> Customer Portal
+            </a>
+          }
+          @if (auth.isAdmin()) {
+            <a class="nav-item admin-link" routerLink="/admin" routerLinkActive="active">
+              <span class="material-icons-round">admin_panel_settings</span> Admin
+            </a>
+          }
         </nav>
 
         <div class="sb-footer">
