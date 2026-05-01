@@ -1,6 +1,6 @@
 import {
   Component, Input, Output, EventEmitter,
-  OnDestroy, AfterViewInit, ElementRef, ViewChild,
+  OnDestroy, AfterViewInit, ElementRef, ViewChild, signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -13,7 +13,18 @@ import { TableRow } from '@tiptap/extension-table';
 import { TableHeader } from '@tiptap/extension-table';
 import { TableCell } from '@tiptap/extension-table';
 import Image from '@tiptap/extension-image';
+import Underline from '@tiptap/extension-underline';
+import Link from '@tiptap/extension-link';
+import Placeholder from '@tiptap/extension-placeholder';
+import CharacterCount from '@tiptap/extension-character-count';
 import { VaultDocumentDetail } from '@pm/shared/models';
+
+interface ActiveStates {
+  bold: boolean; italic: boolean; underline: boolean; strike: boolean;
+  h1: boolean; h2: boolean; h3: boolean;
+  bulletList: boolean; orderedList: boolean; blockquote: boolean; codeBlock: boolean;
+  link: boolean;
+}
 
 @Component({
   selector: 'pm-vault-document-editor',
@@ -21,70 +32,287 @@ import { VaultDocumentDetail } from '@pm/shared/models';
   imports: [CommonModule, FormsModule],
   template: `
     <div class="editor-wrap">
-      <div class="editor-title-row">
+
+      <!-- Title -->
+      <div class="title-row">
         <input
-          class="doc-title-input"
+          class="doc-title"
           [value]="titleValue"
           (input)="onTitleInput($event)"
           placeholder="Untitled document"
           [readonly]="readonly"
         />
       </div>
+
+      <!-- Toolbar -->
       <div *ngIf="!readonly" class="toolbar">
-        <button class="tb-btn" (click)="cmd('toggleBold')" title="Bold"><b>B</b></button>
-        <button class="tb-btn" (click)="cmd('toggleItalic')" title="Italic"><i>I</i></button>
-        <button class="tb-btn" (click)="cmd('toggleStrike')" title="Strike"><s>S</s></button>
+        <div class="tb-group">
+          <button class="tb-btn" (click)="cmd('undo')" title="Undo">
+            <span class="material-icons-round">undo</span>
+          </button>
+          <button class="tb-btn" (click)="cmd('redo')" title="Redo">
+            <span class="material-icons-round">redo</span>
+          </button>
+        </div>
         <span class="tb-sep"></span>
-        <button class="tb-btn" (click)="cmdH(1)" title="H1">H1</button>
-        <button class="tb-btn" (click)="cmdH(2)" title="H2">H2</button>
-        <button class="tb-btn" (click)="cmdH(3)" title="H3">H3</button>
+        <div class="tb-group">
+          <button class="tb-btn" [class.active]="active().bold"
+                  (click)="cmd('toggleBold')" title="Bold">
+            <span class="material-icons-round">format_bold</span>
+          </button>
+          <button class="tb-btn" [class.active]="active().italic"
+                  (click)="cmd('toggleItalic')" title="Italic">
+            <span class="material-icons-round">format_italic</span>
+          </button>
+          <button class="tb-btn" [class.active]="active().underline"
+                  (click)="cmd('toggleUnderline')" title="Underline">
+            <span class="material-icons-round">format_underlined</span>
+          </button>
+          <button class="tb-btn" [class.active]="active().strike"
+                  (click)="cmd('toggleStrike')" title="Strikethrough">
+            <span class="material-icons-round">strikethrough_s</span>
+          </button>
+        </div>
         <span class="tb-sep"></span>
-        <button class="tb-btn" (click)="cmd('toggleBulletList')" title="Bullet list">•</button>
-        <button class="tb-btn" (click)="cmd('toggleOrderedList')" title="Numbered list">1.</button>
-        <button class="tb-btn" (click)="cmd('toggleCodeBlock')" title="Code block">&lt;/&gt;</button>
+        <div class="tb-group">
+          <button class="tb-btn" [class.active]="active().h1"
+                  (click)="cmdH(1)" title="Heading 1">
+            <span class="material-icons-round">looks_one</span>
+          </button>
+          <button class="tb-btn" [class.active]="active().h2"
+                  (click)="cmdH(2)" title="Heading 2">
+            <span class="material-icons-round">looks_two</span>
+          </button>
+          <button class="tb-btn" [class.active]="active().h3"
+                  (click)="cmdH(3)" title="Heading 3">
+            <span class="material-icons-round">looks_3</span>
+          </button>
+        </div>
         <span class="tb-sep"></span>
-        <button class="tb-btn" (click)="insertTable()" title="Table">&#8862;</button>
-        <button class="tb-btn" (click)="insertImage()" title="Image">Img</button>
+        <div class="tb-group">
+          <button class="tb-btn" [class.active]="active().bulletList"
+                  (click)="cmd('toggleBulletList')" title="Bullet list">
+            <span class="material-icons-round">format_list_bulleted</span>
+          </button>
+          <button class="tb-btn" [class.active]="active().orderedList"
+                  (click)="cmd('toggleOrderedList')" title="Numbered list">
+            <span class="material-icons-round">format_list_numbered</span>
+          </button>
+          <button class="tb-btn" [class.active]="active().blockquote"
+                  (click)="cmd('toggleBlockquote')" title="Quote">
+            <span class="material-icons-round">format_quote</span>
+          </button>
+        </div>
+        <span class="tb-sep"></span>
+        <div class="tb-group">
+          <button class="tb-btn" [class.active]="active().codeBlock"
+                  (click)="cmd('toggleCodeBlock')" title="Code block">
+            <span class="material-icons-round">code</span>
+          </button>
+          <button class="tb-btn" (click)="insertHr()" title="Divider">
+            <span class="material-icons-round">horizontal_rule</span>
+          </button>
+        </div>
+        <span class="tb-sep"></span>
+        <div class="tb-group">
+          <button class="tb-btn" [class.active]="active().link"
+                  (click)="toggleLinkInput()" title="Link">
+            <span class="material-icons-round">link</span>
+          </button>
+          <button class="tb-btn" (click)="insertTable()" title="Table">
+            <span class="material-icons-round">table_chart</span>
+          </button>
+          <button class="tb-btn" (click)="insertImage()" title="Image">
+            <span class="material-icons-round">image</span>
+          </button>
+        </div>
       </div>
+
+      <!-- Link input row -->
+      <div *ngIf="showLinkInput()" class="link-bar">
+        <span class="material-icons-round link-bar-icon">link</span>
+        <input class="link-input" [(ngModel)]="linkUrl"
+               placeholder="https://..."
+               (keydown.enter)="applyLink()"
+               (keydown.escape)="closeLinkInput()"
+               #linkInputEl />
+        <button class="link-bar-btn apply" (click)="applyLink()" title="Apply">
+          <span class="material-icons-round">check</span>
+        </button>
+        <button *ngIf="active().link" class="link-bar-btn remove" (click)="removeLink()" title="Remove link">
+          <span class="material-icons-round">link_off</span>
+        </button>
+        <button class="link-bar-btn" (click)="closeLinkInput()" title="Cancel">
+          <span class="material-icons-round">close</span>
+        </button>
+      </div>
+
+      <!-- Editor -->
       <div #editorEl class="tiptap-content" [class.readonly]="readonly"></div>
+
+      <!-- Footer -->
+      <div class="editor-footer">
+        <span class="word-count">{{ wordCount() }} words · {{ charCount() }} characters</span>
+      </div>
     </div>
   `,
   styles: [`
     :host { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
-    .editor-wrap { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 24px 32px; overflow-y: auto; }
-    .editor-title-row { margin-bottom: 12px; }
-    .doc-title-input {
-      width: 100%; border: none; outline: none; font-size: 22px; font-weight: 700;
-      background: transparent; color: var(--ink); padding: 4px 0;
+
+    .editor-wrap {
+      display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden;
     }
-    .doc-title-input::placeholder { color: var(--soft); }
+
+    /* ── Title ── */
+    .title-row {
+      padding: 28px 48px 0; flex-shrink: 0;
+    }
+    .doc-title {
+      width: 100%; border: none; outline: none;
+      font-size: 28px; font-weight: 700; letter-spacing: -0.3px;
+      background: transparent; color: var(--ink); padding: 0;
+      line-height: 1.3;
+    }
+    .doc-title::placeholder { color: var(--soft); }
+
+    /* ── Toolbar ── */
     .toolbar {
       display: flex; align-items: center; gap: 2px; flex-wrap: wrap;
-      border: 1px solid var(--border); border-radius: var(--r-md);
-      padding: 4px 8px; margin-bottom: 12px; background: var(--surface);
+      padding: 6px 48px; margin: 12px 0 0;
+      border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+      background: var(--white); flex-shrink: 0; position: sticky; top: 0; z-index: 10;
     }
+    .tb-group { display: flex; align-items: center; gap: 1px; }
     .tb-btn {
-      padding: 4px 8px; border: none; background: transparent; border-radius: 4px;
-      cursor: pointer; font-size: 13px; color: var(--ink-4); line-height: 1;
+      width: 30px; height: 30px; border: none; background: transparent;
+      border-radius: var(--r-sm); cursor: pointer; color: var(--ink-4);
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.1s, color 0.1s;
     }
-    .tb-btn:hover { background: var(--violet-mid); color: var(--violet); }
-    .tb-sep { width: 1px; height: 16px; background: var(--border); margin: 0 4px; }
-    .tiptap-content { flex: 1; outline: none; font-size: 14px; line-height: 1.7; color: var(--ink); min-height: 200px; }
+    .tb-btn .material-icons-round { font-size: 18px; }
+    .tb-btn:hover { background: var(--surface); color: var(--ink); }
+    .tb-btn.active { background: var(--violet-mid); color: var(--violet); }
+    .tb-sep { width: 1px; height: 18px; background: var(--border); margin: 0 4px; flex-shrink: 0; }
+
+    /* ── Link bar ── */
+    .link-bar {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 48px; border-bottom: 1px solid var(--border);
+      background: var(--surface); flex-shrink: 0;
+    }
+    .link-bar-icon { font-size: 16px; color: var(--muted); }
+    .link-input {
+      flex: 1; border: 1px solid var(--border); border-radius: var(--r-sm);
+      padding: 4px 10px; font-size: 13px; background: var(--white);
+      color: var(--ink); outline: none;
+    }
+    .link-input:focus { border-color: var(--violet); }
+    .link-bar-btn {
+      width: 28px; height: 28px; border: none; border-radius: var(--r-sm);
+      background: transparent; cursor: pointer; color: var(--muted);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .link-bar-btn .material-icons-round { font-size: 16px; }
+    .link-bar-btn:hover { background: var(--border); color: var(--ink); }
+    .link-bar-btn.apply { color: var(--violet); }
+    .link-bar-btn.apply:hover { background: var(--violet-mid); }
+    .link-bar-btn.remove { color: #ef4444; }
+    .link-bar-btn.remove:hover { background: #fef2f2; }
+
+    /* ── Editor content area ── */
+    .tiptap-content {
+      flex: 1; overflow-y: auto; padding: 24px 48px 24px;
+      outline: none; font-size: 15px; line-height: 1.75; color: var(--ink);
+    }
     .tiptap-content.readonly { cursor: default; }
-    :host ::ng-deep .tiptap-content h1 { font-size: 1.6em; font-weight: 700; margin: 16px 0 8px; }
-    :host ::ng-deep .tiptap-content h2 { font-size: 1.3em; font-weight: 700; margin: 14px 0 6px; }
-    :host ::ng-deep .tiptap-content h3 { font-size: 1.1em; font-weight: 600; margin: 12px 0 4px; }
-    :host ::ng-deep .tiptap-content p { margin: 4px 0; }
-    :host ::ng-deep .tiptap-content ul, :host ::ng-deep .tiptap-content ol { padding-left: 24px; margin: 4px 0; }
-    :host ::ng-deep .tiptap-content code { background: var(--surface); padding: 2px 5px; border-radius: 4px; font-size: 12px; }
-    :host ::ng-deep .tiptap-content pre { background: var(--surface); padding: 12px; border-radius: var(--r-md); margin: 8px 0; overflow-x: auto; }
-    :host ::ng-deep .tiptap-content pre code { background: none; padding: 0; }
-    :host ::ng-deep .tiptap-content blockquote { border-left: 3px solid var(--border); margin: 8px 0; padding-left: 12px; color: var(--muted); }
-    :host ::ng-deep .tiptap-content table { border-collapse: collapse; width: 100%; margin: 8px 0; }
-    :host ::ng-deep .tiptap-content th, :host ::ng-deep .tiptap-content td { border: 1px solid var(--border); padding: 6px 10px; font-size: 13px; }
-    :host ::ng-deep .tiptap-content th { background: var(--surface); font-weight: 600; }
-    :host ::ng-deep .tiptap-content img { max-width: 100%; border-radius: var(--r-md); margin: 8px 0; }
-    :host ::ng-deep .tiptap-content .ProseMirror-focused { outline: none; }
+
+    /* ── Footer ── */
+    .editor-footer {
+      padding: 6px 48px; border-top: 1px solid var(--border);
+      background: var(--white); flex-shrink: 0;
+    }
+    .word-count { font-size: 11px; color: var(--muted); }
+
+    /* ── ProseMirror content styles ── */
+    :host ::ng-deep .tiptap-content .ProseMirror { outline: none; min-height: 300px; }
+
+    :host ::ng-deep .tiptap-content p.is-editor-empty:first-child::before {
+      content: attr(data-placeholder);
+      color: var(--soft); pointer-events: none; float: left; height: 0;
+    }
+
+    :host ::ng-deep .tiptap-content h1 {
+      font-size: 1.75em; font-weight: 700; letter-spacing: -0.3px;
+      margin: 1.4em 0 0.4em; line-height: 1.25; color: var(--ink);
+    }
+    :host ::ng-deep .tiptap-content h2 {
+      font-size: 1.35em; font-weight: 700; letter-spacing: -0.2px;
+      margin: 1.2em 0 0.35em; line-height: 1.3; color: var(--ink);
+    }
+    :host ::ng-deep .tiptap-content h3 {
+      font-size: 1.1em; font-weight: 600;
+      margin: 1em 0 0.3em; line-height: 1.4; color: var(--ink);
+    }
+
+    :host ::ng-deep .tiptap-content p { margin: 0.25em 0; }
+
+    :host ::ng-deep .tiptap-content a {
+      color: var(--violet); text-decoration: underline; cursor: pointer;
+    }
+    :host ::ng-deep .tiptap-content a:hover { opacity: 0.8; }
+
+    :host ::ng-deep .tiptap-content ul,
+    :host ::ng-deep .tiptap-content ol { padding-left: 1.5em; margin: 0.5em 0; }
+    :host ::ng-deep .tiptap-content li { margin: 0.2em 0; }
+    :host ::ng-deep .tiptap-content li > p { margin: 0; }
+
+    :host ::ng-deep .tiptap-content blockquote {
+      border-left: 3px solid var(--violet); margin: 1em 0;
+      padding: 4px 0 4px 16px; color: var(--ink-4);
+      font-style: italic;
+    }
+
+    :host ::ng-deep .tiptap-content code {
+      background: var(--surface); color: #c026d3;
+      padding: 2px 6px; border-radius: 4px; font-size: 0.875em;
+      font-family: 'Fira Code', 'Cascadia Code', monospace;
+    }
+    :host ::ng-deep .tiptap-content pre {
+      background: #1e1e2e; color: #cdd6f4;
+      padding: 16px 20px; border-radius: var(--r-lg);
+      margin: 1em 0; overflow-x: auto; line-height: 1.6;
+    }
+    :host ::ng-deep .tiptap-content pre code {
+      background: none; color: inherit; padding: 0;
+      font-size: 13px; font-family: 'Fira Code', 'Cascadia Code', monospace;
+    }
+
+    :host ::ng-deep .tiptap-content hr {
+      border: none; border-top: 1px solid var(--border);
+      margin: 1.5em 0;
+    }
+
+    :host ::ng-deep .tiptap-content table {
+      border-collapse: collapse; width: 100%; margin: 1em 0; font-size: 14px;
+    }
+    :host ::ng-deep .tiptap-content th,
+    :host ::ng-deep .tiptap-content td {
+      border: 1px solid var(--border); padding: 8px 12px; text-align: left;
+    }
+    :host ::ng-deep .tiptap-content th {
+      background: var(--surface); font-weight: 600; font-size: 12px;
+      text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-4);
+    }
+    :host ::ng-deep .tiptap-content td { vertical-align: top; }
+    :host ::ng-deep .tiptap-content .selectedCell { background: var(--violet-mid); }
+
+    :host ::ng-deep .tiptap-content img {
+      max-width: 100%; border-radius: var(--r-lg);
+      margin: 1em 0; display: block;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    :host ::ng-deep .tiptap-content ::selection { background: var(--violet-mid); }
   `],
 })
 export class VaultDocumentEditorComponent implements AfterViewInit, OnDestroy {
@@ -96,6 +324,16 @@ export class VaultDocumentEditorComponent implements AfterViewInit, OnDestroy {
   @Output() saveStatusChange = new EventEmitter<'idle' | 'saving' | 'saved' | 'error'>();
 
   titleValue = '';
+  linkUrl = '';
+  showLinkInput = signal(false);
+  active = signal<ActiveStates>({
+    bold: false, italic: false, underline: false, strike: false,
+    h1: false, h2: false, h3: false,
+    bulletList: false, orderedList: false, blockquote: false, codeBlock: false,
+    link: false,
+  });
+  wordCount = signal(0);
+  charCount = signal(0);
 
   private editor: Editor | null = null;
   private save$ = new Subject<void>();
@@ -107,19 +345,52 @@ export class VaultDocumentEditorComponent implements AfterViewInit, OnDestroy {
       element: this.editorEl.nativeElement,
       extensions: [
         StarterKit,
+        Underline,
+        Link.configure({ openOnClick: false }),
+        Placeholder.configure({ placeholder: 'Start writing…' }),
+        CharacterCount,
         Table.configure({ resizable: false }),
         TableRow, TableHeader, TableCell,
         Image,
       ],
-      content: (() => { try { return this.document.contentJson ? JSON.parse(this.document.contentJson) : ''; } catch { return ''; } })(),
+      content: (() => {
+        try { return this.document.contentJson ? JSON.parse(this.document.contentJson) : ''; }
+        catch { return ''; }
+      })(),
       editable: !this.readonly,
       onUpdate: () => {
+        this.refreshState();
         if (!this.readonly) {
           this.saveStatusChange.emit('saving');
           this.save$.next();
         }
       },
+      onSelectionUpdate: () => this.refreshState(),
     });
+    this.refreshState();
+  }
+
+  private refreshState(): void {
+    if (!this.editor) return;
+    this.active.set({
+      bold: this.editor.isActive('bold'),
+      italic: this.editor.isActive('italic'),
+      underline: this.editor.isActive('underline'),
+      strike: this.editor.isActive('strike'),
+      h1: this.editor.isActive('heading', { level: 1 }),
+      h2: this.editor.isActive('heading', { level: 2 }),
+      h3: this.editor.isActive('heading', { level: 3 }),
+      bulletList: this.editor.isActive('bulletList'),
+      orderedList: this.editor.isActive('orderedList'),
+      blockquote: this.editor.isActive('blockquote'),
+      codeBlock: this.editor.isActive('codeBlock'),
+      link: this.editor.isActive('link'),
+    });
+    const cc = (this.editor.storage as any)['characterCount'];
+    if (cc) {
+      this.wordCount.set(cc.words?.() ?? 0);
+      this.charCount.set(cc.characters?.() ?? 0);
+    }
   }
 
   onTitleInput(event: Event): void {
@@ -138,6 +409,10 @@ export class VaultDocumentEditorComponent implements AfterViewInit, OnDestroy {
     this.editor?.chain().focus().toggleHeading({ level }).run();
   }
 
+  insertHr(): void {
+    this.editor?.chain().focus().setHorizontalRule().run();
+  }
+
   insertTable(): void {
     this.editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
   }
@@ -145,6 +420,34 @@ export class VaultDocumentEditorComponent implements AfterViewInit, OnDestroy {
   insertImage(): void {
     const src = prompt('Image URL:');
     if (src) this.editor?.chain().focus().setImage({ src }).run();
+  }
+
+  toggleLinkInput(): void {
+    if (this.active().link) {
+      const attrs = this.editor?.getAttributes('link');
+      this.linkUrl = attrs?.['href'] ?? '';
+    } else {
+      this.linkUrl = '';
+    }
+    this.showLinkInput.update(v => !v);
+  }
+
+  applyLink(): void {
+    if (this.linkUrl.trim()) {
+      const href = this.linkUrl.trim().startsWith('http') ? this.linkUrl.trim() : `https://${this.linkUrl.trim()}`;
+      this.editor?.chain().focus().setLink({ href }).run();
+    }
+    this.closeLinkInput();
+  }
+
+  removeLink(): void {
+    this.editor?.chain().focus().unsetLink().run();
+    this.closeLinkInput();
+  }
+
+  closeLinkInput(): void {
+    this.showLinkInput.set(false);
+    this.linkUrl = '';
   }
 
   private emitSave(): void {
