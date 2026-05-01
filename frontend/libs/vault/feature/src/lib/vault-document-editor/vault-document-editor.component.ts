@@ -91,7 +91,7 @@ interface ActiveStates {
       <!-- Editor -->
       <div #editorEl class="tiptap-content" [class.readonly]="readonly"></div>
 
-      <!-- AI bar -->
+      <!-- AI bar (floating) -->
       <div *ngIf="!readonly" class="ai-bar">
         <!-- Mode toggle -->
         <div class="ai-mode">
@@ -128,18 +128,16 @@ interface ActiveStates {
             {{ aiLoading() ? 'hourglass_top' : 'send' }}
           </span>
         </button>
-      </div>
 
-      <!-- Footer -->
-      <div class="editor-footer">
-        <span class="word-count">{{ wordCount() }} words · {{ charCount() }} characters</span>
+        <!-- Word count -->
+        <span class="bar-word-count">{{ wordCount() }}w</span>
       </div>
     </div>
   `,
   styles: [`
     :host { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
 
-    .editor-wrap { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+    .editor-wrap { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; position: relative; }
 
     /* ── Title ── */
     .title-row { padding: 28px 48px 0; flex-shrink: 0; }
@@ -193,16 +191,20 @@ interface ActiveStates {
 
     /* ── Editor ── */
     .tiptap-content {
-      flex: 1; overflow-y: auto; padding: 24px 48px;
+      flex: 1; overflow-y: auto; padding: 24px 48px 100px;
       outline: none; font-size: 15px; line-height: 1.75; color: var(--ink);
     }
     .tiptap-content.readonly { cursor: default; }
 
-    /* ── AI bar ── */
+    /* ── AI bar (floating) ── */
     .ai-bar {
+      position: absolute; bottom: 16px; left: 32px; right: 32px; z-index: 20;
       display: flex; align-items: center; gap: 8px;
-      padding: 8px 16px; border-top: 1px solid var(--border);
-      background: var(--surface); flex-shrink: 0;
+      padding: 8px 12px;
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06);
     }
 
     .ai-mode {
@@ -245,9 +247,7 @@ interface ActiveStates {
     .ai-send:disabled { opacity: 0.45; cursor: not-allowed; }
     .ai-send.loading { opacity: 0.7; }
 
-    /* ── Footer ── */
-    .editor-footer { padding: 4px 48px; border-top: 1px solid var(--border); background: var(--white); flex-shrink: 0; }
-    .word-count { font-size: 11px; color: var(--muted); }
+    .bar-word-count { font-size: 11px; color: var(--muted); flex-shrink: 0; white-space: nowrap; padding: 0 4px; }
 
     /* ── ProseMirror ── */
     :host ::ng-deep .tiptap-content .ProseMirror { outline: none; min-height: 300px; }
