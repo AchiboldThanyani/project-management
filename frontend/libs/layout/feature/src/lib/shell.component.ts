@@ -34,6 +34,9 @@ import { NotificationBellComponent } from './notification-bell.component';
 <a class="nav-item" routerLink="/sprint-board" routerLinkActive="active">
             <span class="material-icons-round">checklist</span> My Work
           </a>
+          <a class="nav-item" routerLink="/calendar" routerLinkActive="active">
+            <span class="material-icons-round">calendar_month</span> Calendar
+          </a>
           @if (auth.isAdmin() || auth.isProjectManager()) {
             <a class="nav-item" routerLink="/support" routerLinkActive="active">
               <span class="material-icons-round">support_agent</span> Customer Portal

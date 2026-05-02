@@ -619,7 +619,7 @@ const COLUMNS = [
       </div>
 
       <!-- ── Messages tab ─────────────────────────── -->
-      <div *ngIf="activeTab === 'messages'" style="display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;">
+      <div *ngIf="activeTab === 'messages'" style="display:flex;flex-direction:column;height:calc(100vh - 210px);">
         <pm-messaging [projectId]="project()!.id" />
       </div>
 

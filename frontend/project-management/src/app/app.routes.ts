@@ -54,6 +54,11 @@ export const appRoutes: Route[] = [
         loadComponent: () => import('./sprint-board.component').then((m) => m.SprintBoardComponent),
       },
       {
+        path: 'calendar',
+        loadComponent: () =>
+          import('./calendar/calendar.component').then((m) => m.CalendarComponent),
+      },
+      {
         path: 'activity',
         loadComponent: () => import('./activity-feed.component').then((m) => m.ActivityFeedComponent),
       },

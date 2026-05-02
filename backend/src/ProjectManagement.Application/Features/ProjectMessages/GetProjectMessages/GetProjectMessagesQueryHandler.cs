@@ -23,23 +23,16 @@ internal sealed class GetProjectMessagesQueryHandler(
             .ToList();
 
         var authorIds = ordered.Select(m => m.AuthorId).Distinct().ToList();
-        var users = await Task.WhenAll(
-            authorIds.Select(id => userRepository.GetUserByIdAsync(id, cancellationToken)));
-        var userMap = users.Where(u => u is not null)
-            .ToDictionary(u => u!.Id, u => u!);
+        var nameMap = await userRepository.GetNamesByIdsAsync(authorIds, cancellationToken);
 
-        IReadOnlyList<ProjectMessageDto> result = ordered.Select(m =>
+        IReadOnlyList<ProjectMessageDto> result = ordered.Select(m => new ProjectMessageDto
         {
-            userMap.TryGetValue(m.AuthorId, out var user);
-            return new ProjectMessageDto
-            {
-                Id = m.Id,
-                ProjectId = m.ProjectId,
-                AuthorId = m.AuthorId,
-                AuthorName = user is not null ? $"{user.FirstName} {user.LastName}" : "Unknown",
-                Content = m.Content,
-                CreatedAt = m.CreatedAt,
-            };
+            Id         = m.Id,
+            ProjectId  = m.ProjectId,
+            AuthorId   = m.AuthorId,
+            AuthorName = nameMap.TryGetValue(m.AuthorId, out var name) ? name : "Unknown",
+            Content    = m.Content,
+            CreatedAt  = m.CreatedAt,
         }).ToList();
 
         return Result<IReadOnlyList<ProjectMessageDto>>.Success(result);

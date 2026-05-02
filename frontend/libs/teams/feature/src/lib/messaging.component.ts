@@ -107,14 +107,14 @@ const AVATAR_PALETTE = ['#6366f1','#8b5cf6','#ec4899','#f97316','#22c55e','#14b8
     </div>
   `,
   styles: [`
-    :host { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+    :host { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
 
     /* ─── Layout ─── */
     .chat-wrap {
       display: flex;
       flex-direction: column;
-      flex: 1;
-      min-height: 0;
+      height: 100%;
+      overflow: hidden;
       background: var(--white);
     }
 
