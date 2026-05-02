@@ -12,12 +12,7 @@ public class ProjectRepository(ApplicationDbContext context)
     public async Task<(IReadOnlyList<Project> Items, int TotalCount)> GetProjectsForUserAsync(
         string userId, bool isAdmin, int page, int pageSize, CancellationToken ct = default)
     {
-        var query = context.Projects.AsQueryable();
-
-        if (!isAdmin)
-            query = query.Where(p =>
-                p.OwnerId == userId ||
-                context.ProjectMembers.Any(m => m.ProjectId == p.Id && m.UserId == userId));
+        var query = ApplyAccessFilter(context.Projects.AsQueryable(), userId, isAdmin);
 
         var total = await query.CountAsync(ct);
         var items = await query
@@ -32,15 +27,19 @@ public class ProjectRepository(ApplicationDbContext context)
     public async Task<IReadOnlyList<ProjectSummary>> GetProjectSummariesForUserAsync(
         string userId, bool seeAll, CancellationToken ct = default)
     {
-        var query = context.Projects.AsQueryable();
-
-        if (!seeAll)
-            query = query.Where(p =>
-                p.OwnerId == userId ||
-                context.ProjectMembers.Any(m => m.ProjectId == p.Id && m.UserId == userId));
+        var query = ApplyAccessFilter(context.Projects.AsQueryable(), userId, seeAll);
 
         return await query
             .Select(p => new ProjectSummary(p.Id, p.Name))
             .ToListAsync(ct);
+    }
+
+    private IQueryable<Project> ApplyAccessFilter(IQueryable<Project> query, string userId, bool unrestricted)
+    {
+        if (unrestricted) return query;
+
+        return query.Where(p =>
+            p.OwnerId == userId ||
+            context.ProjectMembers.Any(m => m.ProjectId == p.Id && m.UserId == userId));
     }
 }
