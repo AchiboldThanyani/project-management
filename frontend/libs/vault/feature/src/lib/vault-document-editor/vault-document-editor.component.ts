@@ -101,49 +101,52 @@ interface ActiveStates {
         </div>
       </div>
 
-      <!-- AI bar (docked above canvas bottom) -->
-      <div *ngIf="!readonly" class="ai-bar">
-        <!-- Mode toggle -->
-        <div class="ai-mode">
-          <button class="ai-mode-btn" [class.active]="aiMode() === 'edit'"
-                  (click)="setMode('edit')" title="Edit / write">
-            <span class="material-icons-round">edit</span>
-            <span class="mode-label">Edit</span>
-          </button>
-          <button class="ai-mode-btn" [class.active]="aiMode() === 'spec'"
-                  (click)="setMode('spec')" title="Generate a spec">
+      <!-- AI bar -->
+      <div *ngIf="!readonly" class="ai-bar" [class.ai-busy]="aiLoading()">
+
+        <!-- Left: spark + mode pills -->
+        <div class="ai-left">
+          <div class="ai-spark" [class.spinning]="aiLoading()">
             <span class="material-icons-round">auto_awesome</span>
-            <span class="mode-label">Spec</span>
-          </button>
+          </div>
+          <div class="ai-mode">
+            <button class="ai-mode-btn" [class.active]="aiMode() === 'edit'"
+                    (click)="setMode('edit')" title="Edit / write">
+              <span class="material-icons-round">edit</span>
+            </button>
+            <button class="ai-mode-btn" [class.active]="aiMode() === 'spec'"
+                    (click)="setMode('spec')" title="Generate a spec">
+              <span class="material-icons-round">auto_fix_high</span>
+            </button>
+          </div>
         </div>
 
         <!-- Selection chip -->
         <div *ngIf="aiMode() === 'edit' && (selectionWords() > 0 || savedSelWords() > 0)" class="selection-chip">
           <span class="material-icons-round chip-icon">text_fields</span>
-          {{ selectionWords() > 0 ? selectionWords() : savedSelWords() }}w selected
+          {{ selectionWords() > 0 ? selectionWords() : savedSelWords() }}w
         </div>
 
-        <!-- Input -->
-        <input #aiInput class="ai-input"
-               [(ngModel)]="aiPrompt"
-               [placeholder]="aiPlaceholder()"
-               (keydown.enter)="submitAi()"
-               (keydown.escape)="aiPrompt = ''" />
+        <!-- Input (no border — the whole bar is the input surface) -->
+        <div class="ai-input-wrap">
+          <input #aiInput class="ai-input"
+                 [(ngModel)]="aiPrompt"
+                 [placeholder]="aiPlaceholder()"
+                 (keydown.enter)="submitAi()"
+                 (keydown.escape)="aiPrompt = ''" />
+        </div>
 
-        <!-- Send -->
-        <button class="ai-send" [class.loading]="aiLoading()"
-                [disabled]="aiLoading() || !aiPrompt.trim()"
-                (click)="submitAi()" title="Send">
-          <span class="material-icons-round">
-            {{ aiLoading() ? 'hourglass_top' : 'send' }}
-          </span>
-        </button>
+        <!-- Right: status + send -->
+        <div class="ai-right">
+          <span *ngIf="aiError()" class="ai-error">{{ aiError() }}</span>
+          <span *ngIf="!aiError()" class="bar-word-count">{{ wordCount() }}w</span>
+          <button class="ai-send" [class.loading]="aiLoading()"
+                  [disabled]="aiLoading() || !aiPrompt.trim()"
+                  (click)="submitAi()" title="Send">
+            <span class="material-icons-round">{{ aiLoading() ? 'hourglass_top' : 'arrow_upward' }}</span>
+          </button>
+        </div>
 
-        <!-- Error -->
-        <span *ngIf="aiError()" class="ai-error">{{ aiError() }}</span>
-
-        <!-- Word count -->
-        <span *ngIf="!aiError()" class="bar-word-count">{{ wordCount() }}w · {{ charCount() }}c</span>
       </div>
     </div>
   `,
@@ -234,55 +237,125 @@ interface ActiveStates {
     /* ── AI bar ── */
     .ai-bar {
       position: fixed;
-      bottom: 20px;
+      bottom: 24px;
       left: 50%;
       transform: translateX(-50%);
-      width: min(700px, calc(100vw - 280px));
+      width: min(720px, calc(100vw - 260px));
       z-index: 20;
-      display: flex; align-items: center; gap: 8px;
-      padding: 8px 10px;
-      background: var(--white);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      box-shadow: 0 4px 32px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.06);
+      display: flex; align-items: center; gap: 10px;
+      padding: 7px 7px 7px 14px;
+      background: rgba(255,255,255,0.88);
+      backdrop-filter: blur(24px) saturate(180%);
+      -webkit-backdrop-filter: blur(24px) saturate(180%);
+      border: 1px solid rgba(99,102,241,0.18);
+      border-radius: 18px;
+      box-shadow:
+        0 0 0 4px rgba(99,102,241,0.06),
+        0 8px 40px rgba(99,102,241,0.14),
+        0 2px 8px rgba(0,0,0,0.07),
+        inset 0 1px 0 rgba(255,255,255,0.9);
+      transition: border-color 0.2s, box-shadow 0.2s;
     }
+    .ai-bar.ai-busy {
+      border-color: rgba(99,102,241,0.40);
+      box-shadow:
+        0 0 0 4px rgba(99,102,241,0.10),
+        0 8px 48px rgba(99,102,241,0.24),
+        0 2px 8px rgba(0,0,0,0.07),
+        inset 0 1px 0 rgba(255,255,255,0.9);
+    }
+
+    .ai-left { display: flex; align-items: center; gap: 7px; flex-shrink: 0; }
+
+    /* Spark icon */
+    .ai-spark {
+      width: 30px; height: 30px; border-radius: 9px; flex-shrink: 0;
+      background: linear-gradient(135deg, var(--violet) 0%, #818cf8 100%);
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 2px 10px rgba(99,102,241,0.40);
+    }
+    .ai-spark .material-icons-round { font-size: 16px; color: #fff; }
+    .ai-spark.spinning .material-icons-round {
+      animation: sparkPulse 1.4s ease-in-out infinite;
+    }
+    @keyframes sparkPulse {
+      0%, 100% { transform: scale(1) rotate(0deg);   opacity: 1; }
+      50%       { transform: scale(1.2) rotate(20deg); opacity: 0.8; }
+    }
+
+    /* Mode pills */
     .ai-mode {
-      display: flex; border: 1px solid var(--border); border-radius: 8px;
-      overflow: hidden; flex-shrink: 0;
+      display: flex; gap: 2px;
+      background: rgba(0,0,0,0.04); border: 1px solid var(--border);
+      border-radius: 9px; padding: 2px; flex-shrink: 0;
     }
     .ai-mode-btn {
-      display: flex; align-items: center; gap: 4px; padding: 5px 10px;
-      border: none; background: transparent; cursor: pointer;
-      font-size: 12px; font-weight: 500; color: var(--muted);
-      transition: background 0.12s, color 0.12s;
+      width: 28px; height: 28px; border: none; background: transparent;
+      border-radius: 7px; cursor: pointer; color: var(--muted);
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.12s, color 0.12s, box-shadow 0.12s;
     }
     .ai-mode-btn .material-icons-round { font-size: 14px; }
-    .ai-mode-btn:hover { background: var(--surface); color: var(--ink); }
-    .ai-mode-btn.active { background: var(--violet); color: #fff; }
-    .mode-label { white-space: nowrap; }
+    .ai-mode-btn:hover { background: var(--white); color: var(--ink); }
+    .ai-mode-btn.active {
+      background: var(--violet); color: #fff;
+      box-shadow: 0 1px 5px rgba(99,102,241,0.4);
+    }
+
+    /* Selection chip */
     .selection-chip {
-      display: flex; align-items: center; gap: 4px; padding: 3px 8px;
+      display: flex; align-items: center; gap: 4px; padding: 3px 9px;
       background: var(--violet-mid); color: var(--violet);
+      border: 1px solid rgba(99,102,241,0.2);
       border-radius: 99px; font-size: 11px; font-weight: 600; flex-shrink: 0;
     }
-    .chip-icon { font-size: 13px; }
+    .chip-icon { font-size: 12px; }
+
+    /* Input — borderless, the bar IS the input surface */
+    .ai-input-wrap { flex: 1; min-width: 0; display: flex; align-items: center; }
     .ai-input {
-      flex: 1; border: 1px solid var(--border); border-radius: 8px;
-      padding: 7px 12px; font-size: 13px; background: var(--white); color: var(--ink);
-      outline: none; transition: border-color 0.15s, box-shadow 0.15s; font-family: inherit;
+      width: 100%; border: none; outline: none; background: transparent;
+      font-size: 13.5px; color: var(--ink); font-family: inherit; line-height: 1.4;
+      padding: 4px 0;
     }
-    .ai-input:focus { border-color: var(--violet); box-shadow: 0 0 0 3px var(--violet-mid); }
+    .ai-input::placeholder { color: var(--muted); }
+
+    /* Right side */
+    .ai-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .bar-word-count { font-size: 11px; color: var(--muted); white-space: nowrap; }
+    .ai-error { font-size: 11px; color: #ef4444; white-space: nowrap; font-weight: 500; }
+
+    /* Send button */
     .ai-send {
-      width: 32px; height: 32px; border: none; border-radius: 8px;
-      background: var(--violet); color: #fff; cursor: pointer; flex-shrink: 0;
-      display: flex; align-items: center; justify-content: center; transition: opacity 0.15s;
+      width: 36px; height: 36px; border: none; border-radius: 11px; flex-shrink: 0;
+      background: var(--violet); color: #fff; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 2px 10px rgba(99,102,241,0.45);
+      transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
     }
-    .ai-send .material-icons-round { font-size: 16px; }
-    .ai-send:hover:not(:disabled) { opacity: 0.85; }
-    .ai-send:disabled { opacity: 0.45; cursor: not-allowed; }
+    .ai-send .material-icons-round { font-size: 18px; }
+    .ai-send:hover:not(:disabled) {
+      transform: scale(1.07) translateY(-1px);
+      box-shadow: 0 4px 16px rgba(99,102,241,0.55);
+    }
+    .ai-send:disabled { opacity: 0.35; cursor: not-allowed; box-shadow: none; transform: none; }
     .ai-send.loading { opacity: 0.7; }
-    .bar-word-count { font-size: 11px; color: var(--muted); flex-shrink: 0; white-space: nowrap; padding: 0 4px; }
-    .ai-error { font-size: 11px; color: #ef4444; flex-shrink: 0; white-space: nowrap; padding: 0 4px; font-weight: 500; }
+
+    /* Dark mode adaptations */
+    :host-context([data-theme="dark"]) .ai-bar {
+      background: rgba(18,18,28,0.90);
+      border-color: rgba(99,102,241,0.22);
+      box-shadow:
+        0 0 0 4px rgba(99,102,241,0.08),
+        0 8px 40px rgba(0,0,0,0.5),
+        inset 0 1px 0 rgba(255,255,255,0.06);
+    }
+    :host-context([data-theme="dark"]) .ai-bar.ai-busy {
+      border-color: rgba(99,102,241,0.42);
+    }
+    :host-context([data-theme="dark"]) .ai-mode {
+      background: rgba(255,255,255,0.06);
+    }
 
     /* ── ProseMirror content styles ── */
     :host ::ng-deep .tiptap-content .ProseMirror {
