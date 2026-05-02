@@ -126,7 +126,7 @@ const QUICK_PROMPTS: { icon: string; label: string }[] = [
                 <div class="msg" [class.user]="msg.role === 'user'" [class.assistant]="msg.role === 'assistant'">
                   @if (msg.role === 'assistant') {
                     <div class="msg-avatar" [class.pulsing]="msg.loading">
-                      <img src="bot.jpg" alt="bot" class="bot-img" />
+                      <span class="material-icons-round">auto_awesome</span>
                     </div>
                   }
                   <div class="msg-bubble" [class.thinking]="msg.loading">
@@ -317,21 +317,22 @@ const QUICK_PROMPTS: { icon: string; label: string }[] = [
 
     .ai-fab {
       display: flex; align-items: center; gap: 8px;
-      height: 48px; padding: 0 20px; border-radius: 24px;
-      background: var(--violet); border: none; color: #fff;
-      cursor: grab; font-size: 14px; font-weight: 600;
+      height: 46px; padding: 0 20px; border-radius: 23px;
+      background: linear-gradient(135deg, var(--violet) 0%, #818cf8 100%);
+      border: none; color: #fff;
+      cursor: grab; font-size: 13.5px; font-weight: 600;
       font-family: 'DM Sans', sans-serif;
-      box-shadow: 0 4px 24px rgba(99,102,241,.45);
+      box-shadow: 0 4px 20px rgba(99,102,241,.4), 0 1px 0 rgba(255,255,255,.15) inset;
       transition: transform .2s, box-shadow .2s, border-radius .2s, padding .2s;
       white-space: nowrap;
     }
-    .ai-fab:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(99,102,241,.55); }
+    .ai-fab:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(99,102,241,.52); }
     .ai-fab.open {
-      padding: 0 14px; border-radius: 14px;
+      padding: 0 14px; border-radius: 13px;
       background: var(--surface); color: var(--ink);
       border: 1px solid var(--border); box-shadow: none; cursor: grab;
     }
-    .ai-fab .fab-icon { font-size: 20px; }
+    .ai-fab .fab-icon { font-size: 19px; }
     .fab-label { letter-spacing: .1px; }
 
     /* ── Backdrop ─────────────────────────────────────── */
@@ -450,8 +451,13 @@ const QUICK_PROMPTS: { icon: string; label: string }[] = [
       background: linear-gradient(135deg, var(--violet), #818cf8);
       display: flex; align-items: center; justify-content: center;
       box-shadow: 0 8px 24px rgba(99,102,241,.35);
+      animation: orbBreath 3.5s ease-in-out infinite;
     }
     .welcome-orb .material-icons-round { font-size: 30px; color: #fff; }
+    @keyframes orbBreath {
+      0%, 100% { box-shadow: 0 8px 24px rgba(99,102,241,.35); transform: scale(1); }
+      50%       { box-shadow: 0 10px 32px rgba(99,102,241,.52); transform: scale(1.04); }
+    }
     .welcome-title { font-size: 18px; font-weight: 700; color: var(--ink); margin: 0; }
     .welcome-sub { font-size: 13px; color: var(--muted); margin: 0; max-width: 280px; line-height: 1.5; }
 
@@ -482,11 +488,12 @@ const QUICK_PROMPTS: { icon: string; label: string }[] = [
 
     .msg-avatar {
       width: 30px; height: 30px; border-radius: 10px; flex-shrink: 0;
-      overflow: hidden;
-      box-shadow: 0 2px 8px rgba(99,102,241,.3);
+      background: linear-gradient(135deg, var(--violet), #818cf8);
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 2px 10px rgba(99,102,241,.35);
       margin-bottom: 2px;
     }
-    .bot-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .msg-avatar .material-icons-round { font-size: 15px; color: #fff; }
 
     .msg-bubble {
       max-width: 82%; padding: 11px 14px; border-radius: 16px;
