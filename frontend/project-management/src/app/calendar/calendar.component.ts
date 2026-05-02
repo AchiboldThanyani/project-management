@@ -407,6 +407,61 @@ interface CalendarStats { tasks: number; sprints: number; overdue: number; }
       .fc-list-event-dot { border-radius: 50% !important; }
       .fc-list-empty { color: var(--muted) !important; font-size: 13px !important; }
 
+      /* ─── More-events popover ─── */
+      .fc-popover {
+        background: var(--white) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: var(--r-lg) !important;
+        box-shadow: var(--shadow-lg) !important;
+        overflow: hidden !important;
+        min-width: 200px !important;
+        animation: popoverIn 0.15s ease both !important;
+      }
+      @keyframes popoverIn {
+        from { opacity: 0; transform: scale(0.96) translateY(-4px); }
+        to   { opacity: 1; transform: scale(1) translateY(0); }
+      }
+      .fc-popover-header {
+        background: var(--surface) !important;
+        border-bottom: 1px solid var(--border) !important;
+        padding: 10px 12px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+      }
+      .fc-popover-title {
+        font-size: 12px !important;
+        font-weight: 700 !important;
+        color: var(--ink) !important;
+        font-family: 'DM Sans', sans-serif !important;
+        letter-spacing: -0.1px !important;
+      }
+      .fc-popover-close {
+        color: var(--muted) !important;
+        font-size: 16px !important;
+        opacity: 1 !important;
+        line-height: 1 !important;
+        cursor: pointer !important;
+        transition: color 0.15s !important;
+        background: none !important;
+        border: none !important;
+        padding: 0 !important;
+      }
+      .fc-popover-close:hover { color: var(--ink) !important; }
+      .fc-popover-body {
+        padding: 8px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 3px !important;
+        max-height: 260px !important;
+        overflow-y: auto !important;
+      }
+      .fc-popover-body .fc-event {
+        margin: 0 !important;
+        border-radius: var(--r-sm) !important;
+      }
+      .fc-popover-body .sprint-event { display: none !important; }
+
       /* Table borders */
       .fc-theme-standard td, .fc-theme-standard th {
         border-color: var(--border) !important;
@@ -469,12 +524,13 @@ export class CalendarComponent {
         });
         const mapped = events.map((e) => ({
           id: e.id,
-          title: e.type === 'Sprint' ? `${e.title}` : e.title,
+          title: e.title,
           start: e.start,
           end: e.end,
           backgroundColor: e.color,
           borderColor: e.color,
           allDay: e.type === 'Sprint',
+          classNames: e.type === 'Sprint' ? ['sprint-event'] : ['task-event'],
           extendedProps: {
             type: e.type,
             projectName: e.projectName,
