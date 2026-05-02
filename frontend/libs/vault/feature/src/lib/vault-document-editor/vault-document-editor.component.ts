@@ -101,7 +101,7 @@ interface ActiveStates {
         </div>
       </div>
 
-      <!-- AI bar -->
+      <!-- AI bar (floating, centered over the page) -->
       <div *ngIf="!readonly" class="ai-bar" [class.ai-busy]="aiLoading()">
 
         <!-- Left: spark + mode pills -->
@@ -202,7 +202,7 @@ interface ActiveStates {
     .page-canvas {
       flex: 1; overflow-y: auto;
       background: var(--surface, #f5f5f5);
-      padding: 40px 24px 140px;
+      padding: 40px 24px 130px;
       display: flex; flex-direction: column; align-items: center;
     }
 
@@ -238,9 +238,9 @@ interface ActiveStates {
     .ai-bar {
       position: fixed;
       bottom: 24px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: min(720px, calc(100vw - 260px));
+      left: 220px; right: 0;  /* sidebar offset — browser auto-centers within this range */
+      margin: 0 auto;
+      width: min(760px, calc(100vw - 260px));
       z-index: 20;
       display: flex; align-items: center; gap: 10px;
       padding: 7px 7px 7px 14px;
@@ -598,16 +598,22 @@ export class VaultDocumentEditorComponent implements AfterViewInit, OnDestroy {
     this.aiPrompt = '';
 
     if (this.aiMode() === 'spec') {
+      // Spec: append the generated document at the end
       this.vaultAi.generateSpec(prompt, this.document.projectId).subscribe({
-        next: html  => this.zone.run(() => this.insertHtml(html)),
-        error: err  => this.zone.run(() => this.showAiError(err)),
+        next: html => this.zone.run(() => this.appendHtml(html)),
+        error: err => this.zone.run(() => this.showAiError(err)),
       });
     } else if (this.savedSelWords() > 0) {
+      // Edit: replace the saved selection with rewritten text
       const text = this.editor!.state.doc.textBetween(this.savedSelFrom, this.savedSelTo, ' ');
       const from = this.savedSelFrom, to = this.savedSelTo;
       this.vaultAi.editSelection(text, prompt).subscribe({
         next: result => this.zone.run(() => {
-          this.editor?.chain().focus().setTextSelection({ from, to }).insertContent(result).run();
+          this.editor?.chain()
+            .focus()
+            .deleteRange({ from, to })
+            .insertContentAt(from, result)
+            .run();
           this.savedSelFrom = 0; this.savedSelTo = 0; this.savedSelWords.set(0);
           this.aiLoading.set(false);
           this.triggerSave();
@@ -615,15 +621,17 @@ export class VaultDocumentEditorComponent implements AfterViewInit, OnDestroy {
         error: err => this.zone.run(() => this.showAiError(err)),
       });
     } else {
+      // Command: append at the end of the document
       this.vaultAi.documentCommand(prompt, this.document.projectId).subscribe({
-        next: html  => this.zone.run(() => this.insertHtml(html)),
-        error: err  => this.zone.run(() => this.showAiError(err)),
+        next: html => this.zone.run(() => this.appendHtml(html)),
+        error: err => this.zone.run(() => this.showAiError(err)),
       });
     }
   }
 
-  private insertHtml(html: string): void {
-    this.editor?.chain().focus().insertContent(html).run();
+  private appendHtml(html: string): void {
+    const end = this.editor!.state.doc.content.size;
+    this.editor?.chain().focus().insertContentAt(end, html).run();
     this.aiLoading.set(false);
     this.triggerSave();
   }
