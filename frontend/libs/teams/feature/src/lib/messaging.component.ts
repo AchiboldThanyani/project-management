@@ -50,27 +50,43 @@ const AVATAR_PALETTE = ['#6366f1','#8b5cf6','#ec4899','#f97316','#22c55e','#14b8
               }
 
               <div class="msg-row" [class.own]="isOwn(msg)" [class.continued]="!showAvatar(i)">
-                <div class="msg-left">
-                  @if (showAvatar(i)) {
-                    <div class="msg-ava" [style.background]="avatarColor(msg.authorId)">
-                      {{ initials(msg.authorName) }}
-                    </div>
-                  } @else {
-                    <div class="msg-ava-gap"></div>
-                  }
-                </div>
 
-                <div class="msg-body">
+                @if (!isOwn(msg)) {
+                  <div class="msg-left">
+                    @if (showAvatar(i)) {
+                      <div class="msg-ava" [style.background]="avatarColor(msg.authorId)">
+                        {{ initials(msg.authorName) }}
+                      </div>
+                    } @else {
+                      <div class="msg-ava-gap"></div>
+                    }
+                  </div>
+                }
+
+                <div class="msg-body" [class.own-body]="isOwn(msg)">
                   @if (showAvatar(i)) {
-                    <div class="msg-meta">
-                      <span class="author-name">{{ isOwn(msg) ? 'You' : msg.authorName }}</span>
+                    <div class="msg-meta" [class.own-meta]="isOwn(msg)">
+                      @if (!isOwn(msg)) {
+                        <span class="author-name">{{ msg.authorName }}</span>
+                      }
                       <span class="msg-time">{{ msg.createdAt | date:'h:mm a' }}</span>
                     </div>
                   }
-                  <div class="msg-bubble">{{ msg.content }}</div>
+                  <div class="msg-bubble" [class.own-bubble]="isOwn(msg)">{{ msg.content }}</div>
                 </div>
 
-                <span class="hover-time">{{ msg.createdAt | date:'h:mm a' }}</span>
+                @if (isOwn(msg)) {
+                  <div class="msg-left">
+                    @if (showAvatar(i)) {
+                      <div class="msg-ava own-ava" [style.background]="avatarColor(msg.authorId)">
+                        {{ initials(msg.authorName) }}
+                      </div>
+                    } @else {
+                      <div class="msg-ava-gap"></div>
+                    }
+                  </div>
+                }
+
               </div>
             }
           </div>
@@ -203,10 +219,9 @@ const AVATAR_PALETTE = ['#6366f1','#8b5cf6','#ec4899','#f97316','#22c55e','#14b8
     .msg-row:hover .hover-time { opacity: 1; }
     .msg-row.continued { padding-top: 1px; padding-bottom: 1px; }
 
-    /* Own message row highlight */
-    .msg-row.own { background: var(--violet-mid); }
-    .msg-row.own:hover { background: color-mix(in srgb, var(--violet) 10%, transparent); }
-    .msg-row.own .author-name { color: var(--violet); }
+    /* Own message — right-aligned */
+    .msg-row.own { background: transparent; justify-content: flex-end; }
+    .msg-row.own:hover { background: var(--surface); }
 
     /* ─── Avatar ─── */
     .msg-left { width: 44px; flex-shrink: 0; padding-top: 1px; }
@@ -220,7 +235,7 @@ const AVATAR_PALETTE = ['#6366f1','#8b5cf6','#ec4899','#f97316','#22c55e','#14b8
     .msg-ava-gap { width: 32px; height: 32px; flex-shrink: 0; }
 
     /* ─── Message body ─── */
-    .msg-body { flex: 1; min-width: 0; padding: 1px 0; }
+    .msg-body { flex: 1; min-width: 0; padding: 1px 0; display: flex; flex-direction: column; align-items: flex-start; }
     .msg-meta { display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px; }
     .author-name { font-size: 13px; font-weight: 700; color: var(--ink); }
     .msg-time { font-size: 10px; color: var(--soft); }
@@ -230,6 +245,24 @@ const AVATAR_PALETTE = ['#6366f1','#8b5cf6','#ec4899','#f97316','#22c55e','#14b8
       word-break: break-word;
       white-space: pre-wrap;
     }
+
+    /* Own message bubble */
+    .own-body { align-items: flex-end; }
+    .own-meta { justify-content: flex-end; }
+    .own-bubble {
+      background: var(--violet);
+      color: #fff;
+      border-radius: 16px 4px 16px 16px;
+      padding: 8px 12px;
+      max-width: 420px;
+    }
+    .msg-bubble:not(.own-bubble) {
+      background: var(--surface);
+      border-radius: 4px 16px 16px 16px;
+      padding: 8px 12px;
+      max-width: 420px;
+    }
+    .own-ava { margin-left: 4px; }
 
     /* Hover timestamp (for continued messages) */
     .hover-time {
