@@ -15,7 +15,7 @@ public class AiController(IMediator mediator) : ControllerBase
 {
     [HttpPost("ask")]
     public async Task<ActionResult<AiResponse>> Ask([FromBody] AiAskBody body, CancellationToken ct)
-        => (await mediator.Send(new AskAiQuery(body.Question, body.ProjectId, body.History), ct)).ToActionResult(this);
+        => (await mediator.Send(new AskAiQuery(body.Question, body.ProjectId, body.History, body.DeepThinking), ct)).ToActionResult(this);
 
     [HttpPost("plan/conversation")]
     public async Task<ActionResult<PlanConversationResponse>> PlanConversation(
@@ -25,7 +25,7 @@ public class AiController(IMediator mediator) : ControllerBase
             .ToActionResult(this);
 }
 
-public record AiAskBody(string Question, Guid? ProjectId = null, IReadOnlyList<ChatMessage>? History = null);
+public record AiAskBody(string Question, Guid? ProjectId = null, IReadOnlyList<ChatMessage>? History = null, bool DeepThinking = false);
 
 public record PlanConversationBody(
     IReadOnlyList<PlanConversationMessage> History,
