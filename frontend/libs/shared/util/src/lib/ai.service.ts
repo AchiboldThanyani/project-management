@@ -19,8 +19,8 @@ export class AiService {
 
   constructor(private http: HttpClient) {}
 
-  ask(question: string, projectId?: string, history: ChatMessage[] = []): Observable<AiResponse> {
-    return this.http.post<AiResponse>(this.base + '/ask', { question, projectId, history });
+  ask(question: string, projectId?: string, history: ChatMessage[] = [], deepThinking = false): Observable<AiResponse> {
+    return this.http.post<AiResponse>(this.base + '/ask', { question, projectId, history, deepThinking });
   }
 
   planConversation(

@@ -73,6 +73,12 @@ const QUICK_PROMPTS: { icon: string; label: string }[] = [
               <button class="mode-chip" [class.active]="mode() === 'plan'" (click)="switchMode('plan')">
                 <span class="material-icons-round">auto_fix_high</span> Plan
               </button>
+              @if (mode() === 'ask') {
+                <span class="mode-divider"></span>
+                <button class="mode-chip deep-chip" [class.active]="deepThinking()" (click)="toggleDeepThinking()" title="Deep Thinking — Claude selects only the data it needs">
+                  <span class="material-icons-round">psychology</span> Deep
+                </button>
+              }
             </div>
           }
           <!-- Project scope selector -->
@@ -128,7 +134,7 @@ const QUICK_PROMPTS: { icon: string; label: string }[] = [
                       <div class="thinking-body">
                         <div class="thinking-label">
                           <span class="thinking-dot"></span>
-                          Thinking
+                          {{ deepThinking() ? 'Analyzing...' : 'Thinking' }}
                         </div>
                         <div class="shimmer-lines">
                           <div class="shimmer-line w80"></div>
@@ -706,6 +712,8 @@ const QUICK_PROMPTS: { icon: string; label: string }[] = [
       box-shadow: 0 2px 8px rgba(99,102,241,.35);
     }
     .mode-chip:not(.active):hover { border-color: var(--violet); color: var(--violet); }
+    .mode-divider { width: 1px; height: 16px; background: var(--border); margin: 0 2px; align-self: center; }
+    .deep-chip.active { background: var(--violet-mid); color: var(--violet); border-color: var(--violet); box-shadow: none; }
 
     .plan-body { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 
@@ -840,13 +848,14 @@ export class AiAssistantComponent implements OnInit, AfterViewChecked {
   newProjectDesc  = signal('');
   confirmedTaskCount = computed(() => this.checkedTasks().filter(Boolean).length);
 
-  open        = signal(false);
-  loading     = signal(false);
-  messages    = signal<Message[]>([]);
-  projects    = signal<Project[]>([]);
-  suggestions = signal<string[]>([]);
-  input       = '';
-  focused     = false;
+  open          = signal(false);
+  loading       = signal(false);
+  deepThinking  = signal(localStorage.getItem('ai-deep-thinking') === 'true');
+  messages      = signal<Message[]>([]);
+  projects      = signal<Project[]>([]);
+  suggestions   = signal<string[]>([]);
+  input         = '';
+  focused       = false;
   selectedProjectId: string | null = null;
   quickPrompts = QUICK_PROMPTS;
 
@@ -1030,6 +1039,12 @@ export class AiAssistantComponent implements OnInit, AfterViewChecked {
 
   sendQuick(label: string) { this.input = label; this.send(); }
 
+  toggleDeepThinking() {
+    const next = !this.deepThinking();
+    this.deepThinking.set(next);
+    localStorage.setItem('ai-deep-thinking', String(next));
+  }
+
   send() {
     const text = this.input.trim();
     if (!text || this.loading()) return;
@@ -1048,7 +1063,7 @@ export class AiAssistantComponent implements OnInit, AfterViewChecked {
     ]);
     this.shouldScroll = true;
 
-    this.aiSvc.ask(text, this.selectedProjectId ?? undefined, history).subscribe({
+    this.aiSvc.ask(text, this.selectedProjectId ?? undefined, history, this.deepThinking()).subscribe({
       next: ({ answer, suggestions }) => {
         this.messages.update(msgs => [
           ...msgs.slice(0, -1),
