@@ -56,7 +56,9 @@ internal sealed class GetCalendarEventsQueryHandler(
 
         foreach (var task in tasks)
         {
-            var (projectName, _) = projectMap[task.ProjectId];
+            if (!projectMap.TryGetValue(task.ProjectId, out var taskProject))
+                continue;
+            var (projectName, _) = taskProject;
             events.Add(new CalendarEventDto(
                 Id:          task.Id,
                 Type:        "Task",
@@ -73,7 +75,9 @@ internal sealed class GetCalendarEventsQueryHandler(
 
         foreach (var sprint in sprints)
         {
-            var (projectName, color) = projectMap[sprint.ProjectId];
+            if (!projectMap.TryGetValue(sprint.ProjectId, out var sprintProject))
+                continue;
+            var (projectName, color) = sprintProject;
             events.Add(new CalendarEventDto(
                 Id:          sprint.Id,
                 Type:        "Sprint",
