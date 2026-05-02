@@ -38,6 +38,7 @@ import { NotificationBellComponent } from './notification-bell.component';
             <span class="material-icons-round">calendar_month</span> Calendar
           </a>
           @if (auth.isAdmin() || auth.isProjectManager()) {
+            <div class="nav-divider"></div>
             <a class="nav-item" routerLink="/support" routerLinkActive="active">
               <span class="material-icons-round">support_agent</span> Customer Portal
             </a>
@@ -87,98 +88,127 @@ import { NotificationBellComponent } from './notification-bell.component';
     .sidebar {
       width: 220px;
       min-width: 220px;
-      background: var(--sidebar-bg, #0f0f14);
+      background: var(--sidebar-bg, #0D0D13);
+      border-right: 1px solid rgba(255,255,255,0.055);
       display: flex;
       flex-direction: column;
+      flex-shrink: 0;
       position: relative;
       overflow: hidden;
-      flex-shrink: 0;
     }
 
-    /* Grid texture */
+    /* Subtle top accent line */
     .sidebar::before {
       content: '';
-      position: absolute; inset: 0;
-      background-image:
-        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
-      background-size: 24px 24px;
+      position: absolute; top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(99,102,241,0.5), transparent);
       pointer-events: none;
     }
 
-    /* Violet glow */
+    /* Faint bottom fade */
     .sidebar::after {
       content: '';
-      position: absolute; bottom: -60px; left: -40px;
-      width: 200px; height: 200px; border-radius: 50%;
-      background: radial-gradient(circle, var(--violet-mid) 0%, transparent 70%);
+      position: absolute; bottom: 0; left: 0; right: 0;
+      height: 100px;
+      background: linear-gradient(to top, rgba(99,102,241,0.04), transparent);
       pointer-events: none;
     }
 
+    /* ─── Brand ─── */
     .sb-brand {
       display: flex; align-items: center; gap: 10px;
-      padding: 18px 16px 14px;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
+      padding: 18px 16px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.055);
       position: relative; z-index: 1;
-      text-decoration: none;
     }
 
-    .brand-logo { width: 30px; height: 30px; border-radius: 8px; object-fit: contain; flex-shrink: 0; }
-    .brand-name { font-size: 14px; font-weight: 700; color: #fff; letter-spacing: -0.2px; flex: 1; }
+    .brand-logo {
+      width: 28px; height: 28px; border-radius: 7px;
+      object-fit: contain; flex-shrink: 0;
+    }
+    .brand-name {
+      font-size: 13.5px; font-weight: 700;
+      color: rgba(255,255,255,0.92); letter-spacing: -0.2px;
+      flex: 1;
+    }
     .sb-bell { margin-left: auto; }
 
-    .sb-user {
-      display: flex; align-items: center; gap: 9px;
-      padding: 12px 16px;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
-      margin-bottom: 4px;
-      position: relative; z-index: 1;
-    }
-
-    .user-ava {
-      width: 28px; height: 28px; border-radius: 50%;
-      background: linear-gradient(135deg, var(--violet), var(--teal));
-      display: flex; align-items: center; justify-content: center;
-      font-size: 11px; font-weight: 700; color: #fff; flex-shrink: 0;
-    }
-    .user-name { font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.85); }
-    .user-role { font-size: 10px; color: rgba(255,255,255,0.35); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px; }
-
+    /* ─── Nav ─── */
     .sb-nav {
       flex: 1;
-      padding: 4px 8px;
+      padding: 6px 8px;
       position: relative; z-index: 1;
       display: flex;
       flex-direction: column;
+      overflow-y: auto;
+    }
+
+    .nav-divider {
+      height: 1px;
+      background: rgba(255,255,255,0.055);
+      margin: 6px 2px;
     }
 
     .nav-item {
       display: flex; align-items: center; gap: 9px;
-      padding: 8px 10px; border-radius: var(--r-md);
+      padding: 7.5px 10px 7.5px 13px;
+      border-radius: 7px;
       cursor: pointer;
       font-size: 13px; font-weight: 500;
-      color: rgba(255,255,255,0.45);
-      transition: background 0.15s, color 0.15s;
+      color: rgba(255,255,255,0.4);
+      transition: background 0.13s, color 0.13s;
       margin-bottom: 1px;
       text-decoration: none;
+      position: relative;
+      overflow: hidden;
     }
-    .nav-item:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.75); }
-    .nav-item.active { background: var(--violet-mid); color: #fff; }
-    .nav-item .material-icons-round { font-size: 17px; }
-    .nav-item.signout { color: rgba(255,255,255,0.3); }
-    .nav-item.signout:hover { background: rgba(244,63,94,0.12); color: var(--rose); }
-    .nav-item.admin-link { color: var(--amber); }
-    .nav-item.admin-link:hover { background: rgba(245,158,11,0.12); color: var(--amber); }
-    .nav-item.admin-link.active { background: rgba(245,158,11,0.18); color: var(--amber); }
-    .nav-item.theme-toggle { color: rgba(255,255,255,0.45); }
-    .nav-item.theme-toggle:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.75); }
+    .nav-item:hover {
+      background: rgba(255,255,255,0.055);
+      color: rgba(255,255,255,0.78);
+    }
+    .nav-item.active {
+      background: rgba(255,255,255,0.07);
+      color: #fff;
+    }
+    /* Left indicator bar */
+    .nav-item.active::before {
+      content: '';
+      position: absolute; left: 0; top: 18%; height: 64%;
+      width: 2.5px; border-radius: 0 2px 2px 0;
+      background: var(--violet);
+    }
+    .nav-item .material-icons-round {
+      font-size: 17px;
+      color: inherit;
+      opacity: 0.7;
+      flex-shrink: 0;
+    }
+    .nav-item.active .material-icons-round { opacity: 1; }
+    .nav-item:hover .material-icons-round   { opacity: 0.9; }
 
+    .nav-item.signout { color: rgba(255,255,255,0.28); }
+    .nav-item.signout:hover { background: rgba(244,63,94,0.1); color: var(--rose); }
+
+    .nav-item.admin-link { color: rgba(245,158,11,0.65); }
+    .nav-item.admin-link:hover { background: rgba(245,158,11,0.08); color: var(--amber); }
+    .nav-item.admin-link.active {
+      background: rgba(245,158,11,0.1);
+      color: var(--amber);
+    }
+    .nav-item.admin-link.active::before { background: var(--amber); }
+
+    .nav-item.theme-toggle { color: rgba(255,255,255,0.4); }
+    .nav-item.theme-toggle:hover { background: rgba(255,255,255,0.055); color: rgba(255,255,255,0.78); }
+
+    /* ─── Footer ─── */
     .sb-footer {
-      padding: 10px 8px;
-      border-top: 1px solid rgba(255,255,255,0.06);
+      padding: 8px 8px 10px;
+      border-top: 1px solid rgba(255,255,255,0.055);
       position: relative; z-index: 1;
     }
 
+    /* ─── AI FAB ─── */
     .ai-fab {
       position: fixed;
       bottom: 28px;
