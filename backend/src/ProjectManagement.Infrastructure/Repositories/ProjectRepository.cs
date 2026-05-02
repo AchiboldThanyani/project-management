@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using ProjectManagement.Application.Common;
 using ProjectManagement.Application.Interfaces;
 using ProjectManagement.Domain.Entities;
 using ProjectManagement.Infrastructure.Persistence;
@@ -26,5 +27,20 @@ public class ProjectRepository(ApplicationDbContext context)
             .ToListAsync(ct);
 
         return (items, total);
+    }
+
+    public async Task<IReadOnlyList<ProjectSummary>> GetProjectSummariesForUserAsync(
+        string userId, bool seeAll, CancellationToken ct = default)
+    {
+        var query = context.Projects.AsQueryable();
+
+        if (!seeAll)
+            query = query.Where(p =>
+                p.OwnerId == userId ||
+                context.ProjectMembers.Any(m => m.ProjectId == p.Id && m.UserId == userId));
+
+        return await query
+            .Select(p => new ProjectSummary(p.Id, p.Name))
+            .ToListAsync(ct);
     }
 }
