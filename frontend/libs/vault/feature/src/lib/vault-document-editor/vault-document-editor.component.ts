@@ -34,12 +34,6 @@ interface ActiveStates {
   template: `
     <div class="editor-wrap">
 
-      <!-- Title -->
-      <div class="title-row">
-        <input class="doc-title" [value]="titleValue" (input)="onTitleInput($event)"
-               placeholder="Untitled document" [readonly]="readonly" />
-      </div>
-
       <!-- Toolbar -->
       <div *ngIf="!readonly" class="toolbar">
         <div class="tb-group">
@@ -55,9 +49,9 @@ interface ActiveStates {
         </div>
         <span class="tb-sep"></span>
         <div class="tb-group">
-          <button class="tb-btn" [class.active]="active().h1" (click)="cmdH(1)" title="H1"><span class="material-icons-round">looks_one</span></button>
-          <button class="tb-btn" [class.active]="active().h2" (click)="cmdH(2)" title="H2"><span class="material-icons-round">looks_two</span></button>
-          <button class="tb-btn" [class.active]="active().h3" (click)="cmdH(3)" title="H3"><span class="material-icons-round">looks_3</span></button>
+          <button class="tb-btn" [class.active]="active().h1" (click)="cmdH(1)" title="H1"><b style="font-size:11px">H1</b></button>
+          <button class="tb-btn" [class.active]="active().h2" (click)="cmdH(2)" title="H2"><b style="font-size:11px">H2</b></button>
+          <button class="tb-btn" [class.active]="active().h3" (click)="cmdH(3)" title="H3"><b style="font-size:11px">H3</b></button>
         </div>
         <span class="tb-sep"></span>
         <div class="tb-group">
@@ -76,6 +70,11 @@ interface ActiveStates {
           <button class="tb-btn"                                        (click)="insertTable()"            title="Table">       <span class="material-icons-round">table_chart</span></button>
           <button class="tb-btn"                                        (click)="insertImage()"            title="Image">       <span class="material-icons-round">image</span></button>
         </div>
+
+        <!-- Word count pill on the right -->
+        <div class="tb-right">
+          <span class="tb-word-count">{{ wordCount() }} words</span>
+        </div>
       </div>
 
       <!-- Link bar -->
@@ -88,10 +87,21 @@ interface ActiveStates {
         <button class="link-bar-btn"        (click)="closeLinkInput()" title="Cancel"><span class="material-icons-round">close</span></button>
       </div>
 
-      <!-- Editor -->
-      <div #editorEl class="tiptap-content" [class.readonly]="readonly"></div>
+      <!-- Page canvas -->
+      <div class="page-canvas">
+        <div class="page" [class.readonly]="readonly">
 
-      <!-- AI bar (floating) -->
+          <!-- Title lives inside the page -->
+          <input class="doc-title" [value]="titleValue" (input)="onTitleInput($event)"
+                 placeholder="Untitled document" [readonly]="readonly" />
+
+          <!-- Editor content -->
+          <div #editorEl class="tiptap-content"></div>
+
+        </div>
+      </div>
+
+      <!-- AI bar (docked above canvas bottom) -->
       <div *ngIf="!readonly" class="ai-bar">
         <!-- Mode toggle -->
         <div class="ai-mode">
@@ -107,7 +117,7 @@ interface ActiveStates {
           </button>
         </div>
 
-        <!-- Selection chip (persists after clicking input) -->
+        <!-- Selection chip -->
         <div *ngIf="aiMode() === 'edit' && (selectionWords() > 0 || savedSelWords() > 0)" class="selection-chip">
           <span class="material-icons-round chip-icon">text_fields</span>
           {{ selectionWords() > 0 ? selectionWords() : savedSelWords() }}w selected
@@ -133,55 +143,48 @@ interface ActiveStates {
         <span *ngIf="aiError()" class="ai-error">{{ aiError() }}</span>
 
         <!-- Word count -->
-        <span *ngIf="!aiError()" class="bar-word-count">{{ wordCount() }}w</span>
+        <span *ngIf="!aiError()" class="bar-word-count">{{ wordCount() }}w · {{ charCount() }}c</span>
       </div>
     </div>
   `,
   styles: [`
     :host { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
-
-    .editor-wrap { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; position: relative; }
-
-    /* ── Title ── */
-    .title-row { padding: 28px 48px 16px; flex-shrink: 0; border-bottom: 1px solid var(--border); }
-    .doc-title {
-      width: 100%; border: none; outline: none;
-      font-size: 28px; font-weight: 700; letter-spacing: -0.3px;
-      background: transparent; color: var(--ink); padding: 0; line-height: 1.3;
-    }
-    .doc-title::placeholder { color: var(--soft); }
+    .editor-wrap { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
 
     /* ── Toolbar ── */
     .toolbar {
-      display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
-      padding: 0 12px; min-height: 44px;
+      display: flex; align-items: center; gap: 2px; flex-wrap: wrap;
+      padding: 0 16px; min-height: 42px;
       border-bottom: 1px solid var(--border);
-      background: var(--white); flex-shrink: 0; position: sticky; top: 0; z-index: 10;
+      background: var(--white); flex-shrink: 0; z-index: 10;
     }
-    .tb-group { display: flex; align-items: center; gap: 2px; }
+    .tb-group { display: flex; align-items: center; gap: 1px; }
     .tb-btn {
-      width: 32px; height: 32px; border: none; background: transparent;
-      border-radius: var(--r-sm); cursor: pointer; color: var(--ink-4);
-      display: flex; align-items: center; justify-content: center; transition: background 0.1s, color 0.1s;
+      min-width: 30px; height: 30px; padding: 0 6px; border: none; background: transparent;
+      border-radius: 6px; cursor: pointer; color: var(--ink-4);
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.1s, color 0.1s; font-family: inherit;
     }
-    .tb-btn .material-icons-round { font-size: 16px; }
+    .tb-btn .material-icons-round { font-size: 17px; }
     .tb-btn:hover { background: var(--surface); color: var(--ink); }
     .tb-btn.active { background: var(--violet-mid); color: var(--violet); }
-    .tb-sep { width: 1px; height: 16px; background: var(--border); margin: 0 2px; flex-shrink: 0; }
+    .tb-sep { width: 1px; height: 18px; background: var(--border); margin: 0 4px; flex-shrink: 0; }
+    .tb-right { margin-left: auto; }
+    .tb-word-count { font-size: 11px; color: var(--muted); font-weight: 500; }
 
     /* ── Link bar ── */
     .link-bar {
-      display: flex; align-items: center; gap: 6px; padding: 6px 12px;
+      display: flex; align-items: center; gap: 6px; padding: 6px 16px;
       border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0;
     }
     .link-bar-icon { font-size: 16px; color: var(--muted); }
     .link-input {
-      flex: 1; border: 1px solid var(--border); border-radius: var(--r-sm);
-      padding: 4px 10px; font-size: 13px; background: var(--white); color: var(--ink); outline: none;
+      flex: 1; border: 1px solid var(--border); border-radius: 6px;
+      padding: 5px 10px; font-size: 13px; background: var(--white); color: var(--ink); outline: none;
     }
-    .link-input:focus { border-color: var(--violet); }
+    .link-input:focus { border-color: var(--violet); box-shadow: 0 0 0 3px var(--violet-mid); }
     .link-bar-btn {
-      width: 28px; height: 28px; border: none; border-radius: var(--r-sm);
+      width: 28px; height: 28px; border: none; border-radius: 6px;
       background: transparent; cursor: pointer; color: var(--muted);
       display: flex; align-items: center; justify-content: center;
     }
@@ -192,26 +195,59 @@ interface ActiveStates {
     .link-bar-btn.remove { color: #ef4444; }
     .link-bar-btn.remove:hover { background: #fef2f2; }
 
-    /* ── Editor ── */
-    .tiptap-content {
-      flex: 1; overflow-y: auto; padding: 24px 48px 100px;
-      outline: none; font-size: 15px; line-height: 1.75; color: var(--ink);
+    /* ── Page canvas ── */
+    .page-canvas {
+      flex: 1; overflow-y: auto;
+      background: var(--surface, #f5f5f5);
+      padding: 40px 24px 140px;
+      display: flex; flex-direction: column; align-items: center;
     }
-    .tiptap-content.readonly { cursor: default; }
 
-    /* ── AI bar (floating) ── */
+    /* ── Page ── */
+    .page {
+      width: 100%; max-width: 760px;
+      background: var(--white);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 6px 24px rgba(0,0,0,0.06);
+      padding: 64px 80px 80px;
+      min-height: 1000px;
+      position: relative;
+    }
+    @media (max-width: 900px) { .page { padding: 40px 40px 60px; } }
+
+    /* ── Document title (inside page) ── */
+    .doc-title {
+      display: block; width: 100%;
+      border: none; outline: none;
+      font-size: 34px; font-weight: 700; letter-spacing: -0.5px;
+      background: transparent; color: var(--ink);
+      padding: 0; line-height: 1.2; margin-bottom: 4px;
+      font-family: inherit;
+    }
+    .doc-title::placeholder { color: var(--soft); }
+    .page.readonly .doc-title { cursor: default; }
+
+    /* ── Editor content ── */
+    .tiptap-content { outline: none; }
+
+    /* ── AI bar ── */
     .ai-bar {
-      position: absolute; bottom: 16px; left: 32px; right: 32px; z-index: 20;
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(700px, calc(100vw - 280px));
+      z-index: 20;
       display: flex; align-items: center; gap: 8px;
-      padding: 8px 12px;
+      padding: 8px 10px;
       background: var(--white);
       border: 1px solid var(--border);
       border-radius: 14px;
-      box-shadow: 0 4px 24px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06);
+      box-shadow: 0 4px 32px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.06);
     }
-
     .ai-mode {
-      display: flex; border: 1px solid var(--border); border-radius: var(--r-md);
+      display: flex; border: 1px solid var(--border); border-radius: 8px;
       overflow: hidden; flex-shrink: 0;
     }
     .ai-mode-btn {
@@ -221,64 +257,154 @@ interface ActiveStates {
       transition: background 0.12s, color 0.12s;
     }
     .ai-mode-btn .material-icons-round { font-size: 14px; }
-    .ai-mode-btn:hover { background: var(--border); color: var(--ink); }
+    .ai-mode-btn:hover { background: var(--surface); color: var(--ink); }
     .ai-mode-btn.active { background: var(--violet); color: #fff; }
     .mode-label { white-space: nowrap; }
-
     .selection-chip {
       display: flex; align-items: center; gap: 4px; padding: 3px 8px;
       background: var(--violet-mid); color: var(--violet);
       border-radius: 99px; font-size: 11px; font-weight: 600; flex-shrink: 0;
     }
     .chip-icon { font-size: 13px; }
-
     .ai-input {
-      flex: 1; border: 1px solid var(--border); border-radius: var(--r-md);
+      flex: 1; border: 1px solid var(--border); border-radius: 8px;
       padding: 7px 12px; font-size: 13px; background: var(--white); color: var(--ink);
-      outline: none; transition: border-color 0.15s; font-family: inherit;
+      outline: none; transition: border-color 0.15s, box-shadow 0.15s; font-family: inherit;
     }
-    .ai-input:focus { border-color: var(--violet); }
-
+    .ai-input:focus { border-color: var(--violet); box-shadow: 0 0 0 3px var(--violet-mid); }
     .ai-send {
-      width: 32px; height: 32px; border: none; border-radius: var(--r-md);
+      width: 32px; height: 32px; border: none; border-radius: 8px;
       background: var(--violet); color: #fff; cursor: pointer; flex-shrink: 0;
-      display: flex; align-items: center; justify-content: center;
-      transition: opacity 0.15s;
+      display: flex; align-items: center; justify-content: center; transition: opacity 0.15s;
     }
     .ai-send .material-icons-round { font-size: 16px; }
     .ai-send:hover:not(:disabled) { opacity: 0.85; }
     .ai-send:disabled { opacity: 0.45; cursor: not-allowed; }
     .ai-send.loading { opacity: 0.7; }
-
     .bar-word-count { font-size: 11px; color: var(--muted); flex-shrink: 0; white-space: nowrap; padding: 0 4px; }
     .ai-error { font-size: 11px; color: #ef4444; flex-shrink: 0; white-space: nowrap; padding: 0 4px; font-weight: 500; }
 
-    /* ── ProseMirror ── */
-    :host ::ng-deep .tiptap-content .ProseMirror { outline: none; min-height: 300px; }
-    :host ::ng-deep .tiptap-content p.is-editor-empty:first-child::before {
-      content: attr(data-placeholder); color: var(--soft); pointer-events: none; float: left; height: 0;
+    /* ── ProseMirror content styles ── */
+    :host ::ng-deep .tiptap-content .ProseMirror {
+      outline: none;
+      min-height: 500px;
+      font-size: 15.5px;
+      line-height: 1.8;
+      color: var(--ink);
+      caret-color: var(--violet);
     }
-    :host ::ng-deep .tiptap-content h1 { font-size: 1.75em; font-weight: 700; letter-spacing: -0.3px; margin: 1.4em 0 0.4em; line-height: 1.25; }
-    :host ::ng-deep .tiptap-content h2 { font-size: 1.35em; font-weight: 700; letter-spacing: -0.2px; margin: 1.2em 0 0.35em; line-height: 1.3; }
-    :host ::ng-deep .tiptap-content h3 { font-size: 1.1em; font-weight: 600; margin: 1em 0 0.3em; line-height: 1.4; }
-    :host ::ng-deep .tiptap-content p { margin: 0.25em 0; }
-    :host ::ng-deep .tiptap-content a { color: var(--violet); text-decoration: underline; cursor: pointer; }
-    :host ::ng-deep .tiptap-content a:hover { opacity: 0.8; }
-    :host ::ng-deep .tiptap-content ul, :host ::ng-deep .tiptap-content ol { padding-left: 1.5em; margin: 0.5em 0; }
-    :host ::ng-deep .tiptap-content li { margin: 0.2em 0; }
-    :host ::ng-deep .tiptap-content li > p { margin: 0; }
-    :host ::ng-deep .tiptap-content blockquote { border-left: 3px solid var(--violet); margin: 1em 0; padding: 4px 0 4px 16px; color: var(--ink-4); font-style: italic; }
-    :host ::ng-deep .tiptap-content code { background: var(--surface); color: #c026d3; padding: 2px 6px; border-radius: 4px; font-size: 0.875em; font-family: 'Fira Code', 'Cascadia Code', monospace; }
-    :host ::ng-deep .tiptap-content pre { background: #1e1e2e; color: #cdd6f4; padding: 16px 20px; border-radius: var(--r-lg); margin: 1em 0; overflow-x: auto; line-height: 1.6; }
-    :host ::ng-deep .tiptap-content pre code { background: none; color: inherit; padding: 0; font-size: 13px; font-family: 'Fira Code', 'Cascadia Code', monospace; }
-    :host ::ng-deep .tiptap-content hr { border: none; border-top: 1px solid var(--border); margin: 1.5em 0; }
-    :host ::ng-deep .tiptap-content table { border-collapse: collapse; width: 100%; margin: 1em 0; font-size: 14px; }
-    :host ::ng-deep .tiptap-content th, :host ::ng-deep .tiptap-content td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
-    :host ::ng-deep .tiptap-content th { background: var(--surface); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-4); }
-    :host ::ng-deep .tiptap-content td { vertical-align: top; }
-    :host ::ng-deep .tiptap-content .selectedCell { background: var(--violet-mid); }
-    :host ::ng-deep .tiptap-content img { max-width: 100%; border-radius: var(--r-lg); margin: 1em 0; display: block; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-    :host ::ng-deep .tiptap-content ::selection { background: var(--violet-mid); }
+
+    /* Placeholder */
+    :host ::ng-deep .tiptap-content .ProseMirror p.is-editor-empty:first-child::before {
+      content: attr(data-placeholder);
+      color: var(--soft);
+      pointer-events: none;
+      float: left;
+      height: 0;
+    }
+
+    /* Paragraphs */
+    :host ::ng-deep .tiptap-content .ProseMirror p {
+      margin: 0.9em 0;
+    }
+    :host ::ng-deep .tiptap-content .ProseMirror > :first-child { margin-top: 0; }
+    :host ::ng-deep .tiptap-content .ProseMirror > :last-child  { margin-bottom: 0; }
+
+    /* Headings */
+    :host ::ng-deep .tiptap-content .ProseMirror h1 {
+      font-size: 2em; font-weight: 700; letter-spacing: -0.4px;
+      margin: 1.6em 0 0.5em; line-height: 1.2; color: var(--ink);
+      border-bottom: 2px solid var(--border); padding-bottom: 0.3em;
+    }
+    :host ::ng-deep .tiptap-content .ProseMirror h2 {
+      font-size: 1.45em; font-weight: 700; letter-spacing: -0.2px;
+      margin: 1.4em 0 0.4em; line-height: 1.25; color: var(--ink);
+    }
+    :host ::ng-deep .tiptap-content .ProseMirror h3 {
+      font-size: 1.15em; font-weight: 600;
+      margin: 1.2em 0 0.35em; line-height: 1.35; color: var(--ink);
+    }
+    :host ::ng-deep .tiptap-content .ProseMirror h1:first-child,
+    :host ::ng-deep .tiptap-content .ProseMirror h2:first-child,
+    :host ::ng-deep .tiptap-content .ProseMirror h3:first-child { margin-top: 0; }
+
+    /* Links */
+    :host ::ng-deep .tiptap-content .ProseMirror a {
+      color: var(--violet); text-decoration: underline; text-underline-offset: 2px; cursor: pointer;
+    }
+    :host ::ng-deep .tiptap-content .ProseMirror a:hover { opacity: 0.75; }
+
+    /* Lists */
+    :host ::ng-deep .tiptap-content .ProseMirror ul,
+    :host ::ng-deep .tiptap-content .ProseMirror ol {
+      padding-left: 1.6em; margin: 0.75em 0;
+    }
+    :host ::ng-deep .tiptap-content .ProseMirror li { margin: 0.35em 0; }
+    :host ::ng-deep .tiptap-content .ProseMirror li > p { margin: 0; }
+
+    /* Blockquote */
+    :host ::ng-deep .tiptap-content .ProseMirror blockquote {
+      border-left: 4px solid var(--violet);
+      margin: 1.25em 0; padding: 8px 0 8px 20px;
+      color: var(--ink-4); font-style: italic;
+      background: var(--violet-mid);
+      border-radius: 0 6px 6px 0;
+    }
+    :host ::ng-deep .tiptap-content .ProseMirror blockquote p { margin: 0; }
+
+    /* Inline code */
+    :host ::ng-deep .tiptap-content .ProseMirror code {
+      background: rgba(99,102,241,0.08); color: #7c3aed;
+      padding: 2px 6px; border-radius: 5px;
+      font-size: 0.875em; font-family: 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+      border: 1px solid rgba(99,102,241,0.15);
+    }
+
+    /* Code block */
+    :host ::ng-deep .tiptap-content .ProseMirror pre {
+      background: #1e1e2e; color: #cdd6f4;
+      padding: 20px 24px; border-radius: 10px; margin: 1.25em 0;
+      overflow-x: auto; line-height: 1.65;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+    }
+    :host ::ng-deep .tiptap-content .ProseMirror pre code {
+      background: none; color: inherit; padding: 0; border: none;
+      font-size: 13.5px; font-family: 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+    }
+
+    /* Horizontal rule */
+    :host ::ng-deep .tiptap-content .ProseMirror hr {
+      border: none; border-top: 2px solid var(--border); margin: 2em 0;
+    }
+
+    /* Table */
+    :host ::ng-deep .tiptap-content .ProseMirror table {
+      border-collapse: collapse; width: 100%; margin: 1.25em 0;
+      font-size: 14px; border-radius: 8px; overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    :host ::ng-deep .tiptap-content .ProseMirror th,
+    :host ::ng-deep .tiptap-content .ProseMirror td {
+      border: 1px solid var(--border); padding: 10px 14px; text-align: left; vertical-align: top;
+    }
+    :host ::ng-deep .tiptap-content .ProseMirror th {
+      background: var(--surface); font-weight: 600; font-size: 12px;
+      text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-4);
+    }
+    :host ::ng-deep .tiptap-content .ProseMirror tr:nth-child(even) td { background: rgba(0,0,0,0.015); }
+    :host ::ng-deep .tiptap-content .ProseMirror .selectedCell { background: var(--violet-mid) !important; }
+
+    /* Images */
+    :host ::ng-deep .tiptap-content .ProseMirror img {
+      max-width: 100%; border-radius: 8px; margin: 1.25em 0;
+      display: block; box-shadow: 0 2px 12px rgba(0,0,0,0.10);
+    }
+
+    /* Text selection */
+    :host ::ng-deep .tiptap-content .ProseMirror ::selection { background: var(--violet-mid); }
+
+    /* Focus outline on the page */
+    :host ::ng-deep .tiptap-content .ProseMirror:focus { outline: none; }
   `],
 })
 export class VaultDocumentEditorComponent implements AfterViewInit, OnDestroy {

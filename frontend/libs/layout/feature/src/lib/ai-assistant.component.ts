@@ -1,4 +1,4 @@
-import { Component, signal, computed, inject, Input, OnInit, ElementRef, ViewChild, AfterViewChecked } from '@angular/core';
+import { Component, signal, computed, inject, Input, OnInit, ElementRef, ViewChild, AfterViewChecked, HostBinding } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -30,7 +30,7 @@ const QUICK_PROMPTS: { icon: string; label: string }[] = [
   imports: [CommonModule, FormsModule],
   template: `
     <!-- Floating trigger -->
-    <button class="ai-fab" (click)="toggle()" [class.open]="open()">
+    <button class="ai-fab" (mousedown)="startDrag($event)" (click)="onFabClick()" [class.open]="open()">
       <span class="material-icons-round fab-icon">{{ open() ? 'close' : 'auto_awesome' }}</span>
       @if (!open()) { <span class="fab-label">Ask AI</span> }
     </button>
@@ -311,11 +311,15 @@ const QUICK_PROMPTS: { icon: string; label: string }[] = [
   `,
   styles: [`
     /* ── FAB ─────────────────────────────────────────── */
+    :host { user-select: none; }
+    :host(.dragging) { cursor: grabbing !important; }
+    :host(.dragging) .ai-fab { cursor: grabbing !important; transform: scale(1.06); }
+
     .ai-fab {
       display: flex; align-items: center; gap: 8px;
       height: 48px; padding: 0 20px; border-radius: 24px;
       background: var(--violet); border: none; color: #fff;
-      cursor: pointer; font-size: 14px; font-weight: 600;
+      cursor: grab; font-size: 14px; font-weight: 600;
       font-family: 'DM Sans', sans-serif;
       box-shadow: 0 4px 24px rgba(99,102,241,.45);
       transition: transform .2s, box-shadow .2s, border-radius .2s, padding .2s;
@@ -325,7 +329,7 @@ const QUICK_PROMPTS: { icon: string; label: string }[] = [
     .ai-fab.open {
       padding: 0 14px; border-radius: 14px;
       background: var(--surface); color: var(--ink);
-      border: 1px solid var(--border); box-shadow: none;
+      border: 1px solid var(--border); box-shadow: none; cursor: grab;
     }
     .ai-fab .fab-icon { font-size: 20px; }
     .fab-label { letter-spacing: .1px; }
@@ -829,10 +833,13 @@ export class AiAssistantComponent implements OnInit, AfterViewChecked {
   @ViewChild('messageList')     private messageList?:     ElementRef<HTMLDivElement>;
   @ViewChild('planMessageList') private planMessageList?: ElementRef<HTMLDivElement>;
 
+  @HostBinding('class.dragging') isDragging = false;
+
   private aiSvc = inject(AiService);
   private projectSvc = inject(ProjectService);
   private sanitizer = inject(DomSanitizer);
   private authSvc = inject(AuthService);
+  private el = inject(ElementRef);
 
   // Plan Mode state
   mode            = signal<'ask' | 'plan'>('ask');
@@ -860,9 +867,67 @@ export class AiAssistantComponent implements OnInit, AfterViewChecked {
   quickPrompts = QUICK_PROMPTS;
 
   private shouldScroll = false;
+  private dragMoved = false;
+  private readonly FAB_POS_KEY = 'ai-fab-pos';
 
   ngOnInit() {
     this.projectSvc.getAll().subscribe(list => this.projects.set(list));
+    const saved = localStorage.getItem(this.FAB_POS_KEY);
+    if (saved) {
+      try {
+        const { top, left } = JSON.parse(saved) as { top: number; left: number };
+        this.applyPos(top, left);
+      } catch { /* ignore corrupt data */ }
+    }
+  }
+
+  startDrag(event: MouseEvent) {
+    if (event.button !== 0) return;
+    event.preventDefault();
+
+    const host = this.el.nativeElement as HTMLElement;
+    const rect = host.getBoundingClientRect();
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const startTop = rect.top;
+    const startLeft = rect.left;
+    this.dragMoved = false;
+
+    const onMove = (e: MouseEvent) => {
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      if (!this.dragMoved && Math.hypot(dx, dy) < 5) return;
+      if (!this.dragMoved) { this.dragMoved = true; this.isDragging = true; }
+      const newTop  = Math.max(8, Math.min(window.innerHeight - rect.height - 8, startTop  + dy));
+      const newLeft = Math.max(8, Math.min(window.innerWidth  - rect.width  - 8, startLeft + dx));
+      this.applyPos(newTop, newLeft);
+    };
+
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      this.isDragging = false;
+      if (this.dragMoved) {
+        const r = (this.el.nativeElement as HTMLElement).getBoundingClientRect();
+        localStorage.setItem(this.FAB_POS_KEY, JSON.stringify({ top: r.top, left: r.left }));
+      }
+    };
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }
+
+  private applyPos(top: number, left: number) {
+    const s = (this.el.nativeElement as HTMLElement).style;
+    s.top = top + 'px';
+    s.left = left + 'px';
+    s.bottom = 'auto';
+    s.right = 'auto';
+  }
+
+  onFabClick() {
+    if (this.dragMoved) { this.dragMoved = false; return; }
+    this.open.update(v => !v);
   }
 
   toHtml(text: string): SafeHtml {
@@ -874,8 +939,7 @@ export class AiAssistantComponent implements OnInit, AfterViewChecked {
     return this.projects().find(p => p.id === this.selectedProjectId)?.name ?? '';
   }
 
-  toggle() { this.open.update(v => !v); }
-  close()  { this.open.set(false); }
+  close() { this.open.set(false); }
   clearChat() { this.messages.set([]); this.suggestions.set([]); }
 
   switchMode(m: 'ask' | 'plan') {
