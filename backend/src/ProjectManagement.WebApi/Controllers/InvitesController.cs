@@ -6,13 +6,15 @@ using ProjectManagement.Application.Features.Invites.GenerateInvite;
 using ProjectManagement.Application.Features.Invites.GetInviteInfo;
 using ProjectManagement.Application.Features.Invites.GetInvitesByProject;
 using ProjectManagement.Application.Features.Invites.RevokeInvite;
+using ProjectManagement.Domain.Enums;
+using ProjectManagement.WebApi.Authorization;
 using ProjectManagement.WebApi.Extensions;
 
 namespace ProjectManagement.WebApi.Controllers;
 
 [ApiController]
 [Route("api/projects/{projectId:guid}/invites")]
-[Authorize(Roles = "Staff,ProjectManager,Admin")]
+[AuthorizeRoles(UserRole.Staff, UserRole.ProjectManager, UserRole.Admin)]
 public class InvitesController(IMediator mediator) : ControllerBase
 {
     [HttpPost]

@@ -13,6 +13,8 @@ namespace ProjectManagement.Application.Features.Comments.CreateComment;
 internal sealed class CreateCommentCommandHandler(
     ICommentRepository repository,
     ITaskRepository taskRepository,
+    ICurrentUserService currentUser,
+    IProjectPermissionService permissions,
     INotificationRepository notificationRepo,
     INotificationService notificationService,
     IUnitOfWork unitOfWork,
@@ -35,6 +37,9 @@ internal sealed class CreateCommentCommandHandler(
         var task = await taskRepository.GetByIdAsync(request.TaskId, cancellationToken);
         if (task is null)
             return Error.NotFound("Task.NotFound", $"Task {request.TaskId} was not found.");
+
+        if (!await permissions.HasProjectRoleAsync(task.ProjectId, currentUser.UserId, ProjectMemberRole.Member, cancellationToken))
+            return Error.Forbidden("Comment.Forbidden", "You must be a project member to comment on tasks.");
 
         var comment = Comment.Create(request.Content, request.TaskId, request.AuthorId);
         await repository.AddAsync(comment, cancellationToken);

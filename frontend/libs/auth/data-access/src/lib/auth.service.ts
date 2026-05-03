@@ -46,6 +46,7 @@ export class AuthService {
   }
 
   logout() {
+    this.http.post(`${environment.apiUrl}/auth/logout`, {}).subscribe({ error: () => {} });
     this.clearSession();
     this.router.navigate(['/auth/login']);
   }

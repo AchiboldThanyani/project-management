@@ -1,13 +1,14 @@
 using MediatR;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ProjectManagement.Application.Features.Tickets.GetPortalTickets;
+using ProjectManagement.Domain.Enums;
+using ProjectManagement.WebApi.Authorization;
 
 namespace ProjectManagement.WebApi.Controllers;
 
 [ApiController]
 [Route("api/admin/portal")]
-[Authorize(Roles = "Admin,ProjectManager")]
+[AuthorizeRoles(UserRole.Admin, UserRole.ProjectManager)]
 public class AdminPortalController(ISender sender) : ControllerBase
 {
     [HttpGet("tickets")]

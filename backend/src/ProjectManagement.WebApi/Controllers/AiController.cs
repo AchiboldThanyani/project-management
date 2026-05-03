@@ -1,17 +1,18 @@
 using MediatR;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ProjectManagement.Application.Features.Ai.Ask;
 using ProjectManagement.Application.Features.Ai.Plan;
 using ProjectManagement.Application.Features.Ai.Plan.Conversation;
 using ProjectManagement.Application.Features.Ai.Vault;
+using ProjectManagement.Domain.Enums;
+using ProjectManagement.WebApi.Authorization;
 using ProjectManagement.WebApi.Extensions;
 
 namespace ProjectManagement.WebApi.Controllers;
 
 [ApiController]
 [Route("api/ai")]
-[Authorize(Roles = "ProjectManager,Admin")]
+[AuthorizeRoles(UserRole.ProjectManager, UserRole.Admin)]
 public class AiController(IMediator mediator) : ControllerBase
 {
     [HttpPost("ask")]

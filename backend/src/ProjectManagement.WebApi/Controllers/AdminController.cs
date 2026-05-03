@@ -1,14 +1,14 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ProjectManagement.Application.Features.Users.DTOs;
 using ProjectManagement.Application.Interfaces;
 using ProjectManagement.Domain.Enums;
+using ProjectManagement.WebApi.Authorization;
 
 namespace ProjectManagement.WebApi.Controllers;
 
 [ApiController]
 [Route("api/admin")]
-[Authorize(Roles = "Admin")]
+[AuthorizeRoles(UserRole.Admin)]
 public class AdminController(IUserRepository users) : ControllerBase
 {
     [HttpGet("users")]

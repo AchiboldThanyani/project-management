@@ -30,6 +30,16 @@ public class AuthController(IMediator mediator, UserManager<ApplicationUser> use
     public async Task<ActionResult<AuthResponseDto>> Refresh([FromBody] RefreshTokenDto dto, CancellationToken ct)
         => (await mediator.Send(new RefreshTokenCommand(dto.RefreshToken), ct)).ToActionResult(this);
 
+    [HttpPost("logout")]
+    [Authorize]
+    public async Task<IActionResult> Logout(CancellationToken ct)
+    {
+        var userId = User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+        if (userId is null) return Unauthorized();
+        await mediator.Send(new LogoutCommand(userId), ct);
+        return NoContent();
+    }
+
     [HttpGet("me")]
     [Authorize]
     public async Task<ActionResult<UserProfileDto>> GetMe(CancellationToken ct)

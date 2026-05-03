@@ -22,6 +22,7 @@ using ProjectManagement.Application.Features.Ai.Plan.AddPlanTasks;
 using ProjectManagement.Application.Features.Ai.Plan.CreateProjectWithPlan;
 using ProjectManagement.Application.Features.Tasks.DTOs;
 using ProjectManagement.Domain.Enums;
+using ProjectManagement.WebApi.Authorization;
 using ProjectManagement.WebApi.Extensions;
 
 namespace ProjectManagement.WebApi.Controllers;
@@ -104,7 +105,7 @@ public class ProjectsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("from-plan")]
-    [Authorize(Roles = "ProjectManager,Admin")]
+    [AuthorizeRoles(UserRole.ProjectManager, UserRole.Admin)]
     public async Task<ActionResult<ProjectDto>> CreateFromPlan(
         [FromBody] CreateFromPlanRequest request, CancellationToken ct)
     {
@@ -115,7 +116,7 @@ public class ProjectsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{id:guid}/plan-tasks")]
-    [Authorize(Roles = "ProjectManager,Admin")]
+    [AuthorizeRoles(UserRole.ProjectManager, UserRole.Admin)]
     public async Task<ActionResult<IReadOnlyList<TaskDto>>> AddPlanTasks(
         Guid id, [FromBody] AddPlanTasksRequest request, CancellationToken ct)
         => (await mediator.Send(new AddPlanTasksCommand(id, request.Tasks), ct)).ToActionResult(this);

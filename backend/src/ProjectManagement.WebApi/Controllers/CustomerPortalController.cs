@@ -1,5 +1,4 @@
 using MediatR;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ProjectManagement.Application.Features.Projects.DTOs;
 using ProjectManagement.Application.Features.Projects.GetPortalProjects;
@@ -10,6 +9,7 @@ using ProjectManagement.Application.Features.Tickets.GetTicketById;
 using ProjectManagement.Application.Features.Tickets.GetTicketComments;
 using ProjectManagement.Application.Features.Tickets.SubmitTicket;
 using ProjectManagement.Domain.Enums;
+using ProjectManagement.WebApi.Authorization;
 using ProjectManagement.WebApi.Extensions;
 
 namespace ProjectManagement.WebApi.Controllers;
@@ -17,7 +17,7 @@ namespace ProjectManagement.WebApi.Controllers;
 /// <summary>Client-facing portal endpoints — only accessible to Client role.</summary>
 [ApiController]
 [Route("api/portal")]
-[Authorize(Roles = "Client")]
+[AuthorizeRoles(UserRole.Client)]
 public class CustomerPortalController(IMediator mediator) : ControllerBase
 {
     [HttpGet("projects")]

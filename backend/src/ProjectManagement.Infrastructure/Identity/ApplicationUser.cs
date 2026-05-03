@@ -10,6 +10,7 @@ public class ApplicationUser : IdentityUser
     public string? AvatarUrl { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public string? RefreshToken { get; set; }
+    public string? PreviousRefreshToken { get; set; }
     public DateTime? RefreshTokenExpiresAt { get; set; }
     public UserRole Role { get; set; } = UserRole.Staff;
 }

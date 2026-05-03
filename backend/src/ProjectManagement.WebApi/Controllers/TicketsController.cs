@@ -1,5 +1,4 @@
 using MediatR;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ProjectManagement.Application.Features.Tickets.AddTicketComment;
 using ProjectManagement.Application.Features.Tickets.ConvertTicketToTask;
@@ -9,6 +8,7 @@ using ProjectManagement.Application.Features.Tickets.GetTicketComments;
 using ProjectManagement.Application.Features.Tickets.GetTicketsByProject;
 using ProjectManagement.Application.Features.Tickets.UpdateTicketStatus;
 using ProjectManagement.Domain.Enums;
+using ProjectManagement.WebApi.Authorization;
 using ProjectManagement.WebApi.Extensions;
 
 namespace ProjectManagement.WebApi.Controllers;
@@ -16,7 +16,7 @@ namespace ProjectManagement.WebApi.Controllers;
 /// <summary>Internal dev-side ticket endpoints.</summary>
 [ApiController]
 [Route("api/projects/{projectId:guid}/tickets")]
-[Authorize(Roles = "Staff,ProjectManager,Admin")]
+[AuthorizeRoles(UserRole.Staff, UserRole.ProjectManager, UserRole.Admin)]
 public class TicketsController(IMediator mediator) : ControllerBase
 {
     [HttpGet]
