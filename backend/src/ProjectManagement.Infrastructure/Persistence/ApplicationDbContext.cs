@@ -38,6 +38,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<VaultFolder> VaultFolders => Set<VaultFolder>();
     public DbSet<VaultDocument> VaultDocuments => Set<VaultDocument>();
     public DbSet<VaultFile> VaultFiles => Set<VaultFile>();
+    public DbSet<PersonalAccessToken> PersonalAccessTokens => Set<PersonalAccessToken>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

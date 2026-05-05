@@ -100,7 +100,6 @@ import { AuthService } from '@pm/auth/data-access';
     </div>
   `,
   styles: [`
-    @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&display=swap');
 
     /* ── Split layout ── */
     .auth-split {
@@ -163,15 +162,15 @@ import { AuthService } from '@pm/auth/data-access';
     }
     .brand-logo img { width: 24px; height: 24px; object-fit: contain; }
     .brand-name {
-      font-family: 'Syne', sans-serif;
+      font-family: 'DM Sans', sans-serif;
       font-weight: 700; font-size: 16px;
       color: #1C1210; letter-spacing: -0.3px;
     }
 
     .art-title {
       margin: 0 0 16px;
-      font-family: 'Syne', sans-serif;
-      font-weight: 800; font-size: 52px;
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 700; font-size: 52px;
       line-height: 1.04; letter-spacing: -2.5px;
       color: #1C1210;
     }
@@ -220,8 +219,8 @@ import { AuthService } from '@pm/auth/data-access';
     .form-heading { margin-bottom: 40px; }
     .form-title {
       margin: 0 0 7px;
-      font-family: 'Syne', sans-serif;
-      font-weight: 800; font-size: 30px;
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 700; font-size: 30px;
       letter-spacing: -1px; color: #1C1210; line-height: 1.15;
     }
     .form-sub {

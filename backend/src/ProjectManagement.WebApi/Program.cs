@@ -1,11 +1,14 @@
 using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using ProjectManagement.Application;
 using ProjectManagement.Infrastructure;
+using ProjectManagement.Infrastructure.Auth;
 using ProjectManagement.WebApi;
 using ProjectManagement.WebApi.Middleware;
 using Scalar.AspNetCore;
@@ -63,9 +66,19 @@ builder.Services.AddAuthentication(options =>
         ValidAudience = jwtSettings["Audience"],
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Secret"]!))
     };
-});
+})
+.AddScheme<AuthenticationSchemeOptions, PersonalAccessTokenAuthHandler>(
+    PersonalAccessTokenAuthHandler.SchemeName, null);
 
-builder.Services.AddAuthorization();
+// Default policy accepts both JWT and API token — [Authorize] on any controller works for both
+builder.Services.AddAuthorization(options =>
+{
+    options.DefaultPolicy = new AuthorizationPolicyBuilder(
+            JwtBearerDefaults.AuthenticationScheme,
+            PersonalAccessTokenAuthHandler.SchemeName)
+        .RequireAuthenticatedUser()
+        .Build();
+});
 
 builder.Services.AddCors(options =>
 {
