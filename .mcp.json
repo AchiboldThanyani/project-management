@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "projecthub": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["mcp/dist/index.js"],
+      "env": {
+        "PROJECTHUB_TOKEN": "${PROJECTHUB_TOKEN}",
+        "PROJECTHUB_URL": "http://localhost:5000"
+      }
+    }
+  }
+}
