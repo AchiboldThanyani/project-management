@@ -4,7 +4,7 @@ services:
     environment:
       POSTGRES_DB: project_management
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: root
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-root}
     ports:
       - "5432:5432"
     volumes:
@@ -20,9 +20,10 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=project_management;Username=postgres;Password=root"
-      JwtSettings__Secret: "dev-only-secret-key-change-this-in-production-32chars!"
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=project_management;Username=postgres;Password=${POSTGRES_PASSWORD:-root}"
+      JwtSettings__Secret: ${JWT_SECRET:-dev-only-secret-key-change-this-in-production-32chars!}
+      AllowedOrigins: ${ALLOWED_ORIGINS:-http://localhost:4200}
     ports:
       - "5000:8080"
     depends_on:

@@ -24,6 +24,12 @@
       },
       "configurations": {
         "production": {
+          "fileReplacements": [
+            {
+              "replace": "libs/shared/util/src/lib/environment.ts",
+              "with": "libs/shared/util/src/lib/environment.prod.ts"
+            }
+          ],
           "budgets": [
             {
               "type": "initial",

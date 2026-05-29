@@ -1,6 +1,7 @@
 import { Injectable, OnDestroy } from '@angular/core';
 import * as signalR from '@microsoft/signalr';
 import { Subject } from 'rxjs';
+import { environment } from '@pm/shared/util';
 
 @Injectable({ providedIn: 'root' })
 export class BoardHubService implements OnDestroy {
@@ -13,7 +14,7 @@ export class BoardHubService implements OnDestroy {
     if (this.hub?.state === signalR.HubConnectionState.Connected) return;
 
     this.hub = new signalR.HubConnectionBuilder()
-      .withUrl('http://localhost:5059/hubs/boards', {
+      .withUrl(`${environment.hubUrl}/hubs/boards`, {
         accessTokenFactory: () => localStorage.getItem('access_token') ?? '',
       })
       .withAutomaticReconnect()
