@@ -13,7 +13,9 @@ public static class DbSeeder
     public static async Task SeedAdminUserAsync(IServiceProvider services)
     {
         using var scope = services.CreateScope();
+        var db          = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        await db.Database.MigrateAsync();
         await EnsureAdminAsync(userManager);
     }
 
